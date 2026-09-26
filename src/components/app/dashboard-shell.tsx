@@ -17,7 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export type NavItem = {
-  to: LinkProps["to"];
+  to: NonNullable<LinkProps["to"]>;
   label: string;
   icon: LucideIcon;
   exact?: boolean;
