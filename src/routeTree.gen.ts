@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as BusinessRouteImport } from './routes/business'
+import { Route as CustomerRouteImport } from './routes/customer'
 import { Route as BusinessIndexRouteImport } from './routes/business.index'
 import { Route as BusinessAnalyticsRouteImport } from './routes/business.analytics'
 import { Route as BusinessCustomersRouteImport } from './routes/business.customers'
@@ -20,6 +21,11 @@ import { Route as BusinessQrRouteImport } from './routes/business.qr'
 import { Route as BusinessRewardsRouteImport } from './routes/business.rewards'
 import { Route as BusinessSettingsRouteImport } from './routes/business.settings'
 import { Route as BusinessTransactionsRouteImport } from './routes/business.transactions'
+import { Route as CustomerIndexRouteImport } from './routes/customer.index'
+import { Route as CustomerDiscoverRouteImport } from './routes/customer.discover'
+import { Route as CustomerProfileRouteImport } from './routes/customer.profile'
+import { Route as CustomerRewardsRouteImport } from './routes/customer.rewards'
+import { Route as CustomerScanRouteImport } from './routes/customer.scan'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,6 +40,11 @@ const AdminRoute = AdminRouteImport.update({
 const BusinessRoute = BusinessRouteImport.update({
   id: '/business',
   path: '/business',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomerRoute = CustomerRouteImport.update({
+  id: '/customer',
+  path: '/customer',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BusinessIndexRoute = BusinessIndexRouteImport.update({
@@ -76,11 +87,37 @@ const BusinessTransactionsRoute = BusinessTransactionsRouteImport.update({
   path: '/transactions',
   getParentRoute: () => BusinessRoute,
 } as any)
+const CustomerIndexRoute = CustomerIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CustomerRoute,
+} as any)
+const CustomerDiscoverRoute = CustomerDiscoverRouteImport.update({
+  id: '/discover',
+  path: '/discover',
+  getParentRoute: () => CustomerRoute,
+} as any)
+const CustomerProfileRoute = CustomerProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => CustomerRoute,
+} as any)
+const CustomerRewardsRoute = CustomerRewardsRouteImport.update({
+  id: '/rewards',
+  path: '/rewards',
+  getParentRoute: () => CustomerRoute,
+} as any)
+const CustomerScanRoute = CustomerScanRouteImport.update({
+  id: '/scan',
+  path: '/scan',
+  getParentRoute: () => CustomerRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/business': typeof BusinessRouteWithChildren
+  '/customer': typeof CustomerRouteWithChildren
   '/business/analytics': typeof BusinessAnalyticsRoute
   '/business/customers': typeof BusinessCustomersRoute
   '/business/program': typeof BusinessProgramRoute
@@ -88,7 +125,12 @@ export interface FileRoutesByFullPath {
   '/business/rewards': typeof BusinessRewardsRoute
   '/business/settings': typeof BusinessSettingsRoute
   '/business/transactions': typeof BusinessTransactionsRoute
+  '/customer/discover': typeof CustomerDiscoverRoute
+  '/customer/profile': typeof CustomerProfileRoute
+  '/customer/rewards': typeof CustomerRewardsRoute
+  '/customer/scan': typeof CustomerScanRoute
   '/business/': typeof BusinessIndexRoute
+  '/customer/': typeof CustomerIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -100,13 +142,19 @@ export interface FileRoutesByTo {
   '/business/rewards': typeof BusinessRewardsRoute
   '/business/settings': typeof BusinessSettingsRoute
   '/business/transactions': typeof BusinessTransactionsRoute
+  '/customer/discover': typeof CustomerDiscoverRoute
+  '/customer/profile': typeof CustomerProfileRoute
+  '/customer/rewards': typeof CustomerRewardsRoute
+  '/customer/scan': typeof CustomerScanRoute
   '/business': typeof BusinessIndexRoute
+  '/customer': typeof CustomerIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/business': typeof BusinessRouteWithChildren
+  '/customer': typeof CustomerRouteWithChildren
   '/business/analytics': typeof BusinessAnalyticsRoute
   '/business/customers': typeof BusinessCustomersRoute
   '/business/program': typeof BusinessProgramRoute
@@ -114,7 +162,12 @@ export interface FileRoutesById {
   '/business/rewards': typeof BusinessRewardsRoute
   '/business/settings': typeof BusinessSettingsRoute
   '/business/transactions': typeof BusinessTransactionsRoute
+  '/customer/discover': typeof CustomerDiscoverRoute
+  '/customer/profile': typeof CustomerProfileRoute
+  '/customer/rewards': typeof CustomerRewardsRoute
+  '/customer/scan': typeof CustomerScanRoute
   '/business/': typeof BusinessIndexRoute
+  '/customer/': typeof CustomerIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -122,6 +175,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/business'
+    | '/customer'
     | '/business/analytics'
     | '/business/customers'
     | '/business/program'
@@ -129,7 +183,12 @@ export interface FileRouteTypes {
     | '/business/rewards'
     | '/business/settings'
     | '/business/transactions'
+    | '/customer/discover'
+    | '/customer/profile'
+    | '/customer/rewards'
+    | '/customer/scan'
     | '/business/'
+    | '/customer/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -141,12 +200,18 @@ export interface FileRouteTypes {
     | '/business/rewards'
     | '/business/settings'
     | '/business/transactions'
+    | '/customer/discover'
+    | '/customer/profile'
+    | '/customer/rewards'
+    | '/customer/scan'
     | '/business'
+    | '/customer'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/business'
+    | '/customer'
     | '/business/analytics'
     | '/business/customers'
     | '/business/program'
@@ -154,13 +219,19 @@ export interface FileRouteTypes {
     | '/business/rewards'
     | '/business/settings'
     | '/business/transactions'
+    | '/customer/discover'
+    | '/customer/profile'
+    | '/customer/rewards'
+    | '/customer/scan'
     | '/business/'
+    | '/customer/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   BusinessRoute: typeof BusinessRouteWithChildren
+  CustomerRoute: typeof CustomerRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -184,6 +255,13 @@ declare module '@tanstack/react-router' {
       path: '/business'
       fullPath: '/business'
       preLoaderRoute: typeof BusinessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customer': {
+      id: '/customer'
+      path: '/customer'
+      fullPath: '/customer'
+      preLoaderRoute: typeof CustomerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/business/': {
@@ -242,6 +320,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BusinessTransactionsRouteImport
       parentRoute: typeof BusinessRoute
     }
+    '/customer/': {
+      id: '/customer/'
+      path: '/'
+      fullPath: '/customer/'
+      preLoaderRoute: typeof CustomerIndexRouteImport
+      parentRoute: typeof CustomerRoute
+    }
+    '/customer/discover': {
+      id: '/customer/discover'
+      path: '/discover'
+      fullPath: '/customer/discover'
+      preLoaderRoute: typeof CustomerDiscoverRouteImport
+      parentRoute: typeof CustomerRoute
+    }
+    '/customer/profile': {
+      id: '/customer/profile'
+      path: '/profile'
+      fullPath: '/customer/profile'
+      preLoaderRoute: typeof CustomerProfileRouteImport
+      parentRoute: typeof CustomerRoute
+    }
+    '/customer/rewards': {
+      id: '/customer/rewards'
+      path: '/rewards'
+      fullPath: '/customer/rewards'
+      preLoaderRoute: typeof CustomerRewardsRouteImport
+      parentRoute: typeof CustomerRoute
+    }
+    '/customer/scan': {
+      id: '/customer/scan'
+      path: '/scan'
+      fullPath: '/customer/scan'
+      preLoaderRoute: typeof CustomerScanRouteImport
+      parentRoute: typeof CustomerRoute
+    }
   }
 }
 
@@ -271,10 +384,31 @@ const BusinessRouteWithChildren = BusinessRoute._addFileChildren(
   BusinessRouteChildren,
 )
 
+interface CustomerRouteChildren {
+  CustomerDiscoverRoute: typeof CustomerDiscoverRoute
+  CustomerProfileRoute: typeof CustomerProfileRoute
+  CustomerRewardsRoute: typeof CustomerRewardsRoute
+  CustomerScanRoute: typeof CustomerScanRoute
+  CustomerIndexRoute: typeof CustomerIndexRoute
+}
+
+const CustomerRouteChildren: CustomerRouteChildren = {
+  CustomerDiscoverRoute: CustomerDiscoverRoute,
+  CustomerProfileRoute: CustomerProfileRoute,
+  CustomerRewardsRoute: CustomerRewardsRoute,
+  CustomerScanRoute: CustomerScanRoute,
+  CustomerIndexRoute: CustomerIndexRoute,
+}
+
+const CustomerRouteWithChildren = CustomerRoute._addFileChildren(
+  CustomerRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   BusinessRoute: BusinessRouteWithChildren,
+  CustomerRoute: CustomerRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
