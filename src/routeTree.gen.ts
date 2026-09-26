@@ -13,10 +13,12 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as BusinessRouteImport } from './routes/business'
 import { Route as BusinessIndexRouteImport } from './routes/business.index'
+import { Route as BusinessAnalyticsRouteImport } from './routes/business.analytics'
 import { Route as BusinessCustomersRouteImport } from './routes/business.customers'
 import { Route as BusinessProgramRouteImport } from './routes/business.program'
 import { Route as BusinessQrRouteImport } from './routes/business.qr'
 import { Route as BusinessRewardsRouteImport } from './routes/business.rewards'
+import { Route as BusinessSettingsRouteImport } from './routes/business.settings'
 import { Route as BusinessTransactionsRouteImport } from './routes/business.transactions'
 
 const IndexRoute = IndexRouteImport.update({
@@ -39,6 +41,11 @@ const BusinessIndexRoute = BusinessIndexRouteImport.update({
   path: '/',
   getParentRoute: () => BusinessRoute,
 } as any)
+const BusinessAnalyticsRoute = BusinessAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => BusinessRoute,
+} as any)
 const BusinessCustomersRoute = BusinessCustomersRouteImport.update({
   id: '/customers',
   path: '/customers',
@@ -59,6 +66,11 @@ const BusinessRewardsRoute = BusinessRewardsRouteImport.update({
   path: '/rewards',
   getParentRoute: () => BusinessRoute,
 } as any)
+const BusinessSettingsRoute = BusinessSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => BusinessRoute,
+} as any)
 const BusinessTransactionsRoute = BusinessTransactionsRouteImport.update({
   id: '/transactions',
   path: '/transactions',
@@ -69,20 +81,24 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/business': typeof BusinessRouteWithChildren
+  '/business/analytics': typeof BusinessAnalyticsRoute
   '/business/customers': typeof BusinessCustomersRoute
   '/business/program': typeof BusinessProgramRoute
   '/business/qr': typeof BusinessQrRoute
   '/business/rewards': typeof BusinessRewardsRoute
+  '/business/settings': typeof BusinessSettingsRoute
   '/business/transactions': typeof BusinessTransactionsRoute
   '/business/': typeof BusinessIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/business/analytics': typeof BusinessAnalyticsRoute
   '/business/customers': typeof BusinessCustomersRoute
   '/business/program': typeof BusinessProgramRoute
   '/business/qr': typeof BusinessQrRoute
   '/business/rewards': typeof BusinessRewardsRoute
+  '/business/settings': typeof BusinessSettingsRoute
   '/business/transactions': typeof BusinessTransactionsRoute
   '/business': typeof BusinessIndexRoute
 }
@@ -91,10 +107,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/business': typeof BusinessRouteWithChildren
+  '/business/analytics': typeof BusinessAnalyticsRoute
   '/business/customers': typeof BusinessCustomersRoute
   '/business/program': typeof BusinessProgramRoute
   '/business/qr': typeof BusinessQrRoute
   '/business/rewards': typeof BusinessRewardsRoute
+  '/business/settings': typeof BusinessSettingsRoute
   '/business/transactions': typeof BusinessTransactionsRoute
   '/business/': typeof BusinessIndexRoute
 }
@@ -104,20 +122,24 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/business'
+    | '/business/analytics'
     | '/business/customers'
     | '/business/program'
     | '/business/qr'
     | '/business/rewards'
+    | '/business/settings'
     | '/business/transactions'
     | '/business/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
+    | '/business/analytics'
     | '/business/customers'
     | '/business/program'
     | '/business/qr'
     | '/business/rewards'
+    | '/business/settings'
     | '/business/transactions'
     | '/business'
   id:
@@ -125,10 +147,12 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/business'
+    | '/business/analytics'
     | '/business/customers'
     | '/business/program'
     | '/business/qr'
     | '/business/rewards'
+    | '/business/settings'
     | '/business/transactions'
     | '/business/'
   fileRoutesById: FileRoutesById
@@ -169,6 +193,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BusinessIndexRouteImport
       parentRoute: typeof BusinessRoute
     }
+    '/business/analytics': {
+      id: '/business/analytics'
+      path: '/analytics'
+      fullPath: '/business/analytics'
+      preLoaderRoute: typeof BusinessAnalyticsRouteImport
+      parentRoute: typeof BusinessRoute
+    }
     '/business/customers': {
       id: '/business/customers'
       path: '/customers'
@@ -197,6 +228,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BusinessRewardsRouteImport
       parentRoute: typeof BusinessRoute
     }
+    '/business/settings': {
+      id: '/business/settings'
+      path: '/settings'
+      fullPath: '/business/settings'
+      preLoaderRoute: typeof BusinessSettingsRouteImport
+      parentRoute: typeof BusinessRoute
+    }
     '/business/transactions': {
       id: '/business/transactions'
       path: '/transactions'
@@ -208,19 +246,23 @@ declare module '@tanstack/react-router' {
 }
 
 interface BusinessRouteChildren {
+  BusinessAnalyticsRoute: typeof BusinessAnalyticsRoute
   BusinessCustomersRoute: typeof BusinessCustomersRoute
   BusinessProgramRoute: typeof BusinessProgramRoute
   BusinessQrRoute: typeof BusinessQrRoute
   BusinessRewardsRoute: typeof BusinessRewardsRoute
+  BusinessSettingsRoute: typeof BusinessSettingsRoute
   BusinessTransactionsRoute: typeof BusinessTransactionsRoute
   BusinessIndexRoute: typeof BusinessIndexRoute
 }
 
 const BusinessRouteChildren: BusinessRouteChildren = {
+  BusinessAnalyticsRoute: BusinessAnalyticsRoute,
   BusinessCustomersRoute: BusinessCustomersRoute,
   BusinessProgramRoute: BusinessProgramRoute,
   BusinessQrRoute: BusinessQrRoute,
   BusinessRewardsRoute: BusinessRewardsRoute,
+  BusinessSettingsRoute: BusinessSettingsRoute,
   BusinessTransactionsRoute: BusinessTransactionsRoute,
   BusinessIndexRoute: BusinessIndexRoute,
 }
