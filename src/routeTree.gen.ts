@@ -10,33 +10,228 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as BusinessRouteImport } from './routes/business'
+import { Route as CustomerRouteImport } from './routes/customer'
+import { Route as BusinessIndexRouteImport } from './routes/business.index'
+import { Route as BusinessAnalyticsRouteImport } from './routes/business.analytics'
+import { Route as BusinessCustomersRouteImport } from './routes/business.customers'
+import { Route as BusinessProgramRouteImport } from './routes/business.program'
+import { Route as BusinessQrRouteImport } from './routes/business.qr'
+import { Route as BusinessRewardsRouteImport } from './routes/business.rewards'
+import { Route as BusinessSettingsRouteImport } from './routes/business.settings'
+import { Route as BusinessTransactionsRouteImport } from './routes/business.transactions'
+import { Route as CustomerIndexRouteImport } from './routes/customer.index'
+import { Route as CustomerDiscoverRouteImport } from './routes/customer.discover'
+import { Route as CustomerProfileRouteImport } from './routes/customer.profile'
+import { Route as CustomerRewardsRouteImport } from './routes/customer.rewards'
+import { Route as CustomerScanRouteImport } from './routes/customer.scan'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BusinessRoute = BusinessRouteImport.update({
+  id: '/business',
+  path: '/business',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomerRoute = CustomerRouteImport.update({
+  id: '/customer',
+  path: '/customer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BusinessIndexRoute = BusinessIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => BusinessRoute,
+} as any)
+const BusinessAnalyticsRoute = BusinessAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => BusinessRoute,
+} as any)
+const BusinessCustomersRoute = BusinessCustomersRouteImport.update({
+  id: '/customers',
+  path: '/customers',
+  getParentRoute: () => BusinessRoute,
+} as any)
+const BusinessProgramRoute = BusinessProgramRouteImport.update({
+  id: '/program',
+  path: '/program',
+  getParentRoute: () => BusinessRoute,
+} as any)
+const BusinessQrRoute = BusinessQrRouteImport.update({
+  id: '/qr',
+  path: '/qr',
+  getParentRoute: () => BusinessRoute,
+} as any)
+const BusinessRewardsRoute = BusinessRewardsRouteImport.update({
+  id: '/rewards',
+  path: '/rewards',
+  getParentRoute: () => BusinessRoute,
+} as any)
+const BusinessSettingsRoute = BusinessSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => BusinessRoute,
+} as any)
+const BusinessTransactionsRoute = BusinessTransactionsRouteImport.update({
+  id: '/transactions',
+  path: '/transactions',
+  getParentRoute: () => BusinessRoute,
+} as any)
+const CustomerIndexRoute = CustomerIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CustomerRoute,
+} as any)
+const CustomerDiscoverRoute = CustomerDiscoverRouteImport.update({
+  id: '/discover',
+  path: '/discover',
+  getParentRoute: () => CustomerRoute,
+} as any)
+const CustomerProfileRoute = CustomerProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => CustomerRoute,
+} as any)
+const CustomerRewardsRoute = CustomerRewardsRouteImport.update({
+  id: '/rewards',
+  path: '/rewards',
+  getParentRoute: () => CustomerRoute,
+} as any)
+const CustomerScanRoute = CustomerScanRouteImport.update({
+  id: '/scan',
+  path: '/scan',
+  getParentRoute: () => CustomerRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/business': typeof BusinessRouteWithChildren
+  '/customer': typeof CustomerRouteWithChildren
+  '/business/analytics': typeof BusinessAnalyticsRoute
+  '/business/customers': typeof BusinessCustomersRoute
+  '/business/program': typeof BusinessProgramRoute
+  '/business/qr': typeof BusinessQrRoute
+  '/business/rewards': typeof BusinessRewardsRoute
+  '/business/settings': typeof BusinessSettingsRoute
+  '/business/transactions': typeof BusinessTransactionsRoute
+  '/customer/discover': typeof CustomerDiscoverRoute
+  '/customer/profile': typeof CustomerProfileRoute
+  '/customer/rewards': typeof CustomerRewardsRoute
+  '/customer/scan': typeof CustomerScanRoute
+  '/business/': typeof BusinessIndexRoute
+  '/customer/': typeof CustomerIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/business/analytics': typeof BusinessAnalyticsRoute
+  '/business/customers': typeof BusinessCustomersRoute
+  '/business/program': typeof BusinessProgramRoute
+  '/business/qr': typeof BusinessQrRoute
+  '/business/rewards': typeof BusinessRewardsRoute
+  '/business/settings': typeof BusinessSettingsRoute
+  '/business/transactions': typeof BusinessTransactionsRoute
+  '/customer/discover': typeof CustomerDiscoverRoute
+  '/customer/profile': typeof CustomerProfileRoute
+  '/customer/rewards': typeof CustomerRewardsRoute
+  '/customer/scan': typeof CustomerScanRoute
+  '/business': typeof BusinessIndexRoute
+  '/customer': typeof CustomerIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/business': typeof BusinessRouteWithChildren
+  '/customer': typeof CustomerRouteWithChildren
+  '/business/analytics': typeof BusinessAnalyticsRoute
+  '/business/customers': typeof BusinessCustomersRoute
+  '/business/program': typeof BusinessProgramRoute
+  '/business/qr': typeof BusinessQrRoute
+  '/business/rewards': typeof BusinessRewardsRoute
+  '/business/settings': typeof BusinessSettingsRoute
+  '/business/transactions': typeof BusinessTransactionsRoute
+  '/customer/discover': typeof CustomerDiscoverRoute
+  '/customer/profile': typeof CustomerProfileRoute
+  '/customer/rewards': typeof CustomerRewardsRoute
+  '/customer/scan': typeof CustomerScanRoute
+  '/business/': typeof BusinessIndexRoute
+  '/customer/': typeof CustomerIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/business'
+    | '/customer'
+    | '/business/analytics'
+    | '/business/customers'
+    | '/business/program'
+    | '/business/qr'
+    | '/business/rewards'
+    | '/business/settings'
+    | '/business/transactions'
+    | '/customer/discover'
+    | '/customer/profile'
+    | '/customer/rewards'
+    | '/customer/scan'
+    | '/business/'
+    | '/customer/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/admin'
+    | '/business/analytics'
+    | '/business/customers'
+    | '/business/program'
+    | '/business/qr'
+    | '/business/rewards'
+    | '/business/settings'
+    | '/business/transactions'
+    | '/customer/discover'
+    | '/customer/profile'
+    | '/customer/rewards'
+    | '/customer/scan'
+    | '/business'
+    | '/customer'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/business'
+    | '/customer'
+    | '/business/analytics'
+    | '/business/customers'
+    | '/business/program'
+    | '/business/qr'
+    | '/business/rewards'
+    | '/business/settings'
+    | '/business/transactions'
+    | '/customer/discover'
+    | '/customer/profile'
+    | '/customer/rewards'
+    | '/customer/scan'
+    | '/business/'
+    | '/customer/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  BusinessRoute: typeof BusinessRouteWithChildren
+  CustomerRoute: typeof CustomerRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +243,172 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/business': {
+      id: '/business'
+      path: '/business'
+      fullPath: '/business'
+      preLoaderRoute: typeof BusinessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customer': {
+      id: '/customer'
+      path: '/customer'
+      fullPath: '/customer'
+      preLoaderRoute: typeof CustomerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/business/': {
+      id: '/business/'
+      path: '/'
+      fullPath: '/business/'
+      preLoaderRoute: typeof BusinessIndexRouteImport
+      parentRoute: typeof BusinessRoute
+    }
+    '/business/analytics': {
+      id: '/business/analytics'
+      path: '/analytics'
+      fullPath: '/business/analytics'
+      preLoaderRoute: typeof BusinessAnalyticsRouteImport
+      parentRoute: typeof BusinessRoute
+    }
+    '/business/customers': {
+      id: '/business/customers'
+      path: '/customers'
+      fullPath: '/business/customers'
+      preLoaderRoute: typeof BusinessCustomersRouteImport
+      parentRoute: typeof BusinessRoute
+    }
+    '/business/program': {
+      id: '/business/program'
+      path: '/program'
+      fullPath: '/business/program'
+      preLoaderRoute: typeof BusinessProgramRouteImport
+      parentRoute: typeof BusinessRoute
+    }
+    '/business/qr': {
+      id: '/business/qr'
+      path: '/qr'
+      fullPath: '/business/qr'
+      preLoaderRoute: typeof BusinessQrRouteImport
+      parentRoute: typeof BusinessRoute
+    }
+    '/business/rewards': {
+      id: '/business/rewards'
+      path: '/rewards'
+      fullPath: '/business/rewards'
+      preLoaderRoute: typeof BusinessRewardsRouteImport
+      parentRoute: typeof BusinessRoute
+    }
+    '/business/settings': {
+      id: '/business/settings'
+      path: '/settings'
+      fullPath: '/business/settings'
+      preLoaderRoute: typeof BusinessSettingsRouteImport
+      parentRoute: typeof BusinessRoute
+    }
+    '/business/transactions': {
+      id: '/business/transactions'
+      path: '/transactions'
+      fullPath: '/business/transactions'
+      preLoaderRoute: typeof BusinessTransactionsRouteImport
+      parentRoute: typeof BusinessRoute
+    }
+    '/customer/': {
+      id: '/customer/'
+      path: '/'
+      fullPath: '/customer/'
+      preLoaderRoute: typeof CustomerIndexRouteImport
+      parentRoute: typeof CustomerRoute
+    }
+    '/customer/discover': {
+      id: '/customer/discover'
+      path: '/discover'
+      fullPath: '/customer/discover'
+      preLoaderRoute: typeof CustomerDiscoverRouteImport
+      parentRoute: typeof CustomerRoute
+    }
+    '/customer/profile': {
+      id: '/customer/profile'
+      path: '/profile'
+      fullPath: '/customer/profile'
+      preLoaderRoute: typeof CustomerProfileRouteImport
+      parentRoute: typeof CustomerRoute
+    }
+    '/customer/rewards': {
+      id: '/customer/rewards'
+      path: '/rewards'
+      fullPath: '/customer/rewards'
+      preLoaderRoute: typeof CustomerRewardsRouteImport
+      parentRoute: typeof CustomerRoute
+    }
+    '/customer/scan': {
+      id: '/customer/scan'
+      path: '/scan'
+      fullPath: '/customer/scan'
+      preLoaderRoute: typeof CustomerScanRouteImport
+      parentRoute: typeof CustomerRoute
+    }
   }
 }
 
+interface BusinessRouteChildren {
+  BusinessAnalyticsRoute: typeof BusinessAnalyticsRoute
+  BusinessCustomersRoute: typeof BusinessCustomersRoute
+  BusinessProgramRoute: typeof BusinessProgramRoute
+  BusinessQrRoute: typeof BusinessQrRoute
+  BusinessRewardsRoute: typeof BusinessRewardsRoute
+  BusinessSettingsRoute: typeof BusinessSettingsRoute
+  BusinessTransactionsRoute: typeof BusinessTransactionsRoute
+  BusinessIndexRoute: typeof BusinessIndexRoute
+}
+
+const BusinessRouteChildren: BusinessRouteChildren = {
+  BusinessAnalyticsRoute: BusinessAnalyticsRoute,
+  BusinessCustomersRoute: BusinessCustomersRoute,
+  BusinessProgramRoute: BusinessProgramRoute,
+  BusinessQrRoute: BusinessQrRoute,
+  BusinessRewardsRoute: BusinessRewardsRoute,
+  BusinessSettingsRoute: BusinessSettingsRoute,
+  BusinessTransactionsRoute: BusinessTransactionsRoute,
+  BusinessIndexRoute: BusinessIndexRoute,
+}
+
+const BusinessRouteWithChildren = BusinessRoute._addFileChildren(
+  BusinessRouteChildren,
+)
+
+interface CustomerRouteChildren {
+  CustomerDiscoverRoute: typeof CustomerDiscoverRoute
+  CustomerProfileRoute: typeof CustomerProfileRoute
+  CustomerRewardsRoute: typeof CustomerRewardsRoute
+  CustomerScanRoute: typeof CustomerScanRoute
+  CustomerIndexRoute: typeof CustomerIndexRoute
+}
+
+const CustomerRouteChildren: CustomerRouteChildren = {
+  CustomerDiscoverRoute: CustomerDiscoverRoute,
+  CustomerProfileRoute: CustomerProfileRoute,
+  CustomerRewardsRoute: CustomerRewardsRoute,
+  CustomerScanRoute: CustomerScanRoute,
+  CustomerIndexRoute: CustomerIndexRoute,
+}
+
+const CustomerRouteWithChildren = CustomerRoute._addFileChildren(
+  CustomerRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  BusinessRoute: BusinessRouteWithChildren,
+  CustomerRoute: CustomerRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
