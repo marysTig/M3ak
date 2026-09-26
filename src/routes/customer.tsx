@@ -8,7 +8,12 @@ export const Route = createFileRoute("/customer")({
   component: CustomerLayout,
 });
 
-const tabs: { to: LinkProps["to"]; label: string; icon: LucideIcon; exact?: boolean }[] = [
+const tabs: {
+  to: NonNullable<LinkProps["to"]>;
+  label: string;
+  icon: LucideIcon;
+  exact?: boolean;
+}[] = [
   { to: "/customer", label: "Cards", icon: Wallet, exact: true },
   { to: "/customer/rewards", label: "Rewards", icon: Gift },
   { to: "/customer/scan", label: "Scan", icon: QrCode },
