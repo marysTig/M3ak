@@ -12,6 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as BusinessRouteImport } from './routes/business'
+import { Route as BusinessIndexRouteImport } from './routes/business.index'
+import { Route as BusinessCustomersRouteImport } from './routes/business.customers'
+import { Route as BusinessProgramRouteImport } from './routes/business.program'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +31,71 @@ const BusinessRoute = BusinessRouteImport.update({
   path: '/business',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BusinessIndexRoute = BusinessIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => BusinessRoute,
+} as any)
+const BusinessCustomersRoute = BusinessCustomersRouteImport.update({
+  id: '/customers',
+  path: '/customers',
+  getParentRoute: () => BusinessRoute,
+} as any)
+const BusinessProgramRoute = BusinessProgramRouteImport.update({
+  id: '/program',
+  path: '/program',
+  getParentRoute: () => BusinessRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/business': typeof BusinessRoute
+  '/business': typeof BusinessRouteWithChildren
+  '/business/customers': typeof BusinessCustomersRoute
+  '/business/program': typeof BusinessProgramRoute
+  '/business/': typeof BusinessIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/business': typeof BusinessRoute
+  '/business/customers': typeof BusinessCustomersRoute
+  '/business/program': typeof BusinessProgramRoute
+  '/business': typeof BusinessIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/business': typeof BusinessRoute
+  '/business': typeof BusinessRouteWithChildren
+  '/business/customers': typeof BusinessCustomersRoute
+  '/business/program': typeof BusinessProgramRoute
+  '/business/': typeof BusinessIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/business'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/business'
+    | '/business/customers'
+    | '/business/program'
+    | '/business/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/business'
-  id: '__root__' | '/' | '/admin' | '/business'
+  to: '/' | '/admin' | '/business/customers' | '/business/program' | '/business'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/business'
+    | '/business/customers'
+    | '/business/program'
+    | '/business/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
-  BusinessRoute: typeof BusinessRoute
+  BusinessRoute: typeof BusinessRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -82,13 +121,50 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BusinessRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/business/': {
+      id: '/business/'
+      path: '/'
+      fullPath: '/business/'
+      preLoaderRoute: typeof BusinessIndexRouteImport
+      parentRoute: typeof BusinessRoute
+    }
+    '/business/customers': {
+      id: '/business/customers'
+      path: '/customers'
+      fullPath: '/business/customers'
+      preLoaderRoute: typeof BusinessCustomersRouteImport
+      parentRoute: typeof BusinessRoute
+    }
+    '/business/program': {
+      id: '/business/program'
+      path: '/program'
+      fullPath: '/business/program'
+      preLoaderRoute: typeof BusinessProgramRouteImport
+      parentRoute: typeof BusinessRoute
+    }
   }
 }
+
+interface BusinessRouteChildren {
+  BusinessCustomersRoute: typeof BusinessCustomersRoute
+  BusinessProgramRoute: typeof BusinessProgramRoute
+  BusinessIndexRoute: typeof BusinessIndexRoute
+}
+
+const BusinessRouteChildren: BusinessRouteChildren = {
+  BusinessCustomersRoute: BusinessCustomersRoute,
+  BusinessProgramRoute: BusinessProgramRoute,
+  BusinessIndexRoute: BusinessIndexRoute,
+}
+
+const BusinessRouteWithChildren = BusinessRoute._addFileChildren(
+  BusinessRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
-  BusinessRoute: BusinessRoute,
+  BusinessRoute: BusinessRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
