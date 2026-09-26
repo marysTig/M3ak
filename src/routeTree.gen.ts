@@ -15,6 +15,9 @@ import { Route as BusinessRouteImport } from './routes/business'
 import { Route as BusinessIndexRouteImport } from './routes/business.index'
 import { Route as BusinessCustomersRouteImport } from './routes/business.customers'
 import { Route as BusinessProgramRouteImport } from './routes/business.program'
+import { Route as BusinessQrRouteImport } from './routes/business.qr'
+import { Route as BusinessRewardsRouteImport } from './routes/business.rewards'
+import { Route as BusinessTransactionsRouteImport } from './routes/business.transactions'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +49,21 @@ const BusinessProgramRoute = BusinessProgramRouteImport.update({
   path: '/program',
   getParentRoute: () => BusinessRoute,
 } as any)
+const BusinessQrRoute = BusinessQrRouteImport.update({
+  id: '/qr',
+  path: '/qr',
+  getParentRoute: () => BusinessRoute,
+} as any)
+const BusinessRewardsRoute = BusinessRewardsRouteImport.update({
+  id: '/rewards',
+  path: '/rewards',
+  getParentRoute: () => BusinessRoute,
+} as any)
+const BusinessTransactionsRoute = BusinessTransactionsRouteImport.update({
+  id: '/transactions',
+  path: '/transactions',
+  getParentRoute: () => BusinessRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -53,6 +71,9 @@ export interface FileRoutesByFullPath {
   '/business': typeof BusinessRouteWithChildren
   '/business/customers': typeof BusinessCustomersRoute
   '/business/program': typeof BusinessProgramRoute
+  '/business/qr': typeof BusinessQrRoute
+  '/business/rewards': typeof BusinessRewardsRoute
+  '/business/transactions': typeof BusinessTransactionsRoute
   '/business/': typeof BusinessIndexRoute
 }
 export interface FileRoutesByTo {
@@ -60,6 +81,9 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/business/customers': typeof BusinessCustomersRoute
   '/business/program': typeof BusinessProgramRoute
+  '/business/qr': typeof BusinessQrRoute
+  '/business/rewards': typeof BusinessRewardsRoute
+  '/business/transactions': typeof BusinessTransactionsRoute
   '/business': typeof BusinessIndexRoute
 }
 export interface FileRoutesById {
@@ -69,6 +93,9 @@ export interface FileRoutesById {
   '/business': typeof BusinessRouteWithChildren
   '/business/customers': typeof BusinessCustomersRoute
   '/business/program': typeof BusinessProgramRoute
+  '/business/qr': typeof BusinessQrRoute
+  '/business/rewards': typeof BusinessRewardsRoute
+  '/business/transactions': typeof BusinessTransactionsRoute
   '/business/': typeof BusinessIndexRoute
 }
 export interface FileRouteTypes {
@@ -79,9 +106,20 @@ export interface FileRouteTypes {
     | '/business'
     | '/business/customers'
     | '/business/program'
+    | '/business/qr'
+    | '/business/rewards'
+    | '/business/transactions'
     | '/business/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/business/customers' | '/business/program' | '/business'
+  to:
+    | '/'
+    | '/admin'
+    | '/business/customers'
+    | '/business/program'
+    | '/business/qr'
+    | '/business/rewards'
+    | '/business/transactions'
+    | '/business'
   id:
     | '__root__'
     | '/'
@@ -89,6 +127,9 @@ export interface FileRouteTypes {
     | '/business'
     | '/business/customers'
     | '/business/program'
+    | '/business/qr'
+    | '/business/rewards'
+    | '/business/transactions'
     | '/business/'
   fileRoutesById: FileRoutesById
 }
@@ -142,18 +183,45 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BusinessProgramRouteImport
       parentRoute: typeof BusinessRoute
     }
+    '/business/qr': {
+      id: '/business/qr'
+      path: '/qr'
+      fullPath: '/business/qr'
+      preLoaderRoute: typeof BusinessQrRouteImport
+      parentRoute: typeof BusinessRoute
+    }
+    '/business/rewards': {
+      id: '/business/rewards'
+      path: '/rewards'
+      fullPath: '/business/rewards'
+      preLoaderRoute: typeof BusinessRewardsRouteImport
+      parentRoute: typeof BusinessRoute
+    }
+    '/business/transactions': {
+      id: '/business/transactions'
+      path: '/transactions'
+      fullPath: '/business/transactions'
+      preLoaderRoute: typeof BusinessTransactionsRouteImport
+      parentRoute: typeof BusinessRoute
+    }
   }
 }
 
 interface BusinessRouteChildren {
   BusinessCustomersRoute: typeof BusinessCustomersRoute
   BusinessProgramRoute: typeof BusinessProgramRoute
+  BusinessQrRoute: typeof BusinessQrRoute
+  BusinessRewardsRoute: typeof BusinessRewardsRoute
+  BusinessTransactionsRoute: typeof BusinessTransactionsRoute
   BusinessIndexRoute: typeof BusinessIndexRoute
 }
 
 const BusinessRouteChildren: BusinessRouteChildren = {
   BusinessCustomersRoute: BusinessCustomersRoute,
   BusinessProgramRoute: BusinessProgramRoute,
+  BusinessQrRoute: BusinessQrRoute,
+  BusinessRewardsRoute: BusinessRewardsRoute,
+  BusinessTransactionsRoute: BusinessTransactionsRoute,
   BusinessIndexRoute: BusinessIndexRoute,
 }
 
