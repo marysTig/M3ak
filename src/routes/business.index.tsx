@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { QrCode, Settings, Sparkles, Users } from "lucide-react";
+import { CheckCircle2, QrCode, Settings, Sparkles, Users } from "lucide-react";
+
+import { Progress } from "@/components/ui/progress";
 
 import { business } from "@/lib/mock-data";
 
@@ -22,7 +24,7 @@ function Overview() {
         <p className="mt-2 text-sm text-muted-foreground">Gérez votre commerce en toute simplicité.</p>
       </div>
 
-      <div className="grid w-full max-w-md gap-4 sm:grid-cols-2">
+      <div className="grid w-full max-w-md grid-cols-2 gap-4">
         {menuItems.map((item) => (
           <Link
             key={item.to}
@@ -35,6 +37,33 @@ function Overview() {
             <span className="font-medium">{item.label}</span>
           </Link>
         ))}
+      </div>
+
+      <div className="mt-8 w-full max-w-md rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-soft)]">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-full bg-success/15 text-success">
+              <CheckCircle2 className="size-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold">Compte Activé</h3>
+              <p className="text-xs text-muted-foreground">Validé par l'administrateur</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-bold text-primary">2500 DA</p>
+            <p className="text-xs text-muted-foreground">/ mois</p>
+          </div>
+        </div>
+        
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-medium text-primary">30 jours restants</span>
+            <span className="text-muted-foreground">Sur 30 jours</span>
+          </div>
+          <Progress value={100} className="h-2 bg-secondary" />
+          <p className="text-[10px] text-muted-foreground text-center mt-1">Le décompte a commencé lors de l'activation</p>
+        </div>
       </div>
     </div>
   );
