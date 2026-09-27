@@ -59,13 +59,12 @@ const steps = [
 function Landing() {
   return (
     <div className="min-h-screen bg-background">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-5 sm:py-5">
-        <div className="flex items-center gap-2.5">
-          <span className="flex size-9 items-center justify-center rounded-xl bg-primary font-display text-sm font-bold text-primary-foreground">
-            L
-          </span>
-          <span className="font-display text-base font-semibold">Plateforme de Fidélité</span>
-        </div>
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-center px-4 py-4 sm:px-5 sm:py-5">
+        <img 
+          src="/ChatGPT_Image_27_sept._2026__16_31_22-removebg-preview (1).png" 
+          alt="Logo" 
+          className="h-12 w-auto object-contain sm:h-16" 
+        />
       </header>
 
       <main className="mx-auto w-full max-w-6xl px-4 pb-16 sm:px-5 sm:pb-20">
