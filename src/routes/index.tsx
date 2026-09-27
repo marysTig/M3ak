@@ -66,17 +66,10 @@ function Landing() {
           </span>
           <span className="font-display text-base font-semibold">Plateforme de Fidélité</span>
         </div>
-        <span className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted-foreground">
-          Prototype de produit
-        </span>
       </header>
 
       <main className="mx-auto w-full max-w-6xl px-4 pb-16 sm:px-5 sm:pb-20">
         <section className="py-8 text-center sm:py-20">
-          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted-foreground">
-            <Sparkles className="size-3.5 text-primary" />
-            La fidélité pour les commerces locaux
-          </span>
           <h1 className="mx-auto mt-6 max-w-3xl text-3xl font-semibold leading-[1.2] sm:text-5xl md:text-6xl">
             Un seul compte de fidélité pour tous vos commerces locaux préférés.
           </h1>
@@ -131,7 +124,7 @@ function Landing() {
       </main>
 
       <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
-        Plateforme de Fidélité — Prototype de produit
+        Plateforme de Fidélité
       </footer>
     </div>
   );
