@@ -100,15 +100,15 @@ function Landing() {
           ))}
         </section>
 
-        <section className="card-surface mt-10 p-5 sm:mt-14 sm:p-8">
+        <section className="card-surface mt-10 p-5 text-center sm:mt-14 sm:p-8 sm:text-left">
           <h2 className="text-lg font-semibold">Comment ça marche</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Les points restent toujours avec le commerce qui les a émis — jamais transférés, jamais fusionnés.
           </p>
           <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {steps.map((step, i) => (
-              <div key={step.title} className="space-y-2">
-                <div className="flex items-center gap-2">
+              <div key={step.title} className="flex flex-col items-center space-y-2 sm:items-start">
+                <div className="flex items-center justify-center gap-2 sm:justify-start">
                   <span className="flex size-8 items-center justify-center rounded-lg bg-surface-muted text-primary">
                     <step.icon className="size-4" />
                   </span>
