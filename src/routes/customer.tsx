@@ -14,11 +14,11 @@ const tabs: {
   icon: LucideIcon;
   exact?: boolean;
 }[] = [
-  { to: "/customer", label: "Cards", icon: Wallet, exact: true },
-  { to: "/customer/rewards", label: "Rewards", icon: Gift },
-  { to: "/customer/scan", label: "Scan", icon: QrCode },
-  { to: "/customer/discover", label: "Discover", icon: Compass },
-  { to: "/customer/profile", label: "Profile", icon: User },
+  { to: "/customer", label: "Cartes", icon: Wallet, exact: true },
+  { to: "/customer/rewards", label: "Récompenses", icon: Gift },
+  { to: "/customer/scan", label: "Scanner", icon: QrCode },
+  { to: "/customer/discover", label: "Découvrir", icon: Compass },
+  { to: "/customer/profile", label: "Profil", icon: User },
 ];
 
 function CustomerLayout() {
@@ -30,7 +30,7 @@ function CustomerLayout() {
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary font-display text-xs font-bold text-primary-foreground">
               L
             </span>
-            <span className="font-display text-sm font-semibold">Loyalty</span>
+            <span className="font-display text-sm font-semibold">Fidélité</span>
           </Link>
           <div className="ml-auto flex items-center gap-2">
             <button

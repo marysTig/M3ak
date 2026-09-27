@@ -6,17 +6,17 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Loyalty Platform — One account for every local business" },
+      { title: "Plateforme de Fidélité — Un seul compte pour chaque commerce local" },
       {
         name: "description",
         content:
-          "Businesses create simple loyalty programs. Customers collect points and rewards from one account. Explore the admin, business and customer demos.",
+          "Les commerces créent des programmes de fidélité simples. Les clients cumulent des points et des récompenses avec un seul compte. Découvrez les démos administrateur, commerce et client.",
       },
-      { property: "og:title", content: "Loyalty Platform — One account for every local business" },
+      { property: "og:title", content: "Plateforme de Fidélité — Un seul compte pour chaque commerce local" },
       {
         property: "og:description",
         content:
-          "A product prototype for a multi-tenant loyalty platform: admin, business and customer experiences.",
+          "Un prototype de produit pour une plateforme de fidélité multi-locataires : expériences administrateur, commerce et client.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -27,62 +27,61 @@ export const Route = createFileRoute("/")({
 
 const demos = [
   {
-    role: "Admin",
+    role: "Administrateur",
     icon: ShieldCheck,
-    copy: "Manage the entire loyalty network.",
-    cta: "Open Admin",
+    copy: "Gérez l'ensemble du réseau de fidélité.",
+    cta: "Ouvrir l'Administration",
     to: "/admin" as const,
   },
   {
-    role: "Business",
+    role: "Commerce",
     icon: Store,
-    copy: "Create your loyalty program and grow repeat customers.",
-    cta: "Open Business",
+    copy: "Créez votre programme de fidélité et fidélisez vos clients.",
+    cta: "Ouvrir Commerce",
     to: "/business" as const,
   },
   {
-    role: "Customer",
+    role: "Client",
     icon: User,
-    copy: "Keep all your loyalty cards in one place.",
-    cta: "Open Customer",
+    copy: "Gardez toutes vos cartes de fidélité au même endroit.",
+    cta: "Ouvrir Client",
     to: "/customer" as const,
   },
 ];
 
 const steps = [
-  { icon: QrCode, title: "Scan QR", copy: "Customers scan the QR at the counter." },
-  { icon: Building2, title: "Join business", copy: "No new account, one profile everywhere." },
-  { icon: Sparkles, title: "Earn points", copy: "Each business keeps its own balance." },
-  { icon: ArrowRight, title: "Redeem", copy: "Rewards unlock automatically." },
+  { icon: QrCode, title: "Scanner le QR", copy: "Les clients scannent le QR à la caisse." },
+  { icon: Building2, title: "Rejoindre le commerce", copy: "Pas de nouveau compte, un profil unique partout." },
+  { icon: Sparkles, title: "Gagner des points", copy: "Chaque commerce garde son propre solde." },
+  { icon: ArrowRight, title: "Échanger", copy: "Les récompenses se débloquent automatiquement." },
 ];
 
 function Landing() {
   return (
     <div className="min-h-screen bg-background">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-5 sm:py-5">
         <div className="flex items-center gap-2.5">
           <span className="flex size-9 items-center justify-center rounded-xl bg-primary font-display text-sm font-bold text-primary-foreground">
             L
           </span>
-          <span className="font-display text-base font-semibold">Loyalty Platform</span>
+          <span className="font-display text-base font-semibold">Plateforme de Fidélité</span>
         </div>
         <span className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted-foreground">
-          Product prototype
+          Prototype de produit
         </span>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-5 pb-20">
-        <section className="py-12 text-center sm:py-20">
+      <main className="mx-auto w-full max-w-6xl px-4 pb-16 sm:px-5 sm:pb-20">
+        <section className="py-8 text-center sm:py-20">
           <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted-foreground">
             <Sparkles className="size-3.5 text-primary" />
-            Loyalty for local businesses
+            La fidélité pour les commerces locaux
           </span>
-          <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-semibold leading-[1.1] sm:text-5xl md:text-6xl">
-            One loyalty account for all your favorite local businesses.
+          <h1 className="mx-auto mt-6 max-w-3xl text-3xl font-semibold leading-[1.2] sm:text-5xl md:text-6xl">
+            Un seul compte de fidélité pour tous vos commerces locaux préférés.
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground sm:text-lg">
-            Businesses create simple loyalty programs. Customers collect points and rewards from one
-            account.
+            Les commerces créent des programmes de fidélité simples. Les clients cumulent des points et des récompenses avec un seul compte.
           </p>
         </section>
 
@@ -109,10 +108,10 @@ function Landing() {
           ))}
         </section>
 
-        <section className="card-surface mt-14 p-6 sm:p-8">
-          <h2 className="text-lg font-semibold">How it works</h2>
+        <section className="card-surface mt-10 p-5 sm:mt-14 sm:p-8">
+          <h2 className="text-lg font-semibold">Comment ça marche</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Points always stay with the business that issued them — never transferred, never merged.
+            Les points restent toujours avec le commerce qui les a émis — jamais transférés, jamais fusionnés.
           </p>
           <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {steps.map((step, i) => (
@@ -121,7 +120,7 @@ function Landing() {
                   <span className="flex size-8 items-center justify-center rounded-lg bg-surface-muted text-primary">
                     <step.icon className="size-4" />
                   </span>
-                  <span className="text-xs font-medium text-muted-foreground">Step {i + 1}</span>
+                  <span className="text-xs font-medium text-muted-foreground">Étape {i + 1}</span>
                 </div>
                 <p className="font-medium">{step.title}</p>
                 <p className="text-sm text-muted-foreground">{step.copy}</p>
@@ -132,7 +131,7 @@ function Landing() {
       </main>
 
       <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
-        Loyalty Platform — Product Prototype
+        Plateforme de Fidélité — Prototype de produit
       </footer>
     </div>
   );

@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { business, staff } from "@/lib/mock-data";
+import { business } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/business/settings")({
   head: () => ({
@@ -109,38 +109,7 @@ function SettingsPage() {
         </div>
       </Section>
 
-      <Section title="Team" description="People who can issue points at the counter.">
-        <ul className="space-y-2">
-          {staff.map((s) => (
-            <li
-              key={s.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3"
-            >
-              <div className="flex items-center gap-3">
-                <span className="flex size-9 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">
-                  {s.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
-                </span>
-                <div>
-                  <p className="text-sm font-medium">{s.name}</p>
-                  <p className="text-xs text-muted-foreground">{s.email}</p>
-                </div>
-              </div>
-              <StatusBadge status={s.role} tone={s.role === "Owner" ? "info" : "neutral"} />
-            </li>
-          ))}
-        </ul>
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-4"
-          onClick={() => toast.success("Invite sent (demo)")}
-        >
-          <Plus className="size-4" /> Invite team member
-        </Button>
-      </Section>
+
 
       <Section title="Notifications" description="Choose what lands in your inbox.">
         <div className="space-y-3">

@@ -58,7 +58,7 @@ function CustomersPage() {
       customers.filter((c) => {
         const matchesFilter = filter === "all" || c.status === filter;
         const q = query.trim().toLowerCase();
-        const matchesQuery = !q || c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q);
+        const matchesQuery = !q || c.name.toLowerCase().includes(q) || c.phone.includes(q);
         return matchesFilter && matchesQuery;
       }),
     [query, filter],
@@ -107,12 +107,10 @@ function CustomersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead className="hidden md:table-cell">Email</TableHead>
+                  <TableHead>Nom (Client)</TableHead>
+                  <TableHead className="hidden md:table-cell">Téléphone</TableHead>
                   <TableHead className="text-right">Points</TableHead>
-                  <TableHead className="hidden text-right sm:table-cell">Visits</TableHead>
-                  <TableHead className="hidden lg:table-cell">Last Activity</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Statut</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -132,13 +130,9 @@ function CustomersPage() {
                       </div>
                     </TableCell>
                     <TableCell className="hidden text-muted-foreground md:table-cell">
-                      {c.email}
+                      {c.phone}
                     </TableCell>
                     <TableCell className="text-right font-medium">{c.points}</TableCell>
-                    <TableCell className="hidden text-right sm:table-cell">{c.visits}</TableCell>
-                    <TableCell className="hidden text-muted-foreground lg:table-cell">
-                      {c.lastActivity}
-                    </TableCell>
                     <TableCell>
                       <StatusBadge status={c.status} />
                     </TableCell>
@@ -168,7 +162,7 @@ function CustomersPage() {
             <>
               <SheetHeader>
                 <SheetTitle>{selected.name}</SheetTitle>
-                <SheetDescription>{selected.email}</SheetDescription>
+                <SheetDescription>{selected.phone}</SheetDescription>
               </SheetHeader>
 
               <div className="space-y-6 px-4 pb-8">
@@ -189,8 +183,7 @@ function CustomersPage() {
 
                 <dl className="space-y-2 text-sm">
                   {[
-                    ["Phone", selected.phone],
-                    ["Joined", selected.joined],
+                    ["Inscrit le", selected.joined],
                     ["Visits", String(selected.visits)],
                     ["Last activity", selected.lastActivity],
                   ].map(([k, v]) => (

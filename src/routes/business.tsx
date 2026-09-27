@@ -1,42 +1,38 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
-import {
-  BarChart3,
-  Gift,
-  LayoutDashboard,
-  QrCode,
-  Receipt,
-  Settings,
-  Sparkles,
-  Users,
-} from "lucide-react";
+import { createFileRoute, Outlet, Link, useMatchRoute } from "@tanstack/react-router";
+import { ArrowLeft, LogOut } from "lucide-react";
 
-import { DashboardShell, type NavItem } from "@/components/app/dashboard-shell";
 import { business } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/business")({
   component: BusinessLayout,
 });
 
-const items: NavItem[] = [
-  { to: "/business", label: "Overview", icon: LayoutDashboard, exact: true },
-  { to: "/business/program", label: "Loyalty Program", icon: Sparkles },
-  { to: "/business/customers", label: "Customers", icon: Users },
-  { to: "/business/transactions", label: "Transactions", icon: Receipt },
-  { to: "/business/rewards", label: "Rewards", icon: Gift },
-  { to: "/business/qr", label: "QR Code", icon: QrCode },
-  { to: "/business/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/business/settings", label: "Settings", icon: Settings },
-];
-
 function BusinessLayout() {
+  const matchRoute = useMatchRoute();
+  const isRoot = matchRoute({ to: "/business", exact: true });
+
   return (
-    <DashboardShell
-      brand="Loyalty Platform"
-      brandSub="Business workspace"
-      items={items}
-      profile={{ name: business.name, sub: business.category, initials: "BC" }}
-    >
-      <Outlet />
-    </DashboardShell>
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-surface/90 px-4 py-3 backdrop-blur">
+        <div className="flex items-center gap-3">
+          {!isRoot ? (
+            <Link to="/business" className="flex size-9 items-center justify-center rounded-lg hover:bg-accent text-muted-foreground transition-colors">
+              <ArrowLeft className="size-5" />
+            </Link>
+          ) : (
+            <Link to="/" className="flex size-9 items-center justify-center rounded-lg hover:bg-accent text-muted-foreground transition-colors">
+              <LogOut className="size-5" />
+            </Link>
+          )}
+          <span className="font-display text-sm font-semibold">{business.name}</span>
+        </div>
+        <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-xs font-semibold text-primary-foreground">
+          BC
+        </span>
+      </header>
+      <main className="flex-1 w-full max-w-[800px] mx-auto p-4 sm:p-6">
+        <Outlet />
+      </main>
+    </div>
   );
 }

@@ -8,15 +8,15 @@ import { customerActivity, customerProfile, memberships } from "@/lib/mock-data"
 export const Route = createFileRoute("/customer/")({
   head: () => ({
     meta: [
-      { title: "My Loyalty Cards — Loyalty Platform" },
+      { title: "Mes Cartes de Fidélité — Plateforme de Fidélité" },
       {
         name: "description",
-        content: "All your local loyalty cards in one account, each with its own points balance.",
+        content: "Toutes vos cartes de fidélité locales dans un seul compte, chacune avec son propre solde de points.",
       },
-      { property: "og:title", content: "My Loyalty Cards — Loyalty Platform" },
+      { property: "og:title", content: "Mes Cartes de Fidélité — Plateforme de Fidélité" },
       {
         property: "og:description",
-        content: "All your local loyalty cards in one account, each with its own points balance.",
+        content: "Toutes vos cartes de fidélité locales dans un seul compte, chacune avec son propre solde de points.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -31,31 +31,31 @@ function CustomerHome() {
   return (
     <>
       <section>
-        <h1 className="text-2xl font-semibold">Hi {customerProfile.name.split(" ")[0]} 👋</h1>
+        <h1 className="text-2xl font-semibold">Bonjour {customerProfile.name.split(" ")[0]} 👋</h1>
         <p className="text-sm text-muted-foreground">
-          {memberships.length} loyalty cards · {total} points in total
+          {memberships.length} cartes de fidélité · {total} points au total
         </p>
       </section>
 
       <section className="rounded-2xl bg-primary p-5 text-primary-foreground">
-        <p className="text-sm opacity-80">One account, every local business</p>
+        <p className="text-sm opacity-80">Un compte, tous les commerces</p>
         <p className="mt-1 font-display text-3xl font-semibold">{total} points</p>
         <p className="mt-1 text-xs opacity-80">
-          Points stay with the business that issued them.
+          Les points restent chez le commerce qui les a émis.
         </p>
         <Button asChild variant="secondary" size="sm" className="mt-4">
           <Link to="/customer/scan">
-            <Plus className="size-4" /> Join a business
+            <Plus className="size-4" /> Rejoindre un commerce
           </Link>
         </Button>
       </section>
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold">My cards</h2>
+          <h2 className="font-semibold">Mes cartes</h2>
           <Button asChild variant="ghost" size="sm">
             <Link to="/customer/discover">
-              Discover <ArrowRight className="size-4" />
+              Découvrir <ArrowRight className="size-4" />
             </Link>
           </Button>
         </div>
@@ -77,9 +77,9 @@ function CustomerHome() {
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold">Recent activity</h2>
+          <h2 className="font-semibold">Activité récente</h2>
           <Button asChild variant="ghost" size="sm">
-            <Link to="/customer/profile">All</Link>
+            <Link to="/customer/profile">Tout voir</Link>
           </Button>
         </div>
         <ul className="card-surface divide-y divide-border">

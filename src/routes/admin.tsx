@@ -8,20 +8,20 @@ export const Route = createFileRoute("/admin")({
 });
 
 const items: NavItem[] = [
-  { to: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
-  { to: "/admin/businesses", label: "Businesses", icon: Store },
-  { to: "/admin/customers", label: "Customers", icon: Users },
-  { to: "/admin/activity", label: "Activity", icon: Activity },
-  { to: "/admin/settings", label: "Settings", icon: Settings },
+  { to: "/admin", label: "Aperçu", icon: LayoutDashboard, exact: true },
+  { to: "/admin/businesses", label: "Commerces", icon: Store },
+  { to: "/admin/customers", label: "Clients", icon: Users },
+  { to: "/admin/activity", label: "Activité", icon: Activity },
+  { to: "/admin/settings", label: "Paramètres", icon: Settings },
 ];
 
 function AdminLayout() {
   return (
     <DashboardShell
-      brand="Loyalty Platform"
-      brandSub="Platform admin"
+      brand="Plateforme de Fidélité"
+      brandSub="Administration de la plateforme"
       items={items}
-      profile={{ name: "Alex Moreau", sub: "Platform admin", initials: "AM" }}
+      profile={{ name: "Alex Moreau", sub: "Administrateur de la plateforme", initials: "AM" }}
     >
       <Outlet />
     </DashboardShell>
