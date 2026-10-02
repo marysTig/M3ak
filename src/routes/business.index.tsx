@@ -41,7 +41,7 @@ function Overview() {
         </Link>
       </div>
 
-      <div className="grid w-full max-w-md grid-cols-3 gap-4">
+      <div className="grid w-full max-w-md grid-cols-2 gap-4">
         {menuItems.map((item) => (
           <Link
             key={item.to}
