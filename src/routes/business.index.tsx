@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CheckCircle2, QrCode, Settings, Sparkles, Users } from "lucide-react";
+import { CheckCircle2, CreditCard, QrCode, Settings, Users } from "lucide-react";
 
 import { Progress } from "@/components/ui/progress";
 
@@ -10,7 +10,6 @@ export const Route = createFileRoute("/business/")({
 });
 
 const menuItems = [
-  { to: "/business/program", label: "Programme de fidélité", icon: Sparkles, color: "bg-blue-500/10 text-blue-500" },
   { to: "/business/customers", label: "Mes clients", icon: Users, color: "bg-green-500/10 text-green-500" },
   { to: "/business/qr", label: "Code QR", icon: QrCode, color: "bg-purple-500/10 text-purple-500" },
   { to: "/business/settings", label: "Paramètres", icon: Settings, color: "bg-orange-500/10 text-orange-500" },
@@ -24,7 +23,25 @@ function Overview() {
         <p className="mt-2 text-sm text-muted-foreground">Gérez votre commerce en toute simplicité.</p>
       </div>
 
-      <div className="grid w-full max-w-md grid-cols-2 gap-4">
+      {/* Boutons d'action principaux */}
+      <div className="mb-4 flex w-full max-w-md gap-3">
+        <Link
+          to="/business/qr"
+          className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-4 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-soft)] transition-all hover:opacity-90 active:scale-95"
+        >
+          <QrCode className="size-5" />
+          Scanner code QR
+        </Link>
+        <Link
+          to="/business/customers"
+          className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-border bg-surface px-4 py-4 text-sm font-semibold text-foreground shadow-[var(--shadow-soft)] transition-all hover:bg-accent active:scale-95"
+        >
+          <CreditCard className="size-5" />
+          Créer une nouvelle carte
+        </Link>
+      </div>
+
+      <div className="grid w-full max-w-md grid-cols-3 gap-4">
         {menuItems.map((item) => (
           <Link
             key={item.to}
