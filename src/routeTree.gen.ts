@@ -14,7 +14,6 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as BusinessRouteImport } from './routes/business'
 import { Route as CustomerRouteImport } from './routes/customer'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
-import { Route as AdminActivityRouteImport } from './routes/admin.activity'
 import { Route as AdminBusinessesRouteImport } from './routes/admin.businesses'
 import { Route as AdminCustomersRouteImport } from './routes/admin.customers'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
@@ -55,11 +54,6 @@ const CustomerRoute = CustomerRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminActivityRoute = AdminActivityRouteImport.update({
-  id: '/activity',
-  path: '/activity',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminBusinessesRoute = AdminBusinessesRouteImport.update({
@@ -148,7 +142,6 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/business': typeof BusinessRouteWithChildren
   '/customer': typeof CustomerRouteWithChildren
-  '/admin/activity': typeof AdminActivityRoute
   '/admin/businesses': typeof AdminBusinessesRoute
   '/admin/customers': typeof AdminCustomersRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -169,7 +162,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin/activity': typeof AdminActivityRoute
   '/admin/businesses': typeof AdminBusinessesRoute
   '/admin/customers': typeof AdminCustomersRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -194,7 +186,6 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/business': typeof BusinessRouteWithChildren
   '/customer': typeof CustomerRouteWithChildren
-  '/admin/activity': typeof AdminActivityRoute
   '/admin/businesses': typeof AdminBusinessesRoute
   '/admin/customers': typeof AdminCustomersRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -220,7 +211,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/business'
     | '/customer'
-    | '/admin/activity'
     | '/admin/businesses'
     | '/admin/customers'
     | '/admin/settings'
@@ -241,7 +231,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin/activity'
     | '/admin/businesses'
     | '/admin/customers'
     | '/admin/settings'
@@ -265,7 +254,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/business'
     | '/customer'
-    | '/admin/activity'
     | '/admin/businesses'
     | '/admin/customers'
     | '/admin/settings'
@@ -327,13 +315,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/activity': {
-      id: '/admin/activity'
-      path: '/activity'
-      fullPath: '/admin/activity'
-      preLoaderRoute: typeof AdminActivityRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/businesses': {
@@ -452,7 +433,6 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
-  AdminActivityRoute: typeof AdminActivityRoute
   AdminBusinessesRoute: typeof AdminBusinessesRoute
   AdminCustomersRoute: typeof AdminCustomersRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
@@ -460,7 +440,6 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
-  AdminActivityRoute: AdminActivityRoute,
   AdminBusinessesRoute: AdminBusinessesRoute,
   AdminCustomersRoute: AdminCustomersRoute,
   AdminSettingsRoute: AdminSettingsRoute,

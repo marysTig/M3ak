@@ -68,8 +68,8 @@ function Landing() {
       </header>
 
       <main className="mx-auto w-full max-w-6xl px-4 pb-16 sm:px-5 sm:pb-20">
-        <section className="py-8 text-center sm:py-20">
-          <h1 className="mx-auto mt-6 max-w-3xl text-3xl font-semibold leading-[1.2] sm:text-5xl md:text-6xl">
+        <section className="pb-8 pt-2 text-center sm:pb-20 sm:pt-4">
+          <h1 className="mx-auto mt-2 max-w-3xl text-3xl font-semibold leading-[1.2] sm:text-5xl md:text-6xl">
             Un seul compte de fidélité pour tous vos commerces locaux préférés.
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground sm:text-lg">

@@ -11,7 +11,6 @@ const items: NavItem[] = [
   { to: "/admin", label: "Aperçu", icon: LayoutDashboard, exact: true },
   { to: "/admin/businesses", label: "Commerces", icon: Store },
   { to: "/admin/customers", label: "Clients", icon: Users },
-  { to: "/admin/activity", label: "Activité", icon: Activity },
   { to: "/admin/settings", label: "Paramètres", icon: Settings },
 ];
 
