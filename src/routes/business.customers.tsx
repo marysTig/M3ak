@@ -342,7 +342,7 @@ function CustomersPage() {
                   ))}
                 </dl>
 
-                {/* Virtual Card & QR Code */}
+                {/* Virtual Card */}
                 {selected.card.qrToken && (
                   <div className="flex flex-col items-center gap-4">
                     <p className="text-xs font-medium text-muted-foreground">Carte de fidélité</p>
@@ -351,15 +351,10 @@ function CustomersPage() {
                         theme={themes.find(t => t.id === selected.card.themeId) || themes[0]}
                         businessName={MERCHANT_NAME}
                         points={selected.card.points}
+                        customerName={selected.customer.name}
+                        qrToken={selected.card.qrToken}
                         compact
                       />
-                    </div>
-                    <div className="flex flex-col items-center gap-2">
-                      <p className="text-xs font-medium text-muted-foreground">QR Code</p>
-                      <QrDisplay token={selected.card.qrToken} size={160} />
-                      <p className="font-mono text-[10px] text-muted-foreground">
-                        {selected.card.qrToken.slice(0, 16)}...
-                      </p>
                     </div>
                   </div>
                 )}

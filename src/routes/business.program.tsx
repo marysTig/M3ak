@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/app/page-header";
+import { QrDisplay } from "@/components/app/qr-display";
 import { Button } from "@/components/ui/button";
 import { getMerchantTheme, saveMerchantTheme, MERCHANT_ID } from "@/lib/loyalty-store";
 import { cn } from "@/lib/utils";
@@ -139,6 +140,8 @@ export function VirtualCard({
   businessName,
   category,
   points = 120,
+  customerName,
+  qrToken,
   selected,
   onClick,
   compact = false,
@@ -147,6 +150,8 @@ export function VirtualCard({
   businessName: string;
   category?: string;
   points?: number;
+  customerName?: string;
+  qrToken?: string;
   selected?: boolean;
   onClick?: () => void;
   compact?: boolean;
@@ -217,20 +222,28 @@ export function VirtualCard({
           )}
         </div>
 
-        <span
-          className={cn(
-            "flex items-center justify-center rounded-xl font-bold",
-            isLight ? "text-white" : "text-white",
-            compact ? "size-8 text-xs" : "size-10 text-sm",
+        <div className="flex flex-col items-end gap-2">
+          {qrToken ? (
+            <div className="rounded-lg bg-white p-1 shadow-sm">
+              <QrDisplay token={qrToken} size={compact ? 40 : 50} label="" />
+            </div>
+          ) : (
+            <span
+              className={cn(
+                "flex items-center justify-center rounded-xl font-bold",
+                isLight ? "text-white" : "text-white",
+                compact ? "size-8 text-xs" : "size-10 text-sm",
+              )}
+              style={{
+                background: "rgba(255,255,255,0.2)",
+                backdropFilter: "blur(8px)",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              }}
+            >
+              {initials}
+            </span>
           )}
-          style={{
-            background: "rgba(255,255,255,0.2)",
-            backdropFilter: "blur(8px)",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-          }}
-        >
-          {initials}
-        </span>
+        </div>
       </div>
 
       {/* Bottom */}
@@ -249,12 +262,22 @@ export function VirtualCard({
             {points}
           </p>
         </div>
-        <p
-          className="text-[9px] font-medium uppercase tracking-widest"
-          style={{ color: theme.textColor, opacity: 0.5 }}
-        >
-          {theme.label}
-        </p>
+        <div className="text-right">
+          <p
+            className="text-[9px] font-medium uppercase tracking-widest"
+            style={{ color: theme.textColor, opacity: 0.5 }}
+          >
+            {theme.label}
+          </p>
+          {customerName && (
+            <p
+              className={cn("mt-1 font-semibold", compact ? "text-xs" : "text-sm")}
+              style={{ color: theme.textColor }}
+            >
+              {customerName}
+            </p>
+          )}
+        </div>
       </div>
     </button>
   );

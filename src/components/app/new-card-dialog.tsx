@@ -228,20 +228,17 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-5 pt-2">
-              {/* Virtual Card & QR Code */}
+              {/* Virtual Card */}
               <div className="flex flex-col items-center gap-4">
                 <div className="w-full max-w-[360px]">
                   <VirtualCard
                     theme={themes.find(t => t.id === created.card.themeId) || themes[0]}
                     businessName={MERCHANT_NAME}
                     points={created.card.points}
+                    customerName={created.customer.name}
+                    qrToken={created.card.qrToken}
                     compact
                   />
-                </div>
-                <QrDisplay token={created.card.qrToken} size={150} />
-                <div className="text-center">
-                  <p className="font-semibold">{created.customer.name}</p>
-                  <p className="text-sm text-muted-foreground">{created.customer.email}</p>
                 </div>
               </div>
 
