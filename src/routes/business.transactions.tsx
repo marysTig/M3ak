@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Plus, Receipt, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/app/empty-state";
+import { NewCardDialog } from "@/components/app/new-card-dialog";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,18 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { customers, transactions as seed, type Transaction } from "@/lib/mock-data";
+import {
+  addPoints,
+  formatDate,
+  getCardByCustomer,
+  getCustomers,
+  getTransactionsByMerchant,
+  MERCHANT_ID,
+  MERCHANT_NAME,
+  STORE_ID,
+  validatePointsToAdd,
+  type LoyaltyTransaction,
+} from "@/lib/loyalty-store";
 
 export const Route = createFileRoute("/business/transactions")({
   head: () => ({
@@ -52,45 +64,94 @@ export const Route = createFileRoute("/business/transactions")({
 const filters = [
   { id: "all", label: "All" },
   { id: "earned", label: "Earned" },
-  { id: "redeemed", label: "Redeemed" },
-  { id: "adjustment", label: "Adjustments" },
 ] as const;
 
 function TransactionsPage() {
-  const [rows, setRows] = useState<Transaction[]>(seed);
   const [filter, setFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ customer: "", points: "", reason: "" });
+  const [newCardOpen, setNewCardOpen] = useState(false);
+  const [form, setForm] = useState({ customerId: "", points: "", reason: "" });
+  const [formError, setFormError] = useState({ points: "" });
 
-  const visible = useMemo(
-    () =>
-      rows.filter((t) => {
-        const matchesType = filter === "all" || t.type === filter;
-        const q = query.trim().toLowerCase();
-        return matchesType && (!q || t.customer.toLowerCase().includes(q));
-      }),
-    [rows, filter, query],
+  // Rafraîchissement
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  // Données réelles
+  const realTransactions: LoyaltyTransaction[] = useMemo(
+    () => getTransactionsByMerchant(MERCHANT_ID),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [refreshKey],
   );
 
+  const realCustomers = useMemo(
+    () => getCustomers(MERCHANT_ID),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [refreshKey],
+  );
+
+  const visible = useMemo(() => {
+    let list = realTransactions;
+    if (filter !== "all") {
+      list = list.filter((t) => t.pointsAdded > 0);
+    }
+    const q = query.trim().toLowerCase();
+    if (q) {
+      list = list.filter((t) => {
+        const customer = realCustomers.find((c) => c.id === t.customerId);
+        return customer?.name.toLowerCase().includes(q) ?? false;
+      });
+    }
+    return list;
+  }, [realTransactions, realCustomers, filter, query]);
+
+  function getCustomerName(customerId: string): string {
+    return realCustomers.find((c) => c.id === customerId)?.name ?? "Client inconnu";
+  }
+
+  function validateForm() {
+    const errs = { points: "" };
+    const v = validatePointsToAdd(Number(form.points));
+    if (!v.valid) errs.points = v.error ?? "Valeur invalide.";
+    setFormError(errs);
+    return !errs.points;
+  }
+
   function submit() {
-    if (!form.customer || !form.points) {
-      toast.error("Pick a customer and a points amount.");
+    if (!form.customerId) {
+      toast.error("Sélectionnez un client.");
       return;
     }
-    const tx: Transaction = {
-      id: `t${Date.now()}`,
-      date: "Just now",
-      customer: form.customer,
-      type: "earned",
-      points: Number(form.points),
-      description: form.reason || "Manual entry",
-      status: "completed",
-    };
-    setRows([tx, ...rows]);
-    setOpen(false);
-    setForm({ customer: "", points: "", reason: "" });
-    toast.success(`${tx.points} points added to ${tx.customer}`);
+    if (!validateForm()) return;
+
+    try {
+      const card = getCardByCustomer(form.customerId, MERCHANT_ID);
+      if (!card) {
+        toast.error("Ce client n'a pas de carte de fidélité.", {
+          description: "Créez d'abord une carte pour ce client.",
+        });
+        return;
+      }
+
+      addPoints(
+        card.id,
+        Number(form.points),
+        MERCHANT_ID,
+        STORE_ID,
+        form.reason.trim() || `Ajout manuel — ${MERCHANT_NAME}`,
+        MERCHANT_ID,
+      );
+
+      setOpen(false);
+      setForm({ customerId: "", points: "", reason: "" });
+      setFormError({ points: "" });
+      refresh();
+      toast.success(`${form.points} points ajoutés à ${getCustomerName(form.customerId)}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erreur inconnue.";
+      toast.error(msg);
+    }
   }
 
   return (
@@ -101,7 +162,7 @@ function TransactionsPage() {
         actions={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button id="btn-add-points-tx">
                 <Plus className="size-4" /> Add Points
               </Button>
             </DialogTrigger>
@@ -114,35 +175,50 @@ function TransactionsPage() {
                 <div className="space-y-2">
                   <Label>Customer</Label>
                   <Select
-                    value={form.customer}
-                    onValueChange={(v) => setForm({ ...form, customer: v })}
+                    value={form.customerId}
+                    onValueChange={(v) => setForm({ ...form, customerId: v })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select a customer" />
                     </SelectTrigger>
                     <SelectContent>
-                      {customers.map((c) => (
-                        <SelectItem key={c.id} value={c.name}>
-                          {c.name}
+                      {realCustomers.length === 0 ? (
+                        <SelectItem value="none" disabled>
+                          Aucun client enregistré
                         </SelectItem>
-                      ))}
+                      ) : (
+                        realCustomers.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="points">Points</Label>
+                  <Label htmlFor="tx-points">Points</Label>
                   <Input
-                    id="points"
+                    id="tx-points"
                     inputMode="numeric"
                     placeholder="20"
                     value={form.points}
-                    onChange={(e) => setForm({ ...form, points: e.target.value })}
+                    onChange={(e) => {
+                      setForm({ ...form, points: e.target.value });
+                      if (formError.points) {
+                        const v = validatePointsToAdd(Number(e.target.value));
+                        setFormError({ points: v.error ?? "" });
+                      }
+                    }}
                   />
+                  {formError.points && (
+                    <p className="text-xs text-destructive">{formError.points}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="reason">Reason</Label>
+                  <Label htmlFor="tx-reason">Reason</Label>
                   <Input
-                    id="reason"
+                    id="tx-reason"
                     placeholder="Purchase €20.00"
                     value={form.reason}
                     onChange={(e) => setForm({ ...form, reason: e.target.value })}
@@ -187,7 +263,11 @@ function TransactionsPage() {
             <EmptyState
               icon={Receipt}
               title="No transactions"
-              description="Nothing matches this filter yet."
+              description={
+                realTransactions.length === 0
+                  ? "Aucune transaction. Ajoutez des points depuis le scanner ou la page clients."
+                  : "Nothing matches this filter yet."
+              }
             />
           </div>
         ) : (
@@ -207,26 +287,26 @@ function TransactionsPage() {
                 {visible.map((t) => (
                   <TableRow key={t.id}>
                     <TableCell className="whitespace-nowrap text-muted-foreground">
-                      {t.date}
+                      {formatDate(t.createdAt)}
                     </TableCell>
-                    <TableCell className="font-medium">{t.customer}</TableCell>
+                    <TableCell className="font-medium">{getCustomerName(t.customerId)}</TableCell>
                     <TableCell>
-                      <StatusBadge status={t.type} />
+                      <StatusBadge status="earned" />
                     </TableCell>
                     <TableCell
                       className={
-                        t.points >= 0
+                        t.pointsAdded >= 0
                           ? "text-right font-medium text-success"
                           : "text-right font-medium text-destructive"
                       }
                     >
-                      {t.points > 0 ? `+${t.points}` : t.points}
+                      {t.pointsAdded > 0 ? `+${t.pointsAdded}` : t.pointsAdded}
                     </TableCell>
                     <TableCell className="hidden text-muted-foreground md:table-cell">
                       {t.description}
                     </TableCell>
                     <TableCell>
-                      <StatusBadge status={t.status} />
+                      <StatusBadge status="completed" />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -235,6 +315,8 @@ function TransactionsPage() {
           </div>
         )}
       </div>
+
+      <NewCardDialog open={newCardOpen} onOpenChange={setNewCardOpen} onCreated={refresh} />
     </>
   );
 }

@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2, IdCard, QrCode, Settings, Users } from "lucide-react";
+import { useState } from "react";
 
+import { NewCardDialog } from "@/components/app/new-card-dialog";
+import { ScanPointsDialog } from "@/components/app/scan-points-dialog";
 import { Progress } from "@/components/ui/progress";
-
 import { business } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/business/")({
@@ -17,6 +19,9 @@ const menuItems = [
 ];
 
 function Overview() {
+  const [scanOpen, setScanOpen] = useState(false);
+  const [newCardOpen, setNewCardOpen] = useState(false);
+
   return (
     <div className="flex flex-col items-center justify-center py-10">
       <div className="mb-10 text-center">
@@ -24,20 +29,22 @@ function Overview() {
         <p className="mt-2 text-sm text-muted-foreground">Gérez votre commerce en toute simplicité.</p>
       </div>
 
-      {/* Boutons d'action principaux */}
+      {/* Boutons d'action principaux — design conservé, logique ajoutée */}
       <div className="mb-4 flex w-full max-w-md gap-3">
-        <Link
-          to="/business/qr"
-          className="flex flex-1 items-center justify-center rounded-2xl bg-primary px-4 py-4 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-soft)] transition-all hover:opacity-90 active:scale-95 whitespace-nowrap"
+        <button
+          id="btn-scan-qr"
+          onClick={() => setScanOpen(true)}
+          className="flex flex-1 items-center justify-center rounded-2xl bg-primary px-3 py-4 text-center text-xs font-semibold text-primary-foreground shadow-[var(--shadow-soft)] transition-all hover:opacity-90 active:scale-95 sm:px-4 sm:text-sm"
         >
           Scanner code QR
-        </Link>
-        <Link
-          to="/business/customers"
-          className="flex flex-1 items-center justify-center rounded-2xl border border-border bg-surface px-4 py-4 text-sm font-semibold text-foreground shadow-[var(--shadow-soft)] transition-all hover:bg-accent active:scale-95 whitespace-nowrap"
+        </button>
+        <button
+          id="btn-nouvelle-carte"
+          onClick={() => setNewCardOpen(true)}
+          className="flex flex-1 items-center justify-center rounded-2xl border border-border bg-surface px-3 py-4 text-center text-xs font-semibold text-foreground shadow-[var(--shadow-soft)] transition-all hover:bg-accent active:scale-95 sm:px-4 sm:text-sm"
         >
           Créer une nouvelle carte
-        </Link>
+        </button>
       </div>
 
       <div className="grid w-full max-w-md grid-cols-2 gap-4">
@@ -71,16 +78,30 @@ function Overview() {
             <p className="text-xs text-muted-foreground">/ mois</p>
           </div>
         </div>
-        
+
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs">
             <span className="font-medium text-primary">30 jours restants</span>
             <span className="text-muted-foreground">Sur 30 jours</span>
           </div>
           <Progress value={100} className="h-2 bg-secondary" />
-          <p className="text-[10px] text-muted-foreground text-center mt-1">Le décompte a commencé lors de l'activation</p>
+          <p className="mt-1 text-center text-[10px] text-muted-foreground">
+            Le décompte a commencé lors de l'activation
+          </p>
         </div>
       </div>
+
+      {/* Dialogs — aucune modification visuelle des interfaces existantes */}
+      <ScanPointsDialog
+        open={scanOpen}
+        onOpenChange={setScanOpen}
+        onPointsAdded={() => {}}
+      />
+      <NewCardDialog
+        open={newCardOpen}
+        onOpenChange={setNewCardOpen}
+        onCreated={() => {}}
+      />
     </div>
   );
 }
