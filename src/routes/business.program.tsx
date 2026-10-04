@@ -223,26 +223,20 @@ export function VirtualCard({
         </div>
 
         <div className="flex flex-col items-end gap-2">
-          {qrToken ? (
-            <div className="rounded-xl bg-white p-1.5 shadow-md">
-              <QrDisplay token={qrToken} size={compact ? 75 : 95} label="" />
-            </div>
-          ) : (
-            <span
-              className={cn(
-                "flex items-center justify-center rounded-xl font-bold",
-                isLight ? "text-white" : "text-white",
-                compact ? "size-8 text-xs" : "size-10 text-sm",
-              )}
-              style={{
-                background: "rgba(255,255,255,0.2)",
-                backdropFilter: "blur(8px)",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-              }}
-            >
-              {initials}
-            </span>
-          )}
+          <span
+            className={cn(
+              "flex items-center justify-center rounded-xl font-bold",
+              isLight ? "text-white" : "text-white",
+              compact ? "size-8 text-xs" : "size-10 text-sm",
+            )}
+            style={{
+              background: "rgba(255,255,255,0.2)",
+              backdropFilter: "blur(8px)",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+            }}
+          >
+            {initials}
+          </span>
         </div>
       </div>
 
@@ -269,14 +263,6 @@ export function VirtualCard({
           >
             {theme.label}
           </p>
-          {customerName && (
-            <p
-              className={cn("mt-1 font-semibold", compact ? "text-xs" : "text-sm")}
-              style={{ color: theme.textColor }}
-            >
-              {customerName}
-            </p>
-          )}
         </div>
       </div>
     </button>

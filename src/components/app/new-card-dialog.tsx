@@ -228,18 +228,34 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-5 pt-2">
-              {/* Virtual Card */}
+              {/* Layout: Name --- Business, then Card, then QR */}
               <div className="flex flex-col items-center gap-4">
+                
+                {/* Header: Nom Client ----------- Nom Commerce */}
+                <div className="flex w-full max-w-[360px] items-center justify-between px-1">
+                  <span className="font-semibold">{created.customer.name}</span>
+                  <span className="text-sm font-medium text-muted-foreground">{MERCHANT_NAME}</span>
+                </div>
+
+                {/* Virtual Card */}
                 <div className="w-full max-w-[360px]">
                   <VirtualCard
                     theme={themes.find(t => t.id === created.card.themeId) || themes[0]}
                     businessName={MERCHANT_NAME}
                     points={created.card.points}
-                    customerName={created.customer.name}
-                    qrToken={created.card.qrToken}
                     compact
                   />
                 </div>
+
+                {/* QR Code */}
+                <div className="mt-2 flex flex-col items-center gap-2">
+                  <p className="text-xs font-medium text-muted-foreground">QR Code de fidélité</p>
+                  <QrDisplay token={created.card.qrToken} size={150} />
+                  <p className="font-mono text-[10px] text-muted-foreground">
+                    {created.card.qrToken.slice(0, 16)}...
+                  </p>
+                </div>
+
               </div>
 
               {/* Statut email */}
