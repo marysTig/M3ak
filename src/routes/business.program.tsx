@@ -224,8 +224,8 @@ export function VirtualCard({
 
         <div className="flex flex-col items-end gap-2">
           {qrToken ? (
-            <div className="rounded-lg bg-white p-1 shadow-sm">
-              <QrDisplay token={qrToken} size={compact ? 40 : 50} label="" />
+            <div className="rounded-xl bg-white p-1.5 shadow-md">
+              <QrDisplay token={qrToken} size={compact ? 75 : 95} label="" />
             </div>
           ) : (
             <span
