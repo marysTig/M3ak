@@ -1,7 +1,9 @@
 import { createFileRoute, Outlet, Link, useMatchRoute } from "@tanstack/react-router";
 import { ArrowLeft, LogOut } from "lucide-react";
+import { useEffect, useState } from "react";
 
-import { business } from "@/lib/mock-data";
+import { supabase } from "@/lib/supabase";
+import type { Merchant } from "@/lib/auth";
 
 export const Route = createFileRoute("/business")({
   component: BusinessLayout,
@@ -9,7 +11,29 @@ export const Route = createFileRoute("/business")({
 
 function BusinessLayout() {
   const matchRoute = useMatchRoute();
-  const isRoot = matchRoute({ to: "/business", exact: true });
+  const isRoot = matchRoute({ to: "/business" as const });
+
+  const [merchant, setMerchant] = useState<Merchant | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { data } = await supabase
+        .from("merchants")
+        .select("*")
+        .eq("owner_id", user.id)
+        .single();
+      setMerchant(data as Merchant | null);
+    });
+  }, []);
+
+  const name = merchant?.name ?? "Mon commerce";
+  const initials = name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -24,10 +48,10 @@ function BusinessLayout() {
               <LogOut className="size-5" />
             </Link>
           )}
-          <span className="font-display text-sm font-semibold">{business.name}</span>
+          <span className="font-display text-sm font-semibold">{name}</span>
         </div>
         <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-xs font-semibold text-primary-foreground">
-          BC
+          {initials}
         </span>
       </header>
       <main className="flex-1 w-full max-w-[800px] mx-auto p-4 sm:p-6">

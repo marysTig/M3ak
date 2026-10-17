@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Plus, Receipt, Search } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/app/empty-state";
@@ -8,52 +8,18 @@ import { NewCardDialog } from "@/components/app/new-card-dialog";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  addPoints,
-  formatDate,
-  getCardByCustomer,
-  getCustomers,
-  getTransactionsByMerchant,
-  MERCHANT_ID,
-  MERCHANT_NAME,
-  STORE_ID,
-  validatePointsToAdd,
-  type LoyaltyTransaction,
-} from "@/lib/loyalty-store";
+import { supabase } from "@/lib/supabase";
+import { getMerchantTransactions, type Transaction } from "@/lib/db/transactions";
 
 export const Route = createFileRoute("/business/transactions")({
   head: () => ({
     meta: [
-      { title: "Transactions — Bloom Café Loyalty" },
-      {
-        name: "description",
-        content: "Log points earned, redeemed and adjusted for your loyalty customers.",
-      },
-      { property: "og:title", content: "Transactions — Bloom Café Loyalty" },
-      {
-        property: "og:description",
-        content: "Log points earned, redeemed and adjusted for your loyalty customers.",
-      },
+      { title: "Transactions — M3ak Loyalty" },
+      { name: "description", content: "Historique des points gagnés, échangés et ajustés." },
+      { property: "og:title", content: "Transactions — M3ak Loyalty" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -61,178 +27,82 @@ export const Route = createFileRoute("/business/transactions")({
   component: TransactionsPage,
 });
 
-const filters = [
+const filterTabs = [
   { id: "all", label: "All" },
   { id: "earned", label: "Earned" },
+  { id: "redeemed", label: "Redeemed" },
 ] as const;
 
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("fr-FR", {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
 function TransactionsPage() {
-  const [filter, setFilter] = useState<string>("all");
+  const [merchantId, setMerchantId] = useState<string | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
   const [newCardOpen, setNewCardOpen] = useState(false);
-  const [form, setForm] = useState({ customerId: "", points: "", reason: "" });
-  const [formError, setFormError] = useState({ points: "" });
 
-  // Rafraîchissement
-  const [refreshKey, setRefreshKey] = useState(0);
-  const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { data: m } = await supabase.from("merchants").select("id").eq("owner_id", user.id).single();
+      if (m) {
+        setMerchantId(m.id);
+        const tx = await getMerchantTransactions(m.id);
+        setTransactions(tx);
+      }
+      setLoading(false);
+    });
+  }, []);
 
-  // Données réelles
-  const realTransactions: LoyaltyTransaction[] = useMemo(
-    () => getTransactionsByMerchant(MERCHANT_ID),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [refreshKey],
-  );
-
-  const realCustomers = useMemo(
-    () => getCustomers(MERCHANT_ID),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [refreshKey],
-  );
+  async function reload() {
+    if (!merchantId) return;
+    const tx = await getMerchantTransactions(merchantId);
+    setTransactions(tx);
+  }
 
   const visible = useMemo(() => {
-    let list = realTransactions;
+    let list = transactions;
     if (filter !== "all") {
-      list = list.filter((t) => t.pointsAdded > 0);
+      list = list.filter((t) => t.tx_type === filter);
     }
     const q = query.trim().toLowerCase();
     if (q) {
-      list = list.filter((t) => {
-        const customer = realCustomers.find((c) => c.id === t.customerId);
-        return customer?.name.toLowerCase().includes(q) ?? false;
-      });
+      list = list.filter((t) =>
+        t.description.toLowerCase().includes(q)
+      );
     }
     return list;
-  }, [realTransactions, realCustomers, filter, query]);
+  }, [transactions, filter, query]);
 
-  function getCustomerName(customerId: string): string {
-    return realCustomers.find((c) => c.id === customerId)?.name ?? "Client inconnu";
+  function txBadgeStatus(tx: Transaction): "active" | "pending" {
+    return tx.points_delta > 0 ? "active" : "pending";
   }
 
-  function validateForm() {
-    const errs = { points: "" };
-    const v = validatePointsToAdd(Number(form.points));
-    if (!v.valid) errs.points = v.error ?? "Valeur invalide.";
-    setFormError(errs);
-    return !errs.points;
+  function pointsLabel(tx: Transaction) {
+    const sign = tx.points_delta > 0 ? "+" : "";
+    return `${sign}${tx.points_delta}`;
   }
 
-  function submit() {
-    if (!form.customerId) {
-      toast.error("Sélectionnez un client.");
-      return;
-    }
-    if (!validateForm()) return;
-
-    try {
-      const card = getCardByCustomer(form.customerId, MERCHANT_ID);
-      if (!card) {
-        toast.error("Ce client n'a pas de carte de fidélité.", {
-          description: "Créez d'abord une carte pour ce client.",
-        });
-        return;
-      }
-
-      addPoints(
-        card.id,
-        Number(form.points),
-        MERCHANT_ID,
-        STORE_ID,
-        form.reason.trim() || `Ajout manuel — ${MERCHANT_NAME}`,
-        MERCHANT_ID,
-      );
-
-      setOpen(false);
-      setForm({ customerId: "", points: "", reason: "" });
-      setFormError({ points: "" });
-      refresh();
-      toast.success(`${form.points} points ajoutés à ${getCustomerName(form.customerId)}`);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erreur inconnue.";
-      toast.error(msg);
-    }
+  if (loading) {
+    return <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">Chargement…</div>;
   }
 
   return (
     <>
       <PageHeader
         title="Transactions"
-        subtitle="Every point earned, redeemed or adjusted."
+        subtitle={`${transactions.length} transaction${transactions.length !== 1 ? "s" : ""} enregistrée${transactions.length !== 1 ? "s" : ""}`}
         actions={
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button id="btn-add-points-tx">
-                <Plus className="size-4" /> Add Points
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add points</DialogTitle>
-                <DialogDescription>Reward a customer for a purchase or visit.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Customer</Label>
-                  <Select
-                    value={form.customerId}
-                    onValueChange={(v) => setForm({ ...form, customerId: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {realCustomers.length === 0 ? (
-                        <SelectItem value="none" disabled>
-                          Aucun client enregistré
-                        </SelectItem>
-                      ) : (
-                        realCustomers.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tx-points">Points</Label>
-                  <Input
-                    id="tx-points"
-                    inputMode="numeric"
-                    placeholder="20"
-                    value={form.points}
-                    onChange={(e) => {
-                      setForm({ ...form, points: e.target.value });
-                      if (formError.points) {
-                        const v = validatePointsToAdd(Number(e.target.value));
-                        setFormError({ points: v.error ?? "" });
-                      }
-                    }}
-                  />
-                  {formError.points && (
-                    <p className="text-xs text-destructive">{formError.points}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tx-reason">Reason</Label>
-                  <Input
-                    id="tx-reason"
-                    placeholder="Purchase €20.00"
-                    value={form.reason}
-                    onChange={(e) => setForm({ ...form, reason: e.target.value })}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={submit}>Add Points</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => setNewCardOpen(true)}>
+            <Plus className="size-4" /> Nouveau client
+          </Button>
         }
       />
 
@@ -240,19 +110,13 @@ function TransactionsPage() {
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search by customer..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="pl-9"
-            />
+            <Input placeholder="Rechercher…" className="pl-9" value={query}
+              onChange={(e) => setQuery(e.target.value)} />
           </div>
           <Tabs value={filter} onValueChange={setFilter}>
             <TabsList>
-              {filters.map((f) => (
-                <TabsTrigger key={f.id} value={f.id}>
-                  {f.label}
-                </TabsTrigger>
+              {filterTabs.map((f) => (
+                <TabsTrigger key={f.id} value={f.id}>{f.label}</TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
@@ -262,12 +126,10 @@ function TransactionsPage() {
           <div className="p-4">
             <EmptyState
               icon={Receipt}
-              title="No transactions"
-              description={
-                realTransactions.length === 0
-                  ? "Aucune transaction. Ajoutez des points depuis le scanner ou la page clients."
-                  : "Nothing matches this filter yet."
-              }
+              title="Aucune transaction trouvée"
+              description={transactions.length === 0
+                ? "Les transactions apparaîtront ici dès que vous ajouterez des points à un client."
+                : "Essayez un autre filtre."}
             />
           </div>
         ) : (
@@ -276,37 +138,27 @@ function TransactionsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead>Customer</TableHead>
+                  <TableHead>Description</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead className="text-right">Points</TableHead>
-                  <TableHead className="hidden md:table-cell">Description</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right hidden sm:table-cell">Nouveau solde</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {visible.map((t) => (
                   <TableRow key={t.id}>
-                    <TableCell className="whitespace-nowrap text-muted-foreground">
-                      {formatDate(t.createdAt)}
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      {formatDate(t.created_at)}
                     </TableCell>
-                    <TableCell className="font-medium">{getCustomerName(t.customerId)}</TableCell>
+                    <TableCell className="max-w-[200px] truncate">{t.description}</TableCell>
                     <TableCell>
-                      <StatusBadge status="earned" />
+                      <StatusBadge status={txBadgeStatus(t)} />
                     </TableCell>
-                    <TableCell
-                      className={
-                        t.pointsAdded >= 0
-                          ? "text-right font-medium text-success"
-                          : "text-right font-medium text-destructive"
-                      }
-                    >
-                      {t.pointsAdded > 0 ? `+${t.pointsAdded}` : t.pointsAdded}
+                    <TableCell className={`text-right font-semibold ${t.points_delta > 0 ? "text-success" : "text-destructive"}`}>
+                      {pointsLabel(t)}
                     </TableCell>
-                    <TableCell className="hidden text-muted-foreground md:table-cell">
-                      {t.description}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status="completed" />
+                    <TableCell className="text-right text-muted-foreground hidden sm:table-cell">
+                      {t.new_balance}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -316,7 +168,11 @@ function TransactionsPage() {
         )}
       </div>
 
-      <NewCardDialog open={newCardOpen} onOpenChange={setNewCardOpen} onCreated={refresh} />
+      <NewCardDialog
+        open={newCardOpen}
+        onOpenChange={setNewCardOpen}
+        onCreated={reload}
+      />
     </>
   );
 }

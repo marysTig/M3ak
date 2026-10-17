@@ -18,6 +18,7 @@ const map: Record<string, Tone> = {
   pending: "warning",
   adjustment: "warning",
   inactive: "neutral",
+  locked: "neutral",
   redeemed: "info",
   suspended: "danger",
 };

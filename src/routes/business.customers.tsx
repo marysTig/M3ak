@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Mail, Minus, Plus, Search, Users } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { Mail, Plus, Search, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/app/empty-state";
@@ -13,44 +13,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
+  Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { resendLoyaltyCardEmail } from "@/lib/email-service";
-import {
-  addPoints,
-  formatDate,
-  formatDateShort,
-  getCardByCustomer,
-  getCustomerById,
-  getCustomersWithCards,
-  getTransactionsByCard,
-  MERCHANT_ID,
-  MERCHANT_NAME,
-  STORE_ID,
-  validatePointsToAdd,
-  type CustomerWithCard,
-  type LoyaltyTransaction,
-} from "@/lib/loyalty-store";
+import { supabase } from "@/lib/supabase";
+import { getMerchantCustomers, type CustomerWithCard } from "@/lib/db/customers";
+import { addPoints } from "@/lib/db/cards";
+import { getCardTransactions } from "@/lib/db/transactions";
+import type { Transaction } from "@/lib/db/transactions";
+import { getLoyaltyProgram } from "@/lib/db/program";
 
 export const Route = createFileRoute("/business/customers")({
   head: () => ({
     meta: [
-      { title: "Customers — Bloom Café Loyalty" },
-      {
-        name: "description",
-        content: "Search, filter and manage loyalty customers, points balances and visit history.",
-      },
-      { property: "og:title", content: "Customers — Bloom Café Loyalty" },
-      {
-        property: "og:description",
-        content: "Search, filter and manage loyalty customers, points balances and visit history.",
-      },
+      { title: "Clients — M3ak Loyalty" },
+      { name: "description", content: "Gérez vos clients fidélité, leurs soldes et leur historique." },
+      { property: "og:title", content: "Clients — M3ak Loyalty" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -61,15 +40,22 @@ export const Route = createFileRoute("/business/customers")({
 const filters = ["all", "active", "inactive", "new"] as const;
 
 function initials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("fr-FR", {
+    day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
 }
 
 function CustomersPage() {
+  const [merchantId, setMerchantId] = useState<string | null>(null);
+  const [merchantName, setMerchantName] = useState("");
+  const [themeId, setThemeId] = useState("aurora");
+  const [customers, setCustomers] = useState<CustomerWithCard[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<(typeof filters)[number]>("all");
   const [selected, setSelected] = useState<CustomerWithCard | null>(null);
@@ -77,130 +63,96 @@ function CustomersPage() {
   const [pointsInput, setPointsInput] = useState("");
   const [pointsError, setPointsError] = useState("");
   const [addingPoints, setAddingPoints] = useState(false);
-  const [resendLoading, setResendLoading] = useState(false);
+  const [cardTx, setCardTx] = useState<Transaction[]>([]);
 
-  // Rafraîchissement forcé
-  const [refreshKey, setRefreshKey] = useState(0);
-  const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+  const reload = useCallback(async (mId: string) => {
+    const data = await getMerchantCustomers(mId);
+    setCustomers(data);
+  }, []);
 
-  // Données réelles depuis le store
-  const allCustomers = useMemo(
-    () => getCustomersWithCards(MERCHANT_ID),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [refreshKey],
-  );
-
-  const rows = useMemo(
-    () =>
-      allCustomers.filter((c) => {
-        const matchesFilter = filter === "all" || c.status === filter;
-        const q = query.trim().toLowerCase();
-        const matchesQuery =
-          !q ||
-          c.customer.name.toLowerCase().includes(q) ||
-          c.customer.email.toLowerCase().includes(q);
-        return matchesFilter && matchesQuery;
-      }),
-    [allCustomers, query, filter],
-  );
-
-  // Transactions du client sélectionné
-  const history: LoyaltyTransaction[] = useMemo(() => {
-    if (!selected?.card?.id) return [];
-    return getTransactionsByCard(selected.card.id);
-  }, [selected, refreshKey]);
-
-  // Rafraîchir selected depuis le store après modification
-  function refreshSelected(customerId: string) {
-    const customer = getCustomerById(customerId);
-    if (!customer) return;
-    const card = getCardByCustomer(customerId, MERCHANT_ID);
-    if (!card) return;
-    const status = allCustomers.find((c) => c.customer.id === customerId)?.status ?? "active";
-    setSelected({
-      customer,
-      card,
-      status,
-      joinedFormatted: formatDateShort(customer.createdAt),
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { data: m } = await supabase.from("merchants").select("id, name").eq("owner_id", user.id).single();
+      if (m) {
+        setMerchantId(m.id);
+        setMerchantName(m.name);
+        const prog = await getLoyaltyProgram(m.id);
+        if (prog?.theme_id) setThemeId(prog.theme_id);
+        await reload(m.id);
+      }
+      setLoading(false);
     });
-  }
+  }, [reload]);
 
-  function handlePointsInputChange(value: string) {
-    setPointsInput(value);
-    if (!value) {
-      setPointsError("");
-      return;
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return customers.filter((c) => {
+      const matchFilter = filter === "all" || c.status === filter;
+      const matchQuery = !q || c.customer.full_name.toLowerCase().includes(q);
+      return matchFilter && matchQuery;
+    });
+  }, [customers, query, filter]);
+
+  async function openSheet(c: CustomerWithCard) {
+    setSelected(c);
+    setPointsInput("");
+    setPointsError("");
+    // Charger les dernières transactions de la carte
+    try {
+      const tx = await getCardTransactions(c.card.id);
+      setCardTx(tx.slice(0, 10));
+    } catch {
+      setCardTx([]);
     }
-    const v = validatePointsToAdd(Number(value));
-    setPointsError(v.error ?? "");
   }
 
-  async function handleAddPoints() {
-    if (!selected?.card?.id) return;
+  async function handleAddPoints(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selected || !merchantId) return;
     const n = Number(pointsInput);
-    const v = validatePointsToAdd(n);
-    if (!v.valid) {
-      setPointsError(v.error ?? "Valeur invalide.");
+    if (!n || n <= 0 || n > 10000) {
+      setPointsError("Nombre de points invalide (1–10 000).");
       return;
     }
-
     setAddingPoints(true);
     try {
-      addPoints(
-        selected.card.id,
-        n,
-        MERCHANT_ID,
-        STORE_ID,
-        `Ajout manuel — ${MERCHANT_NAME}`,
-        MERCHANT_ID,
-      );
-      toast.success(`+${n} points ajoutés à ${selected.customer.name}`);
+      const result = await addPoints({
+        qrToken: selected.card.qr_token,
+        points: n,
+        description: `Ajout manuel — ${merchantName}`,
+      });
+      toast.success(`+${n} points ajoutés à ${selected.customer.full_name}`, {
+        description: `Nouveau solde : ${result.new_balance} points`,
+      });
       setPointsInput("");
       setPointsError("");
-      refresh();
-      refreshSelected(selected.customer.id);
+      if (merchantId) await reload(merchantId);
+      // Rafraîchir la sélection
+      setSelected((prev) => prev ? { ...prev, card: { ...prev.card, points: result.new_balance } } : null);
+      const tx = await getCardTransactions(selected.card.id);
+      setCardTx(tx.slice(0, 10));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erreur inconnue.";
-      toast.error(msg);
+      toast.error(err instanceof Error ? err.message : "Erreur lors de l'ajout.");
     } finally {
       setAddingPoints(false);
     }
   }
 
-  async function handleResendEmail() {
-    if (!selected) return;
-    setResendLoading(true);
-    try {
-      const result = await resendLoyaltyCardEmail({
-        customer: selected.customer,
-        card: selected.card,
-        businessName: MERCHANT_NAME,
-      });
-      if (result.success) {
-        if (result.simulated) {
-          toast.info("Email simulé (EmailJS non configuré).");
-        } else {
-          toast.success(`Email renvoyé à ${selected.customer.email}`);
-        }
-      } else {
-        toast.error("Échec du renvoi. Vérifiez la configuration EmailJS.");
-      }
-    } catch {
-      toast.error("Erreur lors du renvoi de l'email.");
-    } finally {
-      setResendLoading(false);
-    }
+  const selectedTheme = themes.find((t) => t.id === themeId) ?? themes[0]!;
+
+  if (loading) {
+    return <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">Chargement…</div>;
   }
 
   return (
     <>
       <PageHeader
-        title="Customers"
-        subtitle="Everyone enrolled in your loyalty program."
+        title="Clients"
+        subtitle={`${customers.length} client${customers.length !== 1 ? "s" : ""} au total`}
         actions={
-          <Button id="btn-new-card-customers" onClick={() => setNewCardOpen(true)}>
-            <Plus className="size-4" />
-            Nouvelle carte
+          <Button onClick={() => setNewCardOpen(true)}>
+            <Plus className="size-4" /> Nouveau client
           </Button>
         }
       />
@@ -209,19 +161,13 @@ function CustomersPage() {
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search customers..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="pl-9"
-            />
+            <Input placeholder="Rechercher un client…" className="pl-9" value={query}
+              onChange={(e) => setQuery(e.target.value)} />
           </div>
           <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
             <TabsList>
               {filters.map((f) => (
-                <TabsTrigger key={f} value={f} className="capitalize">
-                  {f}
-                </TabsTrigger>
+                <TabsTrigger key={f} value={f} className="capitalize">{f}</TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
@@ -229,62 +175,43 @@ function CustomersPage() {
 
         {rows.length === 0 ? (
           <div className="p-4">
-            <EmptyState
-              icon={Users}
-              title="No customers found"
-              description={
-                allCustomers.length === 0
-                  ? "Aucun client encore. Créez votre première carte."
-                  : "Try a different search term or filter."
-              }
-            />
+            <EmptyState icon={Users} title="Aucun client trouvé"
+              description={customers.length === 0
+                ? "Créez votre premier client avec le bouton ci-dessus."
+                : "Essayez un autre filtre ou terme de recherche."} />
           </div>
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nom (Client)</TableHead>
-                  <TableHead className="hidden md:table-cell">Email</TableHead>
+                  <TableHead>Client</TableHead>
                   <TableHead className="text-right">Points</TableHead>
+                  <TableHead className="hidden sm:table-cell text-right">Total gagné</TableHead>
+                  <TableHead className="hidden md:table-cell">Inscrit</TableHead>
                   <TableHead>Statut</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.map((c) => (
-                  <TableRow
-                    key={c.customer.id}
-                    className="cursor-pointer"
-                    onClick={() => setSelected(c)}
-                  >
+                  <TableRow key={c.card.id} className="cursor-pointer hover:bg-accent"
+                    onClick={() => openSheet(c)}>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <span className="flex size-8 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">
-                          {initials(c.customer.name)}
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">
+                          {initials(c.customer.full_name)}
                         </span>
-                        <span className="font-medium">{c.customer.name}</span>
+                        <p className="font-medium">{c.customer.full_name}</p>
                       </div>
                     </TableCell>
+                    <TableCell className="text-right font-semibold">{c.card.points}</TableCell>
+                    <TableCell className="hidden text-right text-muted-foreground sm:table-cell">
+                      {c.card.total_earned}
+                    </TableCell>
                     <TableCell className="hidden text-muted-foreground md:table-cell">
-                      {c.customer.email}
+                      {c.joinedFormatted}
                     </TableCell>
-                    <TableCell className="text-right font-medium">{c.card.points}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={c.status} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelected(c);
-                        }}
-                      >
-                        View
-                      </Button>
-                    </TableCell>
+                    <TableCell><StatusBadge status={c.status} /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -293,173 +220,82 @@ function CustomersPage() {
         )}
       </div>
 
-      {/* Sheet détail client — design existant conservé */}
-      <Sheet
-        open={!!selected}
-        onOpenChange={(o) => {
-          if (!o) {
-            setSelected(null);
-            setPointsInput("");
-            setPointsError("");
-          }
-        }}
-      >
+      {/* Fiche client */}
+      <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-md">
-          {selected ? (
+          {selected && (
             <>
               <SheetHeader>
-                <SheetTitle>{selected.customer.name}</SheetTitle>
-                <SheetDescription>{selected.customer.email}</SheetDescription>
+                <SheetTitle>{selected.customer.full_name}</SheetTitle>
+                <SheetDescription>
+                  Inscrit le {selected.joinedFormatted}
+                </SheetDescription>
               </SheetHeader>
 
-              <div className="space-y-6 px-4 pb-8">
-                {/* Stats */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="rounded-xl bg-surface-muted p-3 text-center">
-                    <p className="font-display text-xl font-semibold">{selected.card.points}</p>
-                    <p className="text-xs text-muted-foreground">Current points</p>
-                  </div>
-                  <div className="rounded-xl bg-surface-muted p-3 text-center">
-                    <p className="font-display text-xl font-semibold">{selected.card.totalEarned}</p>
-                    <p className="text-xs text-muted-foreground">Total earned</p>
-                  </div>
-                  <div className="rounded-xl bg-surface-muted p-3 text-center">
-                    <p className="font-display text-xl font-semibold">{history.length}</p>
-                    <p className="text-xs text-muted-foreground">Transactions</p>
-                  </div>
+              <div className="mt-6 space-y-6">
+                {/* Carte virtuelle */}
+                <VirtualCard
+                  theme={selectedTheme}
+                  businessName={merchantName}
+                  points={selected.card.points}
+                  compact
+                />
+
+                {/* QR + solde */}
+                <div className="rounded-xl bg-surface-muted p-4 text-center">
+                  <QrDisplay token={selected.card.qr_token} size={100} />
+                  <p className="mt-2 font-display text-2xl font-bold text-primary">
+                    {selected.card.points} pts
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Total gagné : {selected.card.total_earned} pts
+                  </p>
                 </div>
-
-                <dl className="space-y-2 text-sm">
-                  {[
-                    ["Inscrit le", selected.joinedFormatted],
-                    ["Statut carte", selected.card.status],
-                    ["Dernière mise à jour", formatDateShort(selected.card.updatedAt)],
-                  ].map(([k, v]) => (
-                    <div key={k} className="flex justify-between gap-4 border-b border-border pb-2">
-                      <dt className="text-muted-foreground">{k}</dt>
-                      <dd className="font-medium capitalize">{v}</dd>
-                    </div>
-                  ))}
-                </dl>
-
-                {/* Layout: Name --- Business, then Card, then QR */}
-                {selected.card.qrToken && (
-                  <div className="flex flex-col items-center gap-4">
-                    
-                    {/* Header: Nom Client ----------- Nom Commerce */}
-                    <div className="flex w-full max-w-[360px] items-center justify-between px-1">
-                      <span className="font-semibold">{selected.customer.name}</span>
-                      <span className="text-sm font-medium text-muted-foreground">{MERCHANT_NAME}</span>
-                    </div>
-
-                    {/* Virtual Card */}
-                    <div className="w-full max-w-[360px]">
-                      <VirtualCard
-                        theme={themes.find(t => t.id === selected.card.themeId) || themes[0]}
-                        businessName={MERCHANT_NAME}
-                        points={selected.card.points}
-                        compact
-                      />
-                    </div>
-
-                    {/* QR Code */}
-                    <div className="mt-2 flex flex-col items-center gap-2">
-                      <p className="text-xs font-medium text-muted-foreground">QR Code</p>
-                      <QrDisplay token={selected.card.qrToken} size={160} />
-                      <p className="font-mono text-[10px] text-muted-foreground">
-                        {selected.card.qrToken.slice(0, 16)}...
-                      </p>
-                    </div>
-
-                  </div>
-                )}
 
                 {/* Ajout de points */}
-                <div className="space-y-3">
-                  <p className="text-sm font-medium">Ajouter des points</p>
+                <form onSubmit={handleAddPoints} className="space-y-3">
+                  <Label htmlFor="pts">Ajouter des points</Label>
                   <div className="flex gap-2">
-                    <div className="flex-1 space-y-1">
-                      <Label htmlFor="sheet-points" className="sr-only">
-                        Points à ajouter
-                      </Label>
-                      <Input
-                        id="sheet-points"
-                        inputMode="numeric"
-                        placeholder="ex: 20"
-                        value={pointsInput}
-                        onChange={(e) => handlePointsInputChange(e.target.value)}
-                        disabled={addingPoints}
-                      />
-                      {pointsError && (
-                        <p className="text-xs text-destructive">{pointsError}</p>
-                      )}
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={handleAddPoints}
-                      disabled={addingPoints || !pointsInput || !!pointsError}
-                    >
-                      <Plus className="size-4" /> Ajouter
+                    <Input
+                      id="pts" inputMode="numeric" placeholder="ex: 20"
+                      value={pointsInput}
+                      onChange={(e) => { setPointsInput(e.target.value); setPointsError(""); }}
+                    />
+                    <Button type="submit" disabled={addingPoints || !pointsInput}>
+                      {addingPoints ? "…" : "+"}
                     </Button>
                   </div>
-                </div>
-
-                {/* Actions secondaires */}
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleResendEmail}
-                    disabled={resendLoading}
-                  >
-                    <Mail className="size-4" />
-                    {resendLoading ? "Envoi..." : "Renvoyer carte"}
-                  </Button>
-                </div>
+                  {pointsError && <p className="text-xs text-destructive">{pointsError}</p>}
+                </form>
 
                 {/* Historique transactions */}
-                <div>
-                  <p className="mb-2 text-sm font-medium">Transaction history</p>
-                  {history.length === 0 ? (
-                    <p className="rounded-lg bg-surface-muted px-3 py-4 text-center text-sm text-muted-foreground">
-                      No transactions yet.
-                    </p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {history.map((t) => (
-                        <li
-                          key={t.id}
-                          className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
-                        >
-                          <div>
-                            <p className="font-medium">{t.description}</p>
-                            <p className="text-xs text-muted-foreground">{formatDate(t.createdAt)}</p>
-                          </div>
-                          <span
-                            className={
-                              t.pointsAdded >= 0
-                                ? "font-medium text-success"
-                                : "font-medium text-destructive"
-                            }
-                          >
-                            {t.pointsAdded > 0 ? `+${t.pointsAdded}` : t.pointsAdded}
+                {cardTx.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold">Dernières transactions</p>
+                    <ul className="space-y-1">
+                      {cardTx.map((t) => (
+                        <li key={t.id} className="flex items-center justify-between rounded-lg bg-surface-muted px-3 py-2 text-xs">
+                          <span className="text-muted-foreground">{t.description}</span>
+                          <span className={t.points_delta > 0 ? "font-semibold text-success" : "font-semibold text-destructive"}>
+                            {t.points_delta > 0 ? "+" : ""}{t.points_delta}
                           </span>
                         </li>
                       ))}
                     </ul>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </>
-          ) : null}
+          )}
         </SheetContent>
       </Sheet>
 
-      {/* Dialog nouvelle carte */}
       <NewCardDialog
         open={newCardOpen}
         onOpenChange={setNewCardOpen}
-        onCreated={refresh}
+        onCreated={async () => {
+          if (merchantId) await reload(merchantId);
+        }}
       />
     </>
   );

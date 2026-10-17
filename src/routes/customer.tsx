@@ -1,19 +1,15 @@
 import { createFileRoute, Link, Outlet, type LinkProps } from "@tanstack/react-router";
 import { Bell, Compass, Gift, QrCode, User, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
-import { customerProfile } from "@/lib/mock-data";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/customer")({
   component: CustomerLayout,
 });
 
-const tabs: {
-  to: NonNullable<LinkProps["to"]>;
-  label: string;
-  icon: LucideIcon;
-  exact?: boolean;
-}[] = [
+const tabs: { to: NonNullable<LinkProps["to"]>; label: string; icon: LucideIcon; exact?: boolean }[] = [
   { to: "/customer", label: "Cartes", icon: Wallet, exact: true },
   { to: "/customer/rewards", label: "Récompenses", icon: Gift },
   { to: "/customer/scan", label: "Scanner", icon: QrCode },
@@ -22,6 +18,21 @@ const tabs: {
 ];
 
 function CustomerLayout() {
+  const [initials, setInitials] = useState("?");
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      // Charger le profil
+      supabase.from("profiles").select("full_name").eq("id", user.id).single().then(({ data }) => {
+        if (data?.full_name) {
+          const parts = data.full_name.trim().split(" ");
+          setInitials(parts.map((p: string) => p[0]).join("").slice(0, 2).toUpperCase());
+        }
+      });
+    });
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col border-border bg-background sm:max-w-lg sm:border-x">
@@ -43,7 +54,7 @@ function CustomerLayout() {
               to="/customer/profile"
               className="flex size-9 items-center justify-center rounded-lg bg-primary-soft text-xs font-semibold text-primary"
             >
-              {customerProfile.initials}
+              {initials}
             </Link>
           </div>
         </header>

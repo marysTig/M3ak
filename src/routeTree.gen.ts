@@ -30,6 +30,7 @@ import { Route as CustomerDiscoverRouteImport } from './routes/customer.discover
 import { Route as CustomerProfileRouteImport } from './routes/customer.profile'
 import { Route as CustomerRewardsRouteImport } from './routes/customer.rewards'
 import { Route as CustomerScanRouteImport } from './routes/customer.scan'
+import { Route as JoinSlugRouteImport } from './routes/join.$slug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -136,6 +137,11 @@ const CustomerScanRoute = CustomerScanRouteImport.update({
   path: '/scan',
   getParentRoute: () => CustomerRoute,
 } as any)
+const JoinSlugRoute = JoinSlugRouteImport.update({
+  id: '/join/$slug',
+  path: '/join/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -156,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/customer/profile': typeof CustomerProfileRoute
   '/customer/rewards': typeof CustomerRewardsRoute
   '/customer/scan': typeof CustomerScanRoute
+  '/join/$slug': typeof JoinSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/business/': typeof BusinessIndexRoute
   '/customer/': typeof CustomerIndexRoute
@@ -176,6 +183,7 @@ export interface FileRoutesByTo {
   '/customer/profile': typeof CustomerProfileRoute
   '/customer/rewards': typeof CustomerRewardsRoute
   '/customer/scan': typeof CustomerScanRoute
+  '/join/$slug': typeof JoinSlugRoute
   '/admin': typeof AdminIndexRoute
   '/business': typeof BusinessIndexRoute
   '/customer': typeof CustomerIndexRoute
@@ -200,6 +208,7 @@ export interface FileRoutesById {
   '/customer/profile': typeof CustomerProfileRoute
   '/customer/rewards': typeof CustomerRewardsRoute
   '/customer/scan': typeof CustomerScanRoute
+  '/join/$slug': typeof JoinSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/business/': typeof BusinessIndexRoute
   '/customer/': typeof CustomerIndexRoute
@@ -225,6 +234,7 @@ export interface FileRouteTypes {
     | '/customer/profile'
     | '/customer/rewards'
     | '/customer/scan'
+    | '/join/$slug'
     | '/admin/'
     | '/business/'
     | '/customer/'
@@ -245,6 +255,7 @@ export interface FileRouteTypes {
     | '/customer/profile'
     | '/customer/rewards'
     | '/customer/scan'
+    | '/join/$slug'
     | '/admin'
     | '/business'
     | '/customer'
@@ -268,6 +279,7 @@ export interface FileRouteTypes {
     | '/customer/profile'
     | '/customer/rewards'
     | '/customer/scan'
+    | '/join/$slug'
     | '/admin/'
     | '/business/'
     | '/customer/'
@@ -278,6 +290,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   BusinessRoute: typeof BusinessRouteWithChildren
   CustomerRoute: typeof CustomerRouteWithChildren
+  JoinSlugRoute: typeof JoinSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -429,6 +442,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CustomerScanRouteImport
       parentRoute: typeof CustomerRoute
     }
+    '/join/$slug': {
+      id: '/join/$slug'
+      path: '/join/$slug'
+      fullPath: '/join/$slug'
+      preLoaderRoute: typeof JoinSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -499,6 +519,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   BusinessRoute: BusinessRouteWithChildren,
   CustomerRoute: CustomerRouteWithChildren,
+  JoinSlugRoute: JoinSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

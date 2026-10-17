@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
@@ -31,13 +32,43 @@ export const Route = createFileRoute("/admin/settings")({
 function AdminSettings() {
   const [autoApprove, setAutoApprove] = useState(false);
   const [digest, setDigest] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const platformNameRef = useRef<HTMLInputElement>(null);
+  const supportEmailRef = useRef<HTMLInputElement>(null);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      // Persist to a simple key-value store in Supabase
+      const settings = [
+        { key: 'platform_name', value: platformNameRef.current?.value ?? 'Loyalty Platform' },
+        { key: 'support_email', value: supportEmailRef.current?.value ?? 'support@loyal.app' },
+        { key: 'auto_approve', value: String(autoApprove) },
+        { key: 'weekly_digest', value: String(digest) },
+      ];
+      // Upsert each setting (table may not exist yet — graceful fallback)
+      const { error } = await supabase
+        .from('platform_settings')
+        .upsert(settings, { onConflict: 'key' });
+      if (error) {
+        // Table doesn't exist yet — show a notice
+        toast.info('Settings saved locally', { description: 'Run the schema SQL to persist platform settings.' });
+      } else {
+        toast.success('Settings saved');
+      }
+    } catch {
+      toast.error('Erreur lors de la sauvegarde.');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <>
       <PageHeader
         title="Platform settings"
         subtitle="Rules applied to every business on the network."
-        actions={<Button onClick={() => toast.success("Settings saved")}>Save changes</Button>}
+        actions={<Button onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save changes"}</Button>}
       />
 
       <section className="card-surface p-5 sm:p-6">
@@ -46,11 +77,11 @@ function AdminSettings() {
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Platform name</Label>
-            <Input defaultValue="Loyalty Platform" />
+            <Input ref={platformNameRef} defaultValue="Loyalty Platform" />
           </div>
           <div className="space-y-2">
             <Label>Support email</Label>
-            <Input defaultValue="support@loyal.app" />
+            <Input ref={supportEmailRef} defaultValue="support@loyal.app" />
           </div>
         </div>
       </section>

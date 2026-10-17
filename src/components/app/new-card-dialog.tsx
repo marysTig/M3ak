@@ -1,38 +1,25 @@
 /**
- * new-card-dialog.tsx
+ * new-card-dialog.tsx — v2
  *
- * Dialog de création d'un nouveau client + carte de fidélité.
- * Connecté aux interfaces existantes de business.index.tsx.
- * NE modifie PAS le design — s'intègre dans les composants UI existants.
+ * Création d'un nouveau client par invitation email.
+ * Utilise Supabase Auth (signUp) + création de carte en base.
+ * Ne modifie PAS le design.
  */
 import { Loader2, Mail, UserPlus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { QrDisplay } from "@/components/app/qr-display";
 import { VirtualCard, themes } from "@/routes/business.program";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { supabase } from "@/lib/supabase";
+import { getLoyaltyProgram } from "@/lib/db/program";
 import { sendLoyaltyCardEmail } from "@/lib/email-service";
-import {
-  createCard,
-  createCustomer,
-  getMerchantTheme,
-  MERCHANT_ID,
-  MERCHANT_NAME,
-  STORE_ID,
-  validateEmail,
-  type LoyaltyCard,
-  type LoyaltyCustomer,
-} from "@/lib/loyalty-store";
 
 interface NewCardDialogProps {
   open: boolean;
@@ -43,10 +30,18 @@ interface NewCardDialogProps {
 type Step = "form" | "created";
 
 interface CreatedData {
-  customer: LoyaltyCustomer;
-  card: LoyaltyCard;
+  customerName: string;
+  customerEmail: string;
+  cardId: string;
+  qrToken: string;
+  points: number;
+  themeId: string;
   emailSent: boolean;
   emailSimulated: boolean;
+}
+
+function validateEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogProps) {
@@ -56,6 +51,23 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [created, setCreated] = useState<CreatedData | null>(null);
+  const [merchantId, setMerchantId] = useState<string | null>(null);
+  const [merchantName, setMerchantName] = useState("Mon commerce");
+  const [themeId, setThemeId] = useState("aurora");
+
+  useEffect(() => {
+    if (!open) return;
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { data: m } = await supabase.from("merchants").select("id, name").eq("owner_id", user.id).single();
+      if (m) {
+        setMerchantId(m.id);
+        setMerchantName(m.name);
+        const prog = await getLoyaltyProgram(m.id);
+        if (prog?.theme_id) setThemeId(prog.theme_id);
+      }
+    });
+  }, [open]);
 
   function reset() {
     setStep("form");
@@ -66,9 +78,9 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
     setResendLoading(false);
   }
 
-  function handleOpenChange(open: boolean) {
-    if (!open) reset();
-    onOpenChange(open);
+  function handleOpenChange(o: boolean) {
+    if (!o) reset();
+    onOpenChange(o);
   }
 
   function validate() {
@@ -85,25 +97,63 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!validate()) return;
+    if (!validate() || !merchantId) return;
     setLoading(true);
 
     try {
-      // 1. Créer le client (vérifie doublons)
-      const customer = createCustomer(form.name.trim(), form.email.trim(), MERCHANT_ID);
+      // 1. Créer le compte client via signUp (mot de passe temporaire)
+      const tempPassword = Math.random().toString(36).slice(2, 10) + "A1!";
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: form.email.trim(),
+        password: tempPassword,
+        options: {
+          data: { full_name: form.name.trim(), role: "customer" },
+        },
+      });
 
-      // 2. Créer la carte liée (avec thème du commerçant)
-      const themeId = getMerchantTheme(MERCHANT_ID);
-      const card = createCard(customer.id, MERCHANT_ID, STORE_ID, themeId);
+      if (authError) {
+        // Si l'utilisateur existe déjà, on cherche son profil
+        if (!authError.message.includes("already registered")) {
+          throw new Error(authError.message);
+        }
+      }
 
-      // 3. Envoyer l'email (ne bloque pas si erreur)
+      // Attendre que le trigger crée le profil
+      await new Promise((r) => setTimeout(r, 800));
+
+      const userId = authData?.user?.id;
+      if (!userId) throw new Error("Impossible de récupérer l'ID utilisateur.");
+
+      // 2. Créer la carte de fidélité
+      const { data: existingCard } = await supabase
+        .from("loyalty_cards")
+        .select("id, qr_token, points")
+        .eq("customer_id", userId)
+        .eq("merchant_id", merchantId)
+        .single();
+
+      let card = existingCard;
+
+      if (!card) {
+        const { data: newCard, error: cardError } = await supabase
+          .from("loyalty_cards")
+          .insert({ customer_id: userId, merchant_id: merchantId })
+          .select("id, qr_token, points")
+          .single();
+        if (cardError) throw new Error(cardError.message);
+        card = newCard;
+      }
+
+      if (!card) throw new Error("Erreur lors de la création de la carte.");
+
+      // 3. Envoyer l'email
       let emailSent = false;
       let emailSimulated = false;
       try {
         const result = await sendLoyaltyCardEmail({
-          customer,
-          card,
-          businessName: MERCHANT_NAME,
+          customer: { id: userId, name: form.name.trim(), email: form.email.trim() } as any,
+          card: { id: card.id, qrToken: card.qr_token, points: card.points } as any,
+          businessName: merchantName,
         });
         emailSent = result.success;
         emailSimulated = result.simulated ?? false;
@@ -111,24 +161,30 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
         emailSent = false;
       }
 
-      setCreated({ customer, card, emailSent, emailSimulated });
+      setCreated({
+        customerName: form.name.trim(),
+        customerEmail: form.email.trim(),
+        cardId: card.id,
+        qrToken: card.qr_token,
+        points: card.points,
+        themeId,
+        emailSent,
+        emailSimulated,
+      });
       setStep("created");
       onCreated?.();
 
       if (emailSimulated) {
-        toast.success(`Carte créée pour ${customer.name}`, {
-          description: "Email simulé (EmailJS non configuré).",
-        });
+        toast.success(`Carte créée pour ${form.name}`, { description: "Email simulé." });
       } else if (emailSent) {
-        toast.success(`Carte créée et envoyée à ${customer.email}`);
+        toast.success(`Carte créée et envoyée à ${form.email}`);
       } else {
-        toast.warning(`Carte créée pour ${customer.name}`, {
-          description: "L'envoi d'email a échoué. Renvoyez depuis la page client.",
+        toast.warning(`Carte créée pour ${form.name}`, {
+          description: "L'envoi d'email a échoué.",
         });
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erreur inconnue.";
-      toast.error(msg);
+      toast.error(err instanceof Error ? err.message : "Erreur inconnue.");
     } finally {
       setLoading(false);
     }
@@ -139,19 +195,19 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
     setResendLoading(true);
     try {
       const result = await sendLoyaltyCardEmail({
-        customer: created.customer,
-        card: created.card,
-        businessName: MERCHANT_NAME,
+        customer: { id: "", name: created.customerName, email: created.customerEmail } as any,
+        card: { id: created.cardId, qrToken: created.qrToken, points: created.points } as any,
+        businessName: merchantName,
       });
       if (result.success) {
         if (result.simulated) {
           toast.info("Email simulé (EmailJS non configuré).");
         } else {
-          toast.success(`Email renvoyé à ${created.customer.email}`);
+          toast.success(`Email renvoyé à ${created.customerEmail}`);
         }
         setCreated({ ...created, emailSent: true });
       } else {
-        toast.error("Échec du renvoi. Vérifiez la configuration EmailJS.");
+        toast.error("Échec du renvoi.");
       }
     } catch {
       toast.error("Erreur lors du renvoi de l'email.");
@@ -159,6 +215,8 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
       setResendLoading(false);
     }
   }
+
+  const selectedTheme = themes.find((t) => t.id === themeId) ?? themes[0]!;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -224,69 +282,47 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
             <DialogHeader>
               <DialogTitle>Carte créée avec succès !</DialogTitle>
               <DialogDescription>
-                La carte de fidélité de <strong>{created.customer.name}</strong> est prête.
+                La carte de fidélité de <strong>{created.customerName}</strong> est prête.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-5 pt-2">
-              {/* Layout: Name --- Business, then Card, then QR */}
               <div className="flex flex-col items-center gap-4">
-                
-                {/* Header: Nom Client ----------- Nom Commerce */}
                 <div className="flex w-full max-w-[360px] items-center justify-between px-1">
-                  <span className="font-semibold">{created.customer.name}</span>
-                  <span className="text-sm font-medium text-muted-foreground">{MERCHANT_NAME}</span>
+                  <span className="font-semibold">{created.customerName}</span>
+                  <span className="text-sm font-medium text-muted-foreground">{merchantName}</span>
                 </div>
-
-                {/* Virtual Card */}
                 <div className="w-full max-w-[360px]">
                   <VirtualCard
-                    theme={themes.find(t => t.id === created.card.themeId) || themes[0]}
-                    businessName={MERCHANT_NAME}
-                    points={created.card.points}
+                    theme={selectedTheme}
+                    businessName={merchantName}
+                    points={created.points}
                     compact
                   />
                 </div>
-
-                {/* QR Code */}
                 <div className="mt-2 flex flex-col items-center gap-2">
                   <p className="text-xs font-medium text-muted-foreground">QR Code de fidélité</p>
-                  <QrDisplay token={created.card.qrToken} size={150} />
+                  <QrDisplay token={created.qrToken} size={150} />
                   <p className="font-mono text-[10px] text-muted-foreground">
-                    {created.card.qrToken.slice(0, 16)}...
+                    {created.qrToken.slice(0, 16)}...
                   </p>
                 </div>
-
               </div>
 
-              {/* Statut email */}
-              <div
-                className={`rounded-xl px-4 py-3 text-sm ${
-                  created.emailSent
-                    ? "bg-success-soft text-success"
-                    : "bg-warning-soft text-warning"
-                }`}
-              >
+              <div className={`rounded-xl px-4 py-3 text-sm ${
+                created.emailSent ? "bg-success-soft text-success" : "bg-warning-soft text-warning"
+              }`}>
                 <Mail className="mr-2 inline size-4" />
                 {created.emailSimulated
                   ? "Email simulé (EmailJS non configuré)"
                   : created.emailSent
-                    ? `Carte envoyée à ${created.customer.email}`
+                    ? `Carte envoyée à ${created.customerEmail}`
                     : "L'envoi d'email a échoué"}
               </div>
 
               <div className="flex gap-2">
                 {!created.emailSent && !created.emailSimulated && (
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={handleResend}
-                    disabled={resendLoading}
-                  >
-                    {resendLoading ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Mail className="size-4" />
-                    )}
+                  <Button variant="outline" className="flex-1" onClick={handleResend} disabled={resendLoading}>
+                    {resendLoading ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
                     Renvoyer
                   </Button>
                 )}

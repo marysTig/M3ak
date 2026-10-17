@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/app/page-header";
@@ -20,21 +20,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { business } from "@/lib/mock-data";
+import { supabase } from "@/lib/supabase";
+import type { Merchant } from "@/lib/auth";
+import { updateMerchant } from "@/lib/db/merchants";
+import { updateProgram, setProgramStatus, getLoyaltyProgram } from "@/lib/db/program";
+import type { LoyaltyProgram } from "@/lib/db/program";
 
 export const Route = createFileRoute("/business/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — Bloom Café Loyalty" },
-      {
-        name: "description",
-        content: "Business details, loyalty rules, team members and notification preferences.",
-      },
-      { property: "og:title", content: "Settings — Bloom Café Loyalty" },
-      {
-        property: "og:description",
-        content: "Business details, loyalty rules, team members and notification preferences.",
-      },
+      { title: "Paramètres — M3ak Loyalty" },
+      { name: "description", content: "Business details, loyalty rules, team members and notification preferences." },
+      { property: "og:title", content: "Paramètres — M3ak Loyalty" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -63,33 +60,131 @@ function Section({
 }
 
 function SettingsPage() {
+  const [merchant, setMerchant] = useState<Merchant | null>(null);
+  const [program, setProgram] = useState<LoyaltyProgram | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const [form, setForm] = useState({
+    name: "",
+    category: "",
+    email: "",
+    phone: "",
+    address: "",
+  });
+
   const [emailNotif, setEmailNotif] = useState(true);
   const [rewardNotif, setRewardNotif] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { data: m } = await supabase
+        .from("merchants")
+        .select("*")
+        .eq("owner_id", user.id)
+        .single();
+
+      if (m) {
+        const merch = m as Merchant;
+        setMerchant(merch);
+        setForm({
+          name: merch.name ?? "",
+          category: merch.category ?? "",
+          email: merch.email ?? "",
+          phone: merch.phone ?? "",
+          address: merch.address ?? "",
+        });
+
+        const prog = await getLoyaltyProgram(merch.id);
+        if (prog) {
+          setProgram(prog);
+          setEmailNotif(prog.email_notif);
+          setRewardNotif(prog.reward_notif);
+        }
+      }
+    });
+  }, []);
+
+  async function handleSave() {
+    if (!merchant) return;
+    setSaving(true);
+    try {
+      // Sauvegarder les infos du commerce
+      const updated = await updateMerchant(merchant.id, {
+        name: form.name.trim(),
+        category: form.category.trim() || null,
+        email: form.email.trim() || null,
+        phone: form.phone.trim() || null,
+        address: form.address.trim() || null,
+      });
+      setMerchant(updated);
+
+      // Sauvegarder les préférences de notifications
+      if (program) {
+        await updateProgram(merchant.id, {
+          email_notif: emailNotif,
+          reward_notif: rewardNotif,
+        });
+      }
+
+      toast.success("Paramètres sauvegardés", {
+        description: `Les informations de ${form.name} ont été mises à jour.`,
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la sauvegarde.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSuspend() {
+    if (!merchant) return;
+    try {
+      await setProgramStatus(merchant.id, "suspended");
+      toast.success("Programme suspendu", {
+        description: "Les clients conservent leurs points mais ne peuvent plus en gagner.",
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la suspension.");
+    }
+  }
 
   return (
     <>
       <PageHeader
         title="Settings"
         subtitle="Manage your business profile and loyalty rules."
-        actions={<Button onClick={() => toast.success("Settings saved")}>Save changes</Button>}
+        actions={
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Sauvegarde..." : "Save changes"}
+          </Button>
+        }
       />
 
       <Section title="Business Information" description="Shown to customers when they join.">
         <div className="grid gap-4 sm:grid-cols-2">
-          {[
-            ["Business name", business.name],
-            ["Category", business.category],
-            ["Email", business.email],
-            ["Phone", business.phone],
-          ].map(([label, value]) => (
+          {([
+            ["Business name", "name"],
+            ["Category", "category"],
+            ["Email", "email"],
+            ["Phone", "phone"],
+          ] as [string, keyof typeof form][]).map(([label, field]) => (
             <div key={label} className="space-y-2">
               <Label>{label}</Label>
-              <Input defaultValue={value} />
+              <Input
+                value={form[field]}
+                onChange={(e) => setForm({ ...form, [field]: e.target.value })}
+                placeholder={label}
+              />
             </div>
           ))}
           <div className="space-y-2 sm:col-span-2">
             <Label>Address</Label>
-            <Input defaultValue={business.address} />
+            <Input
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              placeholder="14 Rue des Lilas, 75011 Paris"
+            />
           </div>
         </div>
       </Section>
@@ -98,8 +193,8 @@ function SettingsPage() {
         <div className="grid gap-3 sm:grid-cols-3">
           {[
             ["Program type", "Points"],
-            ["Earning rule", "1 € = 1 point"],
-            ["Reward rule", "100 points = Free Coffee"],
+            ["Earning rule", `${program?.points_per_euro ?? 1} € = 1 point`],
+            ["Status", program?.status === "suspended" ? "Suspendu" : "Actif"],
           ].map(([label, value]) => (
             <div key={label} className="rounded-xl bg-surface-muted p-4">
               <p className="text-xs text-muted-foreground">{label}</p>
@@ -108,8 +203,6 @@ function SettingsPage() {
           ))}
         </div>
       </Section>
-
-
 
       <Section title="Notifications" description="Choose what lands in your inbox.">
         <div className="space-y-3">
@@ -150,7 +243,7 @@ function SettingsPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => toast.success("Program suspended (demo)")}>
+              <AlertDialogAction onClick={handleSuspend}>
                 Suspend
               </AlertDialogAction>
             </AlertDialogFooter>
