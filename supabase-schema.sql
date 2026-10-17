@@ -143,22 +143,27 @@ create or replace function public.set_updated_at()
 returns trigger language plpgsql as $$
 begin new.updated_at = now(); return new; end; $$;
 
+drop trigger if exists trg_profiles_updated_at on public.profiles;
 create trigger trg_profiles_updated_at
   before update on public.profiles
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_merchants_updated_at on public.merchants;
 create trigger trg_merchants_updated_at
   before update on public.merchants
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_lp_updated_at on public.loyalty_programs;
 create trigger trg_lp_updated_at
   before update on public.loyalty_programs
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_rewards_updated_at on public.rewards;
 create trigger trg_rewards_updated_at
   before update on public.rewards
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_cards_updated_at on public.loyalty_cards;
 create trigger trg_cards_updated_at
   before update on public.loyalty_cards
   for each row execute function public.set_updated_at();
@@ -202,6 +207,7 @@ begin
   return new;
 end; $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
