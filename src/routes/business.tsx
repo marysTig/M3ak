@@ -1,39 +1,36 @@
-import { createFileRoute, Outlet, Link, useMatchRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, useMatchRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, LogOut } from "lucide-react";
-import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { supabase } from "@/lib/supabase";
-import type { Merchant } from "@/lib/auth";
+import { useAuthGuard } from "@/hooks/use-auth-guard";
 
 export const Route = createFileRoute("/business")({
   component: BusinessLayout,
 });
 
 function BusinessLayout() {
+  const navigate = useNavigate();
   const matchRoute = useMatchRoute();
   const isRoot = matchRoute({ to: "/business" as const });
+  const { profile, loading } = useAuthGuard("merchant");
 
-  const [merchant, setMerchant] = useState<Merchant | null>(null);
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    toast.success("Déconnecté");
+    navigate({ to: "/" });
+  }
 
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return;
-      const { data } = await supabase
-        .from("merchants")
-        .select("*")
-        .eq("owner_id", user.id)
-        .single();
-      setMerchant(data as Merchant | null);
-    });
-  }, []);
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
-  const name = merchant?.name ?? "Mon commerce";
-  const initials = name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const name = profile?.full_name ?? "Mon commerce";
+  const initials = profile?.initials ?? "M";
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -44,9 +41,13 @@ function BusinessLayout() {
               <ArrowLeft className="size-5" />
             </Link>
           ) : (
-            <Link to="/" className="flex size-9 items-center justify-center rounded-lg hover:bg-accent text-muted-foreground transition-colors">
+            <button
+              onClick={handleSignOut}
+              className="flex size-9 items-center justify-center rounded-lg hover:bg-accent text-muted-foreground transition-colors"
+              aria-label="Se déconnecter"
+            >
               <LogOut className="size-5" />
-            </Link>
+            </button>
           )}
           <span className="font-display text-sm font-semibold">{name}</span>
         </div>

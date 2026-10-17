@@ -47,7 +47,13 @@ function NavLinks({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => 
   );
 }
 
-function ProfileBlock({ profile }: { profile: Profile }) {
+function ProfileBlock({
+  profile,
+  onSignOut,
+}: {
+  profile: Profile;
+  onSignOut?: () => void;
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -63,13 +69,20 @@ function ProfileBlock({ profile }: { profile: Profile }) {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
-        <DropdownMenuLabel>Demo account</DropdownMenuLabel>
+        <DropdownMenuLabel className="truncate">{profile.name}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link to="/">
-            <LogOut className="size-4" /> Exit demo
-          </Link>
-        </DropdownMenuItem>
+        {onSignOut ? (
+          <DropdownMenuItem onClick={onSignOut} className="text-destructive focus:text-destructive">
+            <LogOut className="size-4" />
+            Se déconnecter
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem asChild>
+            <Link to="/">
+              <LogOut className="size-4" /> Accueil
+            </Link>
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -81,30 +94,39 @@ export function DashboardShell({
   items,
   profile,
   children,
+  onSignOut,
 }: {
   brand: string;
   brandSub: string;
   items: NavItem[];
   profile: Profile;
   children: ReactNode;
+  onSignOut?: () => void;
 }) {
   const [open, setOpen] = useState(false);
 
   const sidebarInner = (
     <div className="flex h-full flex-col justify-between gap-6 p-4">
       <div className="space-y-6">
-        <Link to="/" className="flex items-center gap-2.5 px-1">
-          <span className="flex size-9 items-center justify-center rounded-xl bg-primary font-display text-sm font-bold text-primary-foreground">
-            L
+        <div className="flex items-center gap-2.5 px-1">
+          <span className="flex size-9 items-center justify-center overflow-hidden rounded-xl bg-primary">
+            <img
+              src="/ChatGPT_Image_27_sept._2026__16_31_22-removebg-preview (1).png"
+              alt="M3ak"
+              className="size-full object-contain"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
           </span>
           <span>
             <span className="block font-display text-sm font-semibold leading-tight">{brand}</span>
             <span className="block text-xs text-muted-foreground">{brandSub}</span>
           </span>
-        </Link>
+        </div>
         <NavLinks items={items} onNavigate={() => setOpen(false)} />
       </div>
-      <ProfileBlock profile={profile} />
+      <ProfileBlock profile={profile} {...(onSignOut ? { onSignOut } : {})} />
     </div>
   );
 

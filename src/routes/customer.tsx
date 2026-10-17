@@ -1,9 +1,10 @@
-import { createFileRoute, Link, Outlet, type LinkProps } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useNavigate, type LinkProps } from "@tanstack/react-router";
 import { Bell, Compass, Gift, QrCode, User, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { supabase } from "@/lib/supabase";
+import { useAuthGuard } from "@/hooks/use-auth-guard";
 
 export const Route = createFileRoute("/customer")({
   component: CustomerLayout,
@@ -18,31 +19,34 @@ const tabs: { to: NonNullable<LinkProps["to"]>; label: string; icon: LucideIcon;
 ];
 
 function CustomerLayout() {
-  const [initials, setInitials] = useState("?");
+  const navigate = useNavigate();
+  const { profile, loading } = useAuthGuard("customer");
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      // Charger le profil
-      supabase.from("profiles").select("full_name").eq("id", user.id).single().then(({ data }) => {
-        if (data?.full_name) {
-          const parts = data.full_name.trim().split(" ");
-          setInitials(parts.map((p: string) => p[0]).join("").slice(0, 2).toUpperCase());
-        }
-      });
-    });
-  }, []);
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col border-border bg-background sm:max-w-lg sm:border-x">
         <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-surface/90 px-4 py-3 backdrop-blur">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-primary font-display text-xs font-bold text-primary-foreground">
-              L
+          <div className="flex items-center gap-2">
+            <span className="flex size-8 items-center justify-center overflow-hidden rounded-lg bg-primary">
+              <img
+                src="/ChatGPT_Image_27_sept._2026__16_31_22-removebg-preview (1).png"
+                alt="M3ak"
+                className="size-full object-contain"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
+              />
             </span>
-            <span className="font-display text-sm font-semibold">Fidélité</span>
-          </Link>
+            <span className="font-display text-sm font-semibold">M3ak</span>
+          </div>
           <div className="ml-auto flex items-center gap-2">
             <button
               className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent"
@@ -54,7 +58,7 @@ function CustomerLayout() {
               to="/customer/profile"
               className="flex size-9 items-center justify-center rounded-lg bg-primary-soft text-xs font-semibold text-primary"
             >
-              {initials}
+              {profile?.initials ?? "?"}
             </Link>
           </div>
         </header>

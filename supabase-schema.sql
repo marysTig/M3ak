@@ -166,13 +166,39 @@ create trigger trg_cards_updated_at
 -- ─── Trigger : créer le profil automatiquement à la création d'utilisateur ───
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  v_full_name text;
+  v_role      text;
+  v_username  text;
 begin
-  insert into public.profiles (id, full_name, role)
-  values (
-    new.id,
-    coalesce(new.raw_user_meta_data->>'full_name', new.email, 'Utilisateur'),
-    coalesce(new.raw_user_meta_data->>'role', 'customer')
+  -- Extraire le username depuis l'email synthétique (format: username@m3ak.app)
+  if new.email like '%@m3ak.app' then
+    v_username := split_part(new.email, '@', 1);
+  else
+    v_username := split_part(new.email, '@', 1);
+  end if;
+
+  -- Nom complet : priorité au metadata, puis au username
+  v_full_name := coalesce(
+    nullif(trim(new.raw_user_meta_data->>'full_name'), ''),
+    v_username,
+    new.email,
+    'Utilisateur'
   );
+
+  -- Rôle : priorité au metadata, défaut customer
+  v_role := coalesce(
+    nullif(trim(new.raw_user_meta_data->>'role'), ''),
+    'customer'
+  );
+
+  insert into public.profiles (id, full_name, role)
+  values (new.id, v_full_name, v_role)
+  on conflict (id) do update
+    set full_name = excluded.full_name,
+        role      = excluded.role,
+        updated_at = now();
+
   return new;
 end; $$;
 
