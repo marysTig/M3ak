@@ -53,7 +53,7 @@ function RewardsPage() {
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
-      const { data: m } = await supabase.from("merchants").select("id").eq("owner_id", user.id).single();
+      const { data: m } = await supabase.from("merchants").select("id").eq("owner_id", user.id).maybeSingle();
       if (m) {
         setMerchantId(m.id);
         const rewards = await getMerchantRewards(m.id);

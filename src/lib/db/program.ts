@@ -22,7 +22,7 @@ export async function getLoyaltyProgram(merchantId: string): Promise<LoyaltyProg
     .from("loyalty_programs")
     .select("*")
     .eq("merchant_id", merchantId)
-    .single();
+    .maybeSingle();
   return data as LoyaltyProgram | null;
 }
 

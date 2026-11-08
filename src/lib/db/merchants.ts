@@ -13,11 +13,32 @@ export async function getMyMerchant(): Promise<Merchant | null> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data } = await supabase
+  let { data } = await supabase
     .from("merchants")
     .select("*")
     .eq("owner_id", user.id)
-    .single();
+    .maybeSingle();
+
+  // Si la fiche n'existe pas encore pour ce commerçant, on la crée automatiquement
+  if (!data && user.user_metadata?.role === "merchant") {
+    const rawUser = (user.email ?? "").replace("@m3ak.app", "") || "moncommerce";
+    const name = user.user_metadata?.full_name || rawUser;
+    const slug = rawUser.toLowerCase().replace(/[^a-z0-9]/g, "-");
+
+    const { data: created } = await supabase
+      .from("merchants")
+      .upsert({
+        owner_id: user.id,
+        name,
+        slug,
+        status: "active",
+        plan: "starter",
+      }, { onConflict: "slug" })
+      .select()
+      .maybeSingle();
+
+    if (created) data = created;
+  }
 
   return data as Merchant | null;
 }
@@ -29,7 +50,7 @@ export async function getMerchantBySlug(slug: string): Promise<Merchant | null> 
     .select("*")
     .eq("slug", slug)
     .eq("status", "active")
-    .single();
+    .maybeSingle();
   return data as Merchant | null;
 }
 

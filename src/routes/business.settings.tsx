@@ -22,7 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/lib/supabase";
 import type { Merchant } from "@/lib/auth";
-import { updateMerchant } from "@/lib/db/merchants";
+import { updateMerchant, getMyMerchant } from "@/lib/db/merchants";
 import { updateProgram, setProgramStatus, getLoyaltyProgram } from "@/lib/db/program";
 import type { LoyaltyProgram } from "@/lib/db/program";
 
@@ -76,16 +76,8 @@ function SettingsPage() {
   const [rewardNotif, setRewardNotif] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return;
-      const { data: m } = await supabase
-        .from("merchants")
-        .select("*")
-        .eq("owner_id", user.id)
-        .single();
-
-      if (m) {
-        const merch = m as Merchant;
+    getMyMerchant().then(async (merch) => {
+      if (merch) {
         setMerchant(merch);
         setForm({
           name: merch.name ?? "",

@@ -47,11 +47,19 @@ export function useAuthGuard(requiredRole: RequiredRole = "any") {
       const userId = session.user.id;
 
       // Charger le profil
-      const { data: prof } = await supabase
+      let { data: prof } = await supabase
         .from("profiles")
         .select("id, full_name, role")
         .eq("id", userId)
-        .single();
+        .maybeSingle();
+
+      if (!prof && session.user.user_metadata?.role) {
+        prof = {
+          id: userId,
+          full_name: session.user.user_metadata.full_name || "Utilisateur",
+          role: session.user.user_metadata.role,
+        };
+      }
 
       if (!prof) {
         // Profil absent → déconnexion et retour à l'accueil

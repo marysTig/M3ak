@@ -29,11 +29,33 @@ function Overview() {
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
-      const { data } = await supabase
+      let { data } = await supabase
         .from("merchants")
         .select("*")
         .eq("owner_id", user.id)
-        .single();
+        .maybeSingle();
+
+      // Si le commerce n'existe pas encore pour ce compte, on le crée automatiquement
+      if (!data) {
+        const rawUser = (user.email ?? "").replace("@m3ak.app", "") || "moncommerce";
+        const mName = user.user_metadata?.full_name || rawUser;
+        const slug = rawUser.toLowerCase().replace(/[^a-z0-9]/g, "-");
+
+        const { data: created } = await supabase
+          .from("merchants")
+          .upsert({
+            owner_id: user.id,
+            name: mName,
+            slug,
+            status: "active",
+            plan: "starter",
+          }, { onConflict: "slug" })
+          .select()
+          .maybeSingle();
+
+        if (created) data = created;
+      }
+
       if (data) {
         setMerchant(data as Merchant);
         // Calculer les jours restants depuis la création du compte

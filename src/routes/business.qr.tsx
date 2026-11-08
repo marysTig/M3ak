@@ -7,6 +7,7 @@ import QRCode from "qrcode";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
+import { getMyMerchant } from "@/lib/db/merchants";
 import type { Merchant } from "@/lib/auth";
 
 export const Route = createFileRoute("/business/qr")({
@@ -36,15 +37,8 @@ function QrPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return;
-      const { data } = await supabase
-        .from("merchants")
-        .select("*")
-        .eq("owner_id", user.id)
-        .single();
-      if (data) {
-        const m = data as Merchant;
+    getMyMerchant().then(async (m) => {
+      if (m) {
         setMerchant(m);
 
         // Générer le lien de jointure

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { saveTheme, getLoyaltyProgram, ensureLoyaltyProgram } from "@/lib/db/program";
+import { getMyMerchant } from "@/lib/db/merchants";
 import type { Merchant } from "@/lib/auth";
 
 export const Route = createFileRoute("/business/program")({
@@ -162,11 +163,9 @@ function MaCartePage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return;
-      const { data: m } = await supabase.from("merchants").select("*").eq("owner_id", user.id).single();
+    getMyMerchant().then(async (m) => {
       if (m) {
-        setMerchant(m as Merchant);
+        setMerchant(m);
         // Charger le thème depuis Supabase
         const prog = await getLoyaltyProgram(m.id);
         if (prog?.theme_id) setSelectedId(prog.theme_id);

@@ -56,7 +56,7 @@ function AnalyticsPage() {
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
-      const { data: m } = await supabase.from("merchants").select("id").eq("owner_id", user.id).single();
+      const { data: m } = await supabase.from("merchants").select("id").eq("owner_id", user.id).maybeSingle();
       if (!m) return;
 
       const [s, g, mx] = await Promise.all([

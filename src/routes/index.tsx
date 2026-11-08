@@ -23,6 +23,19 @@ export const Route = createFileRoute("/")({
 
 type AuthMode = "signin" | "signup";
 
+function toAuthEmail(input: string): { email: string; username: string } {
+  const clean = input.trim().toLowerCase();
+  const base = clean.includes("@") ? clean.split("@")[0] : clean;
+  const username = base
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9_.-]/g, "");
+  return {
+    email: `${username}@m3ak.app`,
+    username,
+  };
+}
+
 function AuthPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<AuthMode>("signin");
@@ -68,9 +81,7 @@ function AuthPage() {
 
     setLoading(true);
     try {
-      // Nettoie l'entrée : si l'utilisateur a tapé "marys" ou "marys@m3ak.app", on résout le bon email
-      const rawUser = form.username.trim().toLowerCase();
-      const email = rawUser.includes("@") ? rawUser : `${rawUser}@m3ak.app`;
+      const { email, username: cleanUser } = toAuthEmail(form.username);
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -101,12 +112,31 @@ function AuthPage() {
         .from("profiles")
         .select("role")
         .eq("id", userId)
-        .single();
+        .maybeSingle();
 
       const role = profile?.role ?? (data.user?.user_metadata?.role as string) ?? "customer";
       if (role === "admin") {
         navigate({ to: "/admin" });
       } else if (role === "merchant") {
+        // Garantit que la fiche commerce existe
+        const { data: existingM } = await supabase
+          .from("merchants")
+          .select("id")
+          .eq("owner_id", userId)
+          .maybeSingle();
+
+        if (!existingM) {
+          const mName = data.user?.user_metadata?.full_name || cleanUser;
+          const slug = cleanUser.replace(/[^a-z0-9]/g, "-") || "commerce";
+          await supabase.from("merchants").upsert({
+            owner_id: userId,
+            name: mName,
+            slug,
+            status: "active",
+            plan: "starter",
+          }, { onConflict: "slug" });
+        }
+
         navigate({ to: "/business" });
       } else {
         navigate({ to: "/customer" });
@@ -123,8 +153,7 @@ function AuthPage() {
 
     setLoading(true);
     try {
-      const cleanUser = form.username.trim().toLowerCase().replace(/@.*$/, "");
-      const email = `${cleanUser}@m3ak.app`;
+      const { email, username: cleanUser } = toAuthEmail(form.username);
 
       // 1. Créer le compte
       const { data, error: signUpError } = await supabase.auth.signUp({
@@ -165,34 +194,37 @@ function AuthPage() {
       }
 
       // 2. Connexion directe pour établir la session
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      await supabase.auth.signInWithPassword({
         email,
         password: form.password,
       });
 
-      if (signInError) {
-        toast.success("Compte créé avec succès !", {
-          description: "Connectez-vous avec votre nom d'utilisateur et mot de passe.",
-        });
-        setMode("signin");
-        return;
-      }
-
       // 3. Assurer que la fiche commerce est créée avec statut actif
-      const slug = cleanUser.replace(/[^a-z0-9]/g, "-");
-      await supabase.from("merchants").upsert({
+      const slug = cleanUser.replace(/[^a-z0-9]/g, "-") || "commerce";
+      const { data: mRow } = await supabase.from("merchants").upsert({
         owner_id: userId,
         name: form.businessName.trim(),
         slug,
         status: "active",
         plan: "starter",
-      }, { onConflict: "slug" });
+      }, { onConflict: "slug" }).select().maybeSingle();
+
+      if (mRow) {
+        await supabase.from("loyalty_programs").upsert({
+          merchant_id: mRow.id,
+          theme_id: "aurora",
+          status: "active",
+        }, { onConflict: "merchant_id" });
+      }
 
       toast.success("Compte créé avec succès !", {
         description: "Bienvenue sur M3ak ! Votre compte est activé.",
       });
 
       navigate({ to: "/business" });
+    } catch (err) {
+      console.error("Erreur signup:", err);
+      toast.error("Erreur lors de l'inscription.");
     } finally {
       setLoading(false);
     }

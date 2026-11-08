@@ -23,6 +23,7 @@ import { addPoints } from "@/lib/db/cards";
 import { getCardTransactions } from "@/lib/db/transactions";
 import type { Transaction } from "@/lib/db/transactions";
 import { getLoyaltyProgram } from "@/lib/db/program";
+import { getMyMerchant } from "@/lib/db/merchants";
 
 export const Route = createFileRoute("/business/customers")({
   head: () => ({
@@ -71,9 +72,7 @@ function CustomersPage() {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return;
-      const { data: m } = await supabase.from("merchants").select("id, name").eq("owner_id", user.id).single();
+    getMyMerchant().then(async (m) => {
       if (m) {
         setMerchantId(m.id);
         setMerchantName(m.name);
