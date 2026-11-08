@@ -105,3 +105,61 @@ export async function getActiveBusinesses() {
   if (error) throw new Error(error.message);
   return data ?? [];
 }
+
+/** Suppression définitive d'un commerce et de son compte utilisateur (admin) */
+export async function deleteMerchant(merchantId: string, ownerId?: string) {
+  // 1. Tenter via la fonction RPC sécurisée (qui nettoie tout en cascade + auth.users)
+  const { error: rpcError } = await supabase.rpc("delete_merchant_account", {
+    p_merchant_id: merchantId,
+  });
+
+  if (!rpcError) {
+    return true;
+  }
+
+  console.warn("delete_merchant_account RPC non disponible, repli sur suppression directe:", rpcError.message);
+
+  // Fallback: suppression ordonnée sur les tables publiques si RPC n'est pas encore exécuté dans SQL Editor
+  // Supprimer les redemptions liées aux cartes du commerce
+  const { data: cards } = await supabase
+    .from("loyalty_cards")
+    .select("id")
+    .eq("merchant_id", merchantId);
+
+  if (cards && cards.length > 0) {
+    const cardIds = cards.map((c) => c.id);
+    await supabase.from("reward_redemptions").delete().in("card_id", cardIds);
+  }
+
+  // Supprimer les transactions
+  await supabase.from("transactions").delete().eq("merchant_id", merchantId);
+
+  // Supprimer les cartes de fidélité
+  await supabase.from("loyalty_cards").delete().eq("merchant_id", merchantId);
+
+  // Supprimer les récompenses
+  await supabase.from("rewards").delete().eq("merchant_id", merchantId);
+
+  // Supprimer le programme de fidélité
+  await supabase.from("loyalty_programs").delete().eq("merchant_id", merchantId);
+
+  // Supprimer les points de vente
+  await supabase.from("stores").delete().eq("merchant_id", merchantId);
+
+  // Supprimer la fiche commerce
+  const { error: merchError } = await supabase
+    .from("merchants")
+    .delete()
+    .eq("id", merchantId);
+
+  if (merchError) {
+    throw new Error(merchError.message);
+  }
+
+  // Supprimer le profil si ownerId est fourni
+  if (ownerId) {
+    await supabase.from("profiles").delete().eq("id", ownerId);
+  }
+
+  return true;
+}

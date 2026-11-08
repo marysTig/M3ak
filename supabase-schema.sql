@@ -535,3 +535,58 @@ create policy "settings_read_all" on public.platform_settings for select
 create policy "settings_admin_write" on public.platform_settings for all
   using ((select role from public.profiles where id = auth.uid()) = 'admin');
 
+-- ─── Suppression définitive d'un commerce par l'admin ────────────────────────
+create or replace function public.delete_merchant_account(p_merchant_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_owner_id uuid;
+begin
+  if not public.is_admin() then
+    raise exception 'Accès refusé : action réservée aux administrateurs.';
+  end if;
+
+  select owner_id into v_owner_id
+  from public.merchants
+  where id = p_merchant_id;
+
+  if v_owner_id is null then
+    raise exception 'Commerce introuvable.';
+  end if;
+
+  delete from public.reward_redemptions
+  where card_id in (select id from public.loyalty_cards where merchant_id = p_merchant_id);
+
+  delete from public.transactions
+  where merchant_id = p_merchant_id
+     or card_id in (select id from public.loyalty_cards where merchant_id = p_merchant_id);
+
+  delete from public.loyalty_cards
+  where merchant_id = p_merchant_id;
+
+  delete from public.rewards
+  where merchant_id = p_merchant_id;
+
+  delete from public.loyalty_programs
+  where merchant_id = p_merchant_id;
+
+  delete from public.stores
+  where merchant_id = p_merchant_id;
+
+  delete from public.merchants
+  where id = p_merchant_id;
+
+  delete from public.profiles
+  where id = v_owner_id;
+
+  delete from auth.users
+  where id = v_owner_id;
+end;
+$$;
+
+grant execute on function public.delete_merchant_account(uuid) to authenticated;
+
+

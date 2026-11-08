@@ -238,6 +238,72 @@ begin
 end $$;
 
 
+-- ─── 9. Suppression définitive d'un commerce par l'administrateur ─────────────
+
+create or replace function public.delete_merchant_account(p_merchant_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_owner_id uuid;
+begin
+  -- Vérifier que l'appelant est bien administrateur
+  if not public.is_admin() then
+    raise exception 'Accès refusé : action réservée aux administrateurs.';
+  end if;
+
+  -- Récupérer l'owner_id (compte utilisateur auth.users)
+  select owner_id into v_owner_id
+  from public.merchants
+  where id = p_merchant_id;
+
+  if v_owner_id is null then
+    raise exception 'Commerce introuvable.';
+  end if;
+
+  -- 1. Supprimer les échanges de récompenses liés aux cartes du commerce
+  delete from public.reward_redemptions
+  where card_id in (select id from public.loyalty_cards where merchant_id = p_merchant_id);
+
+  -- 2. Supprimer les transactions liées au commerce ou à ses cartes
+  delete from public.transactions
+  where merchant_id = p_merchant_id
+     or card_id in (select id from public.loyalty_cards where merchant_id = p_merchant_id);
+
+  -- 3. Supprimer les cartes de fidélité du commerce
+  delete from public.loyalty_cards
+  where merchant_id = p_merchant_id;
+
+  -- 4. Supprimer les récompenses
+  delete from public.rewards
+  where merchant_id = p_merchant_id;
+
+  -- 5. Supprimer le programme de fidélité
+  delete from public.loyalty_programs
+  where merchant_id = p_merchant_id;
+
+  -- 6. Supprimer les points de vente
+  delete from public.stores
+  where merchant_id = p_merchant_id;
+
+  -- 7. Supprimer le commerce
+  delete from public.merchants
+  where id = p_merchant_id;
+
+  -- 8. Supprimer le profil et l'utilisateur dans auth.users
+  delete from public.profiles
+  where id = v_owner_id;
+
+  delete from auth.users
+  where id = v_owner_id;
+end;
+$$;
+
+grant execute on function public.delete_merchant_account(uuid) to authenticated;
+
+
 -- =============================================================================
 -- FIN DU SCRIPT
 -- =============================================================================

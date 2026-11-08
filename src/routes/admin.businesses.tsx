@@ -1,11 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, Power, PowerOff, Search, Store } from "lucide-react";
+import { CheckCircle2, Power, PowerOff, Search, Store, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -13,7 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getAllMerchants, setMerchantStatus } from "@/lib/db/merchants";
+import { deleteMerchant, getAllMerchants, setMerchantStatus } from "@/lib/db/merchants";
 
 const filters = [
   { value: "all", label: "Tous" },
@@ -52,6 +62,8 @@ function AdminBusinesses() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [businessToDelete, setBusinessToDelete] = useState<MerchantRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function load() {
     try {
@@ -99,6 +111,20 @@ function AdminBusinesses() {
       toast.error(err instanceof Error ? err.message : "Erreur lors de la désactivation.");
     } finally {
       setUpdatingId(null);
+    }
+  }
+
+  async function handleDelete(b: MerchantRow) {
+    setDeleting(true);
+    try {
+      await deleteMerchant(b.id, b.owner_id);
+      setRows((prev) => prev.filter((r) => r.id !== b.id));
+      toast.success(`Le commerce "${b.name}" et son compte ont été supprimés définitivement.`);
+      setBusinessToDelete(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression définitive.");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -193,7 +219,7 @@ function AdminBusinesses() {
                               size="sm"
                               disabled={isUpdating}
                               onClick={() => handleDeactivate(b)}
-                              className="text-destructive hover:bg-destructive/10 hover:text-destructive text-xs"
+                              className="text-muted-foreground hover:bg-muted text-xs"
                             >
                               <PowerOff className="mr-1.5 size-3.5" />
                               Désactiver
@@ -211,6 +237,18 @@ function AdminBusinesses() {
                             </Button>
                           )}
 
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isUpdating || deleting}
+                            onClick={() => setBusinessToDelete(b)}
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive text-xs"
+                            title="Supprimer définitivement"
+                          >
+                            <Trash2 className="size-3.5" />
+                            <span className="sr-only sm:not-sr-only sm:ml-1">Supprimer</span>
+                          </Button>
+
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="sm">Options</Button>
@@ -224,13 +262,20 @@ function AdminBusinesses() {
                               )}
                               {isActive && (
                                 <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
+                                  className="text-muted-foreground"
                                   onClick={() => handleDeactivate(b)}
                                 >
                                   <PowerOff className="mr-2 size-4" />
                                   Désactiver le compte
                                 </DropdownMenuItem>
                               )}
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                onClick={() => setBusinessToDelete(b)}
+                              >
+                                <Trash2 className="mr-2 size-4" />
+                                Supprimer définitivement
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -243,6 +288,50 @@ function AdminBusinesses() {
           </div>
         )}
       </div>
+
+      {/* Boîte de dialogue de confirmation de suppression définitive */}
+      <AlertDialog
+        open={!!businessToDelete}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setBusinessToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="size-5" />
+              Supprimer définitivement ce commerce ?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 pt-2 text-left">
+              <div>
+                Êtes-vous sûr de vouloir supprimer définitivement le commerce{" "}
+                <strong className="text-foreground">{businessToDelete?.name}</strong> ?
+              </div>
+              <div className="rounded-md border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive">
+                <strong>Attention : Cette action est irréversible.</strong>
+                <p className="mt-1 text-muted-foreground">
+                  Le compte utilisateur associé, ses cartes de fidélité, les récompenses créées ainsi que l'historique complet des transactions seront définitivement supprimés.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                if (businessToDelete) {
+                  handleDelete(businessToDelete);
+                }
+              }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Suppression en cours…" : "Supprimer définitivement"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
