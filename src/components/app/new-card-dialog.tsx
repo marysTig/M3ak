@@ -1,11 +1,11 @@
 /**
- * new-card-dialog.tsx — v2
+ * new-card-dialog.tsx — v3
  *
- * Création d'un nouveau client par invitation email.
- * Utilise Supabase Auth (signUp) + création de carte en base.
- * Ne modifie PAS le design.
+ * Création d'un nouveau client par nom + numéro de téléphone (ou simple nom).
+ * La carte est partagée via un LIEN UNIQUE (WhatsApp ou SMS).
+ * Le client ouvre le lien et voit sa carte sans créer de compte.
  */
-import { Loader2, Mail, UserPlus } from "lucide-react";
+import { Copy, Loader2, MessageCircle, Phone, Share2, Smartphone, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -19,7 +19,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 import { getLoyaltyProgram } from "@/lib/db/program";
-import { sendLoyaltyCardEmail } from "@/lib/email-service";
 
 interface NewCardDialogProps {
   open: boolean;
@@ -31,35 +30,52 @@ type Step = "form" | "created";
 
 interface CreatedData {
   customerName: string;
-  customerEmail: string;
   cardId: string;
   qrToken: string;
   points: number;
   themeId: string;
-  emailSent: boolean;
-  emailSimulated: boolean;
+  cardLink: string;
 }
 
-function validateEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+/** Génère le lien public de la carte */
+function buildCardLink(qrToken: string): string {
+  const base = typeof window !== "undefined" ? window.location.origin : "https://m3ak.vercel.app";
+  return `${base}/card/${qrToken}`;
+}
+
+/** Génère un slug unique à partir d'un nom */
+function nameToSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/** Génère un faux email interne pour créer le compte sans email réel */
+function nameToFakeEmail(name: string, merchantId: string): string {
+  const slug = nameToSlug(name) || "client";
+  const hash = Math.random().toString(36).slice(2, 7);
+  return `${slug}-${hash}-${merchantId.slice(0, 6)}@m3ak.internal`;
 }
 
 export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogProps) {
   const [step, setStep] = useState<Step>("form");
-  const [form, setForm] = useState({ name: "", email: "" });
-  const [errors, setErrors] = useState({ name: "", email: "" });
+  const [form, setForm] = useState({ name: "", phone: "" });
+  const [errors, setErrors] = useState({ name: "", phone: "" });
   const [loading, setLoading] = useState(false);
-  const [resendLoading, setResendLoading] = useState(false);
   const [created, setCreated] = useState<CreatedData | null>(null);
   const [merchantId, setMerchantId] = useState<string | null>(null);
   const [merchantName, setMerchantName] = useState("Mon commerce");
   const [themeId, setThemeId] = useState("aurora");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
-      const { data: m } = await supabase.from("merchants").select("id, name").eq("owner_id", user.id).single();
+      const { data: m } = await supabase.from("merchants").select("id, name").eq("owner_id", user.id).maybeSingle();
       if (m) {
         setMerchantId(m.id);
         setMerchantName(m.name);
@@ -71,11 +87,11 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
 
   function reset() {
     setStep("form");
-    setForm({ name: "", email: "" });
-    setErrors({ name: "", email: "" });
+    setForm({ name: "", phone: "" });
+    setErrors({ name: "", phone: "" });
     setCreated(null);
     setLoading(false);
-    setResendLoading(false);
+    setCopied(false);
   }
 
   function handleOpenChange(o: boolean) {
@@ -84,15 +100,10 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
   }
 
   function validate() {
-    const errs = { name: "", email: "" };
+    const errs = { name: "", phone: "" };
     if (!form.name.trim()) errs.name = "Le nom est requis.";
-    if (!form.email.trim()) {
-      errs.email = "L'adresse e-mail est requise.";
-    } else if (!validateEmail(form.email)) {
-      errs.email = "Adresse e-mail invalide.";
-    }
     setErrors(errs);
-    return !errs.name && !errs.email;
+    return !errs.name;
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -101,36 +112,36 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
     setLoading(true);
 
     try {
-      // 1. Créer le compte client via signUp (mot de passe temporaire)
+      // 1. Créer un compte fantôme pour le client (sans vrai email)
+      //    Le client n'a pas besoin de se connecter — il accède via le lien public.
+      const fakeEmail = nameToFakeEmail(form.name.trim(), merchantId);
       const tempPassword = Math.random().toString(36).slice(2, 10) + "A1!";
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: form.email.trim(),
+        email: fakeEmail,
         password: tempPassword,
         options: {
           data: { full_name: form.name.trim(), role: "customer" },
         },
       });
 
-      if (authError) {
-        // Si l'utilisateur existe déjà, on cherche son profil
-        if (!authError.message.includes("already registered")) {
-          throw new Error(authError.message);
-        }
+      if (authError && !authError.message.includes("already registered")) {
+        throw new Error(authError.message);
       }
 
-      // Attendre que le trigger crée le profil
+      // Attendre que le trigger handle_new_user crée le profil
       await new Promise((r) => setTimeout(r, 800));
 
       const userId = authData?.user?.id;
       if (!userId) throw new Error("Impossible de récupérer l'ID utilisateur.");
 
-      // 2. Créer la carte de fidélité
+      // 2. Créer ou récupérer la carte de fidélité
       const { data: existingCard } = await supabase
         .from("loyalty_cards")
         .select("id, qr_token, points")
         .eq("customer_id", userId)
         .eq("merchant_id", merchantId)
-        .single();
+        .maybeSingle();
 
       let card = existingCard;
 
@@ -146,43 +157,21 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
 
       if (!card) throw new Error("Erreur lors de la création de la carte.");
 
-      // 3. Envoyer l'email
-      let emailSent = false;
-      let emailSimulated = false;
-      try {
-        const result = await sendLoyaltyCardEmail({
-          customer: { id: userId, name: form.name.trim(), email: form.email.trim() } as any,
-          card: { id: card.id, qrToken: card.qr_token, points: card.points } as any,
-          businessName: merchantName,
-        });
-        emailSent = result.success;
-        emailSimulated = result.simulated ?? false;
-      } catch {
-        emailSent = false;
-      }
+      const cardLink = buildCardLink(card.qr_token);
 
       setCreated({
         customerName: form.name.trim(),
-        customerEmail: form.email.trim(),
         cardId: card.id,
         qrToken: card.qr_token,
         points: card.points,
         themeId,
-        emailSent,
-        emailSimulated,
+        cardLink,
       });
       setStep("created");
       onCreated?.();
-
-      if (emailSimulated) {
-        toast.success(`Carte créée pour ${form.name}`, { description: "Email simulé." });
-      } else if (emailSent) {
-        toast.success(`Carte créée et envoyée à ${form.email}`);
-      } else {
-        toast.warning(`Carte créée pour ${form.name}`, {
-          description: "L'envoi d'email a échoué.",
-        });
-      }
+      toast.success(`Carte créée pour ${form.name.trim()} !`, {
+        description: "Partagez le lien par WhatsApp ou SMS.",
+      });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur inconnue.");
     } finally {
@@ -190,33 +179,55 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
     }
   }
 
-  async function handleResend() {
+  async function handleCopyLink() {
     if (!created) return;
-    setResendLoading(true);
     try {
-      const result = await sendLoyaltyCardEmail({
-        customer: { id: "", name: created.customerName, email: created.customerEmail } as any,
-        card: { id: created.cardId, qrToken: created.qrToken, points: created.points } as any,
-        businessName: merchantName,
-      });
-      if (result.success) {
-        if (result.simulated) {
-          toast.info("Email simulé (EmailJS non configuré).");
-        } else {
-          toast.success(`Email renvoyé à ${created.customerEmail}`);
-        }
-        setCreated({ ...created, emailSent: true });
-      } else {
-        toast.error("Échec du renvoi.");
-      }
+      await navigator.clipboard.writeText(created.cardLink);
+      setCopied(true);
+      toast.success("Lien copié !");
+      setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("Erreur lors du renvoi de l'email.");
-    } finally {
-      setResendLoading(false);
+      toast.error("Impossible de copier le lien.");
+    }
+  }
+
+  function handleShareWhatsApp() {
+    if (!created) return;
+    const phone = form.phone.trim().replace(/\s+/g, "");
+    const msg = encodeURIComponent(
+      `Bonjour ${created.customerName} 👋\n\nVoici votre carte de fidélité *${merchantName}* :\n${created.cardLink}\n\nOuvrez ce lien pour voir vos points et récompenses 🎁`
+    );
+    const url = phone
+      ? `https://wa.me/${phone.startsWith("+") ? phone.slice(1) : phone}?text=${msg}`
+      : `https://wa.me/?text=${msg}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  function handleShareSMS() {
+    if (!created) return;
+    const phone = form.phone.trim().replace(/\s+/g, "");
+    const body = encodeURIComponent(
+      `Bonjour ${created.customerName}, voici votre carte de fidélité ${merchantName} : ${created.cardLink}`
+    );
+    const url = phone ? `sms:${phone}?body=${body}` : `sms:?body=${body}`;
+    window.open(url, "_self");
+  }
+
+  async function handleNativeShare() {
+    if (!created || !navigator.share) return;
+    try {
+      await navigator.share({
+        title: `Carte de fidélité ${merchantName}`,
+        text: `Bonjour ${created.customerName}, voici votre carte de fidélité ${merchantName} !`,
+        url: created.cardLink,
+      });
+    } catch {
+      // L'utilisateur a annulé ou le navigateur ne supporte pas
     }
   }
 
   const selectedTheme = themes.find((t) => t.id === themeId) ?? themes[0]!;
+  const hasNativeShare = typeof window !== "undefined" && !!navigator.share;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -226,7 +237,7 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
             <DialogHeader>
               <DialogTitle>Créer une nouvelle carte</DialogTitle>
               <DialogDescription>
-                Saisissez les informations du client pour créer sa carte de fidélité.
+                Saisissez le nom du client. Un lien unique sera généré pour partager sa carte via WhatsApp ou SMS.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 pt-2">
@@ -243,17 +254,26 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
                 {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="customer-email">Adresse e-mail</Label>
-                <Input
-                  id="customer-email"
-                  type="email"
-                  placeholder="ahmed@email.com"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  disabled={loading}
-                  autoComplete="off"
-                />
-                {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+                <Label htmlFor="customer-phone">
+                  Numéro de téléphone{" "}
+                  <span className="text-muted-foreground font-normal">(optionnel)</span>
+                </Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="customer-phone"
+                    type="tel"
+                    placeholder="+213 6XX XXX XXX"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    disabled={loading}
+                    autoComplete="off"
+                    className="pl-9"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Si renseigné, le lien sera pré-rempli dans WhatsApp/SMS.
+                </p>
               </div>
               <div className="flex gap-2 pt-2">
                 <Button type="button" variant="outline" className="flex-1" onClick={() => handleOpenChange(false)}>
@@ -280,56 +300,85 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
         {step === "created" && created && (
           <>
             <DialogHeader>
-              <DialogTitle>Carte créée avec succès !</DialogTitle>
+              <DialogTitle>Carte créée ! Partagez le lien</DialogTitle>
               <DialogDescription>
-                La carte de fidélité de <strong>{created.customerName}</strong> est prête.
+                La carte de <strong>{created.customerName}</strong> est prête. Envoyez le lien via WhatsApp ou SMS.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-5 pt-2">
+              {/* Aperçu carte */}
               <div className="flex flex-col items-center gap-4">
-                <div className="flex w-full max-w-[360px] items-center justify-between px-1">
-                  <span className="font-semibold">{created.customerName}</span>
-                  <span className="text-sm font-medium text-muted-foreground">{merchantName}</span>
-                </div>
                 <div className="w-full max-w-[360px]">
                   <VirtualCard
                     theme={selectedTheme}
                     businessName={merchantName}
                     points={created.points}
+                    customerName={created.customerName}
                     compact
                   />
                 </div>
-                <div className="mt-2 flex flex-col items-center gap-2">
-                  <p className="text-xs font-medium text-muted-foreground">QR Code de fidélité</p>
-                  <QrDisplay token={created.qrToken} size={150} />
-                  <p className="font-mono text-[10px] text-muted-foreground">
-                    {created.qrToken.slice(0, 16)}...
-                  </p>
+                <div className="flex flex-col items-center gap-1">
+                  <p className="text-xs font-medium text-muted-foreground">QR Code de la carte</p>
+                  <QrDisplay token={created.qrToken} size={120} />
                 </div>
               </div>
 
-              <div className={`rounded-xl px-4 py-3 text-sm ${
-                created.emailSent ? "bg-success-soft text-success" : "bg-warning-soft text-warning"
-              }`}>
-                <Mail className="mr-2 inline size-4" />
-                {created.emailSimulated
-                  ? "Email simulé (EmailJS non configuré)"
-                  : created.emailSent
-                    ? `Carte envoyée à ${created.customerEmail}`
-                    : "L'envoi d'email a échoué"}
+              {/* Lien unique */}
+              <div className="rounded-xl border bg-surface-muted px-3 py-3">
+                <p className="mb-1.5 text-xs font-medium text-muted-foreground">Lien unique de la carte</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 truncate rounded-md bg-background px-2 py-1.5 text-xs font-mono">
+                    {created.cardLink}
+                  </code>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCopyLink}
+                    className="shrink-0"
+                  >
+                    <Copy className="size-4" />
+                    {copied ? "Copié !" : "Copier"}
+                  </Button>
+                </div>
               </div>
 
-              <div className="flex gap-2">
-                {!created.emailSent && !created.emailSimulated && (
-                  <Button variant="outline" className="flex-1" onClick={handleResend} disabled={resendLoading}>
-                    {resendLoading ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
-                    Renvoyer
-                  </Button>
-                )}
-                <Button className="flex-1" onClick={() => handleOpenChange(false)}>
-                  Terminer
+              {/* Boutons de partage */}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  onClick={handleShareWhatsApp}
+                  className="flex-1 bg-[#25D366] hover:bg-[#1ebe59] text-white"
+                >
+                  <MessageCircle className="size-4" />
+                  WhatsApp
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleShareSMS}
+                  className="flex-1"
+                >
+                  <Smartphone className="size-4" />
+                  SMS
                 </Button>
               </div>
+
+              {hasNativeShare && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleNativeShare}
+                >
+                  <Share2 className="size-4" />
+                  Partager via l'appareil
+                </Button>
+              )}
+
+              <Button className="w-full" onClick={() => handleOpenChange(false)}>
+                Terminer
+              </Button>
             </div>
           </>
         )}

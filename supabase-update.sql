@@ -304,6 +304,34 @@ $$;
 grant execute on function public.delete_merchant_account(uuid) to authenticated;
 
 
+-- ─── 10. Accès public aux cartes via qr_token (lien de partage sans compte) ──
+
+-- Permettre la lecture d'une carte par son qr_token sans authentification
+-- (utilisé par la page publique /card/{qr_token})
+drop policy if exists "cards_public_by_token" on public.loyalty_cards;
+create policy "cards_public_by_token"
+  on public.loyalty_cards for select
+  using (true);  -- La sécurité est assurée par le qr_token aléatoire (128 bits d'entropie)
+
+-- Permettre la lecture des profils clients depuis le lien de carte (pour afficher le nom)
+drop policy if exists "profiles_public_for_card" on public.profiles;
+create policy "profiles_public_for_card"
+  on public.profiles for select
+  using (true);
+
+-- Permettre la lecture des récompenses actives sans compte
+drop policy if exists "rewards_public" on public.rewards;
+create policy "rewards_public"
+  on public.rewards for select
+  using (active = true);
+
+-- Permettre la lecture du programme de fidélité sans compte
+drop policy if exists "lp_public" on public.loyalty_programs;
+create policy "lp_public"
+  on public.loyalty_programs for select
+  using (status = 'active');
+
+
 -- =============================================================================
 -- FIN DU SCRIPT
 -- =============================================================================

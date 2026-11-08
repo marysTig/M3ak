@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Mail, Plus, Search, Users } from "lucide-react";
+import { Copy, MessageCircle, Plus, Search, Share2, Smartphone, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -65,6 +65,38 @@ function CustomersPage() {
   const [pointsError, setPointsError] = useState("");
   const [addingPoints, setAddingPoints] = useState(false);
   const [cardTx, setCardTx] = useState<Transaction[]>([]);
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
+
+  function buildCardLink(qrToken: string) {
+    return `${window.location.origin}/card/${qrToken}`;
+  }
+
+  async function handleCopyLink(qrToken: string) {
+    try {
+      await navigator.clipboard.writeText(buildCardLink(qrToken));
+      setCopiedToken(qrToken);
+      toast.success("Lien copié !");
+      setTimeout(() => setCopiedToken(null), 2000);
+    } catch {
+      toast.error("Impossible de copier.");
+    }
+  }
+
+  function handleShareWhatsApp(c: CustomerWithCard) {
+    const link = buildCardLink(c.card.qr_token);
+    const msg = encodeURIComponent(
+      `Bonjour ${c.customer.full_name} 👋\n\nVoici votre carte de fidélité *${merchantName}* :\n${link}\n\nOuvrez ce lien pour voir vos points 🎁`
+    );
+    window.open(`https://wa.me/?text=${msg}`, "_blank", "noopener,noreferrer");
+  }
+
+  function handleShareSMS(c: CustomerWithCard) {
+    const link = buildCardLink(c.card.qr_token);
+    const body = encodeURIComponent(
+      `Bonjour ${c.customer.full_name}, voici votre carte de fidélité ${merchantName} : ${link}`
+    );
+    window.open(`sms:?body=${body}`, "_self");
+  }
 
   const reload = useCallback(async (mId: string) => {
     const data = await getMerchantCustomers(mId);
@@ -249,6 +281,66 @@ function CustomersPage() {
                   <p className="text-xs text-muted-foreground">
                     Total gagné : {selected.card.total_earned} pts
                   </p>
+                </div>
+
+                {/* Partage du lien de la carte */}
+                <div className="rounded-xl border p-4 space-y-3">
+                  <p className="text-sm font-semibold">Partager la carte</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 truncate rounded-md bg-surface-muted px-2 py-1.5 text-xs font-mono">
+                      {buildCardLink(selected.card.qr_token)}
+                    </code>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => handleCopyLink(selected.card.qr_token)}
+                    >
+                      <Copy className="size-4" />
+                      {copiedToken === selected.card.qr_token ? "Copié !" : "Copier"}
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => handleShareWhatsApp(selected)}
+                      className="bg-[#25D366] hover:bg-[#1ebe59] text-white"
+                    >
+                      <MessageCircle className="size-4" />
+                      WhatsApp
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleShareSMS(selected)}
+                    >
+                      <Smartphone className="size-4" />
+                      SMS
+                    </Button>
+                  </div>
+                  {typeof window !== "undefined" && navigator.share && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={async () => {
+                        try {
+                          await navigator.share({
+                            title: `Carte de fidélité ${merchantName}`,
+                            text: `Bonjour ${selected.customer.full_name}, voici votre carte de fidélité !`,
+                            url: buildCardLink(selected.card.qr_token),
+                          });
+                        } catch { /* annulé */ }
+                      }}
+                    >
+                      <Share2 className="size-4" />
+                      Partager via l'appareil
+                    </Button>
+                  )}
                 </div>
 
                 {/* Ajout de points */}

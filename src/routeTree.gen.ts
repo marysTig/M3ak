@@ -25,6 +25,7 @@ import { Route as BusinessQrRouteImport } from './routes/business.qr'
 import { Route as BusinessRewardsRouteImport } from './routes/business.rewards'
 import { Route as BusinessSettingsRouteImport } from './routes/business.settings'
 import { Route as BusinessTransactionsRouteImport } from './routes/business.transactions'
+import { Route as CardTokenRouteImport } from './routes/card.$token'
 import { Route as CustomerIndexRouteImport } from './routes/customer.index'
 import { Route as CustomerDiscoverRouteImport } from './routes/customer.discover'
 import { Route as CustomerProfileRouteImport } from './routes/customer.profile'
@@ -112,6 +113,11 @@ const BusinessTransactionsRoute = BusinessTransactionsRouteImport.update({
   path: '/transactions',
   getParentRoute: () => BusinessRoute,
 } as any)
+const CardTokenRoute = CardTokenRouteImport.update({
+  id: '/card/$token',
+  path: '/card/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CustomerIndexRoute = CustomerIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -158,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/business/rewards': typeof BusinessRewardsRoute
   '/business/settings': typeof BusinessSettingsRoute
   '/business/transactions': typeof BusinessTransactionsRoute
+  '/card/$token': typeof CardTokenRoute
   '/customer/discover': typeof CustomerDiscoverRoute
   '/customer/profile': typeof CustomerProfileRoute
   '/customer/rewards': typeof CustomerRewardsRoute
@@ -179,6 +186,7 @@ export interface FileRoutesByTo {
   '/business/rewards': typeof BusinessRewardsRoute
   '/business/settings': typeof BusinessSettingsRoute
   '/business/transactions': typeof BusinessTransactionsRoute
+  '/card/$token': typeof CardTokenRoute
   '/customer/discover': typeof CustomerDiscoverRoute
   '/customer/profile': typeof CustomerProfileRoute
   '/customer/rewards': typeof CustomerRewardsRoute
@@ -204,6 +212,7 @@ export interface FileRoutesById {
   '/business/rewards': typeof BusinessRewardsRoute
   '/business/settings': typeof BusinessSettingsRoute
   '/business/transactions': typeof BusinessTransactionsRoute
+  '/card/$token': typeof CardTokenRoute
   '/customer/discover': typeof CustomerDiscoverRoute
   '/customer/profile': typeof CustomerProfileRoute
   '/customer/rewards': typeof CustomerRewardsRoute
@@ -230,6 +239,7 @@ export interface FileRouteTypes {
     | '/business/rewards'
     | '/business/settings'
     | '/business/transactions'
+    | '/card/$token'
     | '/customer/discover'
     | '/customer/profile'
     | '/customer/rewards'
@@ -251,6 +261,7 @@ export interface FileRouteTypes {
     | '/business/rewards'
     | '/business/settings'
     | '/business/transactions'
+    | '/card/$token'
     | '/customer/discover'
     | '/customer/profile'
     | '/customer/rewards'
@@ -275,6 +286,7 @@ export interface FileRouteTypes {
     | '/business/rewards'
     | '/business/settings'
     | '/business/transactions'
+    | '/card/$token'
     | '/customer/discover'
     | '/customer/profile'
     | '/customer/rewards'
@@ -290,6 +302,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   BusinessRoute: typeof BusinessRouteWithChildren
   CustomerRoute: typeof CustomerRouteWithChildren
+  CardTokenRoute: typeof CardTokenRoute
   JoinSlugRoute: typeof JoinSlugRoute
 }
 
@@ -407,6 +420,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BusinessTransactionsRouteImport
       parentRoute: typeof BusinessRoute
     }
+    '/card/$token': {
+      id: '/card/$token'
+      path: '/card/$token'
+      fullPath: '/card/$token'
+      preLoaderRoute: typeof CardTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/customer/': {
       id: '/customer/'
       path: '/'
@@ -519,6 +539,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   BusinessRoute: BusinessRouteWithChildren,
   CustomerRoute: CustomerRouteWithChildren,
+  CardTokenRoute: CardTokenRoute,
   JoinSlugRoute: JoinSlugRoute,
 }
 export const routeTree = rootRouteImport
