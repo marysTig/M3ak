@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CheckCircle2, IdCard, QrCode, Settings, Users } from "lucide-react";
+import { AlertCircle, CheckCircle2, IdCard, QrCode, Settings, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -46,6 +46,27 @@ function Overview() {
   }, []);
 
   const name = merchant?.name ?? "Mon commerce";
+  const isSuspended = merchant?.status === "suspended";
+
+  function handleScanClick() {
+    if (isSuspended) {
+      toast.error("Compte désactivé", {
+        description: "Votre compte est actuellement désactivé par l'administrateur. Veuillez contacter le support.",
+      });
+      return;
+    }
+    setScanOpen(true);
+  }
+
+  function handleNewCardClick() {
+    if (isSuspended) {
+      toast.error("Compte désactivé", {
+        description: "Votre compte est actuellement désactivé par l'administrateur. Veuillez contacter le support.",
+      });
+      return;
+    }
+    setNewCardOpen(true);
+  }
 
   return (
     <div className="flex flex-col items-center justify-center py-10">
@@ -54,18 +75,27 @@ function Overview() {
         <p className="mt-2 text-sm text-muted-foreground">Gérez votre commerce en toute simplicité.</p>
       </div>
 
+      {isSuspended && (
+        <div className="mb-6 flex w-full max-w-md items-center gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-destructive">
+          <AlertCircle className="size-5 shrink-0" />
+          <p className="text-xs">
+            Votre compte est désactivé par l'administrateur. Certaines fonctionnalités sont temporairement restreintes.
+          </p>
+        </div>
+      )}
+
       {/* Boutons d'action principaux */}
       <div className="mb-4 flex w-full max-w-md gap-3">
         <button
           id="btn-scan-qr"
-          onClick={() => setScanOpen(true)}
-          className="flex flex-1 items-center justify-center rounded-2xl bg-primary px-3 py-4 text-center text-xs font-semibold text-primary-foreground shadow-[var(--shadow-soft)] transition-all hover:opacity-90 active:scale-95 sm:px-4 sm:text-sm"
+          onClick={handleScanClick}
+          className="flex flex-1 items-center justify-center rounded-2xl bg-primary px-3 py-4 text-center text-xs font-semibold text-primary-foreground shadow-[var(--shadow-soft)] transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 sm:px-4 sm:text-sm"
         >
           Scanner code QR
         </button>
         <button
           id="btn-nouvelle-carte"
-          onClick={() => setNewCardOpen(true)}
+          onClick={handleNewCardClick}
           className="flex flex-1 items-center justify-center rounded-2xl border border-border bg-surface px-3 py-4 text-center text-xs font-semibold text-foreground shadow-[var(--shadow-soft)] transition-all hover:bg-accent active:scale-95 sm:px-4 sm:text-sm"
         >
           Créer une nouvelle carte
@@ -91,15 +121,15 @@ function Overview() {
       <div className="mt-8 w-full max-w-md rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-soft)]">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-full bg-success/15 text-success">
-              <CheckCircle2 className="size-5" />
+            <div className={`flex size-10 items-center justify-center rounded-full ${isSuspended ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
+              {isSuspended ? <AlertCircle className="size-5" /> : <CheckCircle2 className="size-5" />}
             </div>
             <div>
               <h3 className="text-sm font-semibold">
-                {merchant?.status === "active" ? "Compte Activé" : merchant?.status === "pending" ? "En attente de validation" : "Compte suspendu"}
+                {merchant?.status === "active" ? "Compte Activé" : isSuspended ? "Compte Désactivé" : "En attente de validation"}
               </h3>
               <p className="text-xs text-muted-foreground">
-                {merchant?.plan ? `Plan ${merchant.plan}` : "Validé par l'administrateur"}
+                {isSuspended ? "Désactivé par l'administrateur" : merchant?.plan ? `Plan ${merchant.plan}` : "Compte actif"}
               </p>
             </div>
           </div>

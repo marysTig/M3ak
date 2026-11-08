@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 
@@ -12,15 +12,15 @@ import { Switch } from "@/components/ui/switch";
 export const Route = createFileRoute("/admin/settings")({
   head: () => ({
     meta: [
-      { title: "Platform Settings — Loyalty Admin" },
+      { title: "Paramètres de la plateforme — M3ak Admin" },
       {
         name: "description",
-        content: "Default plan limits, onboarding rules and platform-wide notifications.",
+        content: "Règles d'inscription, limites des forfaits et notifications globales.",
       },
-      { property: "og:title", content: "Platform Settings — Loyalty Admin" },
+      { property: "og:title", content: "Paramètres de la plateforme — M3ak Admin" },
       {
         property: "og:description",
-        content: "Default plan limits, onboarding rules and platform-wide notifications.",
+        content: "Règles d'inscription, limites des forfaits et notifications globales.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -30,34 +30,51 @@ export const Route = createFileRoute("/admin/settings")({
 });
 
 function AdminSettings() {
-  const [autoApprove, setAutoApprove] = useState(false);
+  const [autoApprove, setAutoApprove] = useState(true);
   const [digest, setDigest] = useState(true);
   const [saving, setSaving] = useState(false);
   const platformNameRef = useRef<HTMLInputElement>(null);
   const supportEmailRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    supabase.from("platform_settings").select("key, value").then(({ data }) => {
+      if (data) {
+        const map = Object.fromEntries(data.map((r) => [r.key, r.value]));
+        if (map["auto_approve"] !== undefined) {
+          setAutoApprove(map["auto_approve"] === "true");
+        }
+        if (map["weekly_digest"] !== undefined) {
+          setDigest(map["weekly_digest"] === "true");
+        }
+        if (map["platform_name"] && platformNameRef.current) {
+          platformNameRef.current.value = map["platform_name"];
+        }
+        if (map["support_email"] && supportEmailRef.current) {
+          supportEmailRef.current.value = map["support_email"];
+        }
+      }
+    });
+  }, []);
+
   async function handleSave() {
     setSaving(true);
     try {
-      // Persist to a simple key-value store in Supabase
       const settings = [
-        { key: 'platform_name', value: platformNameRef.current?.value ?? 'Loyalty Platform' },
-        { key: 'support_email', value: supportEmailRef.current?.value ?? 'support@loyal.app' },
-        { key: 'auto_approve', value: String(autoApprove) },
-        { key: 'weekly_digest', value: String(digest) },
+        { key: "platform_name", value: platformNameRef.current?.value ?? "M3ak Loyalty" },
+        { key: "support_email", value: supportEmailRef.current?.value ?? "support@m3ak.app" },
+        { key: "auto_approve", value: String(autoApprove) },
+        { key: "weekly_digest", value: String(digest) },
       ];
-      // Upsert each setting (table may not exist yet — graceful fallback)
       const { error } = await supabase
-        .from('platform_settings')
-        .upsert(settings, { onConflict: 'key' });
+        .from("platform_settings")
+        .upsert(settings, { onConflict: "key" });
       if (error) {
-        // Table doesn't exist yet — show a notice
-        toast.info('Settings saved locally', { description: 'Run the schema SQL to persist platform settings.' });
+        toast.info("Paramètres enregistrés localement");
       } else {
-        toast.success('Settings saved');
+        toast.success("Paramètres enregistrés avec succès");
       }
     } catch {
-      toast.error('Erreur lors de la sauvegarde.');
+      toast.error("Erreur lors de la sauvegarde.");
     } finally {
       setSaving(false);
     }

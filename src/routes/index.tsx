@@ -68,17 +68,30 @@ function AuthPage() {
 
     setLoading(true);
     try {
-      // Username → email synthétique pour Supabase Auth
-      const email = `${form.username.trim().toLowerCase()}@m3ak.app`;
+      // Nettoie l'entrée : si l'utilisateur a tapé "marys" ou "marys@m3ak.app", on résout le bon email
+      const rawUser = form.username.trim().toLowerCase();
+      const email = rawUser.includes("@") ? rawUser : `${rawUser}@m3ak.app`;
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password: form.password,
       });
 
       if (error) {
-        toast.error("Identifiants incorrects", {
-          description: "Vérifiez votre nom d'utilisateur et mot de passe.",
-        });
+        console.error("Supabase Auth Error:", error.message, error);
+        if (error.message.includes("Email not confirmed")) {
+          toast.error("Compte non confirmé", {
+            description: "Votre compte n'est pas encore confirmé. Exécutez le script SQL pour confirmer tous les comptes.",
+          });
+        } else if (error.message.includes("disabled") || (error as { code?: string }).code === "email_provider_disabled") {
+          toast.error("Authentification désactivée dans Supabase", {
+            description: "Activez le provider 'Email' dans Supabase Dashboard > Authentication > Providers > Email.",
+          });
+        } else {
+          toast.error("Identifiants incorrects", {
+            description: `Vérifiez votre nom d'utilisateur et mot de passe (${error.message}).`,
+          });
+        }
         return;
       }
 
@@ -90,7 +103,7 @@ function AuthPage() {
         .eq("id", userId)
         .single();
 
-      const role = profile?.role ?? "customer";
+      const role = profile?.role ?? (data.user?.user_metadata?.role as string) ?? "customer";
       if (role === "admin") {
         navigate({ to: "/admin" });
       } else if (role === "merchant") {
@@ -110,8 +123,8 @@ function AuthPage() {
 
     setLoading(true);
     try {
-      const username = form.username.trim().toLowerCase();
-      const email = `${username}@m3ak.app`;
+      const cleanUser = form.username.trim().toLowerCase().replace(/@.*$/, "");
+      const email = `${cleanUser}@m3ak.app`;
 
       // 1. Créer le compte
       const { data, error: signUpError } = await supabase.auth.signUp({
@@ -121,7 +134,7 @@ function AuthPage() {
           data: {
             full_name: form.businessName.trim(),
             role: "merchant",
-            username,
+            username: cleanUser,
           },
         },
       });
@@ -130,6 +143,14 @@ function AuthPage() {
         if (signUpError.message.includes("already registered")) {
           toast.error("Nom d'utilisateur déjà pris", {
             description: "Choisissez un autre nom d'utilisateur.",
+          });
+        } else if (signUpError.message.includes("disabled") || (signUpError as { code?: string }).code === "email_provider_disabled") {
+          toast.error("Authentification désactivée dans Supabase", {
+            description: "Activez le provider 'Email' dans Supabase Dashboard > Authentication > Providers > Email pour permettre l'inscription par mot de passe.",
+          });
+        } else if (signUpError.message.includes("rate limit")) {
+          toast.error("Trop de tentatives", {
+            description: "Veuillez patienter quelques instants avant de réessayer.",
           });
         } else {
           toast.error(signUpError.message);
@@ -143,32 +164,34 @@ function AuthPage() {
         return;
       }
 
-      // Attendre que le trigger crée le profil
-      await new Promise((r) => setTimeout(r, 800));
+      // 2. Connexion directe pour établir la session
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: form.password,
+      });
 
-      // 2. Mettre à jour le rôle en merchant
-      await supabase.from("profiles").upsert({
-        id: userId,
-        full_name: form.businessName.trim(),
-        role: "merchant",
-      }, { onConflict: "id" });
+      if (signInError) {
+        toast.success("Compte créé avec succès !", {
+          description: "Connectez-vous avec votre nom d'utilisateur et mot de passe.",
+        });
+        setMode("signin");
+        return;
+      }
 
-      // 3. Créer la fiche commerce
-      const slug = username.replace(/[^a-z0-9]/g, "-");
-      await supabase.from("merchants").insert({
+      // 3. Assurer que la fiche commerce est créée avec statut actif
+      const slug = cleanUser.replace(/[^a-z0-9]/g, "-");
+      await supabase.from("merchants").upsert({
         owner_id: userId,
         name: form.businessName.trim(),
         slug,
-        status: "pending",
+        status: "active",
         plan: "starter",
-      });
+      }, { onConflict: "slug" });
 
       toast.success("Compte créé avec succès !", {
-        description: "Votre demande est en attente de validation par l'administrateur.",
+        description: "Bienvenue sur M3ak ! Votre compte est activé.",
       });
 
-      // Connecter directement
-      await supabase.auth.signInWithPassword({ email, password: form.password });
       navigate({ to: "/business" });
     } finally {
       setLoading(false);
