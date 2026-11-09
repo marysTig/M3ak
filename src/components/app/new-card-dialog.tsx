@@ -43,23 +43,6 @@ function buildCardLink(qrToken: string): string {
   return `${base}/card/${qrToken}`;
 }
 
-/** Génère un slug unique à partir d'un nom */
-function nameToSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-/** Génère un faux email interne pour créer le compte sans email réel */
-function nameToFakeEmail(name: string, merchantId: string): string {
-  const slug = nameToSlug(name) || "client";
-  const hash = Math.random().toString(36).slice(2, 7);
-  return `${slug}-${hash}-${merchantId.slice(0, 6)}@m3ak.internal`;
-}
-
 export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogProps) {
   const [step, setStep] = useState<Step>("form");
   const [form, setForm] = useState({ name: "", phone: "" });
@@ -112,56 +95,21 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
     setLoading(true);
 
     try {
-      // 1. Créer un compte fantôme pour le client (sans vrai email)
-      //    Le client n'a pas besoin de se connecter — il accède via le lien public.
-      const fakeEmail = nameToFakeEmail(form.name.trim(), merchantId);
-      const tempPassword = Math.random().toString(36).slice(2, 10) + "A1!";
-
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: fakeEmail,
-        password: tempPassword,
-        options: {
-          data: { full_name: form.name.trim(), role: "customer" },
-        },
+      // Appeler la RPC sécurisée — crée le profil fantôme + la carte sans toucher à la session
+      const { data, error } = await supabase.rpc("merchant_create_card", {
+        p_customer_name: form.name.trim(),
+        p_merchant_id: merchantId,
       });
 
-      if (authError && !authError.message.includes("already registered")) {
-        throw new Error(authError.message);
-      }
+      if (error) throw new Error(error.message);
+      if (!data) throw new Error("Erreur lors de la création de la carte.");
 
-      // Attendre que le trigger handle_new_user crée le profil
-      await new Promise((r) => setTimeout(r, 800));
-
-      const userId = authData?.user?.id;
-      if (!userId) throw new Error("Impossible de récupérer l'ID utilisateur.");
-
-      // 2. Créer ou récupérer la carte de fidélité
-      const { data: existingCard } = await supabase
-        .from("loyalty_cards")
-        .select("id, qr_token, points")
-        .eq("customer_id", userId)
-        .eq("merchant_id", merchantId)
-        .maybeSingle();
-
-      let card = existingCard;
-
-      if (!card) {
-        const { data: newCard, error: cardError } = await supabase
-          .from("loyalty_cards")
-          .insert({ customer_id: userId, merchant_id: merchantId })
-          .select("id, qr_token, points")
-          .single();
-        if (cardError) throw new Error(cardError.message);
-        card = newCard;
-      }
-
-      if (!card) throw new Error("Erreur lors de la création de la carte.");
-
+      const card = data as { card_id: string; qr_token: string; points: number; customer_name: string };
       const cardLink = buildCardLink(card.qr_token);
 
       setCreated({
         customerName: form.name.trim(),
-        cardId: card.id,
+        cardId: card.card_id,
         qrToken: card.qr_token,
         points: card.points,
         themeId,
