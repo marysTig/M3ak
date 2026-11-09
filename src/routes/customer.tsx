@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useNavigate, type LinkProps } from "@tanstack/react-router";
-import { Bell, Compass, Gift, QrCode, User, Wallet } from "lucide-react";
+import { Bell, Compass, Gift, User, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 
@@ -13,7 +13,6 @@ export const Route = createFileRoute("/customer")({
 const tabs: { to: NonNullable<LinkProps["to"]>; label: string; icon: LucideIcon; exact?: boolean }[] = [
   { to: "/customer", label: "Cartes", icon: Wallet, exact: true },
   { to: "/customer/rewards", label: "Récompenses", icon: Gift },
-  { to: "/customer/scan", label: "Scanner", icon: QrCode },
   { to: "/customer/discover", label: "Découvrir", icon: Compass },
   { to: "/customer/profile", label: "Profil", icon: User },
 ];

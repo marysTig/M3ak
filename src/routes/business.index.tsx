@@ -1,10 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertCircle, CheckCircle2, IdCard, QrCode, Settings, Users } from "lucide-react";
+import { AlertCircle, CheckCircle2, IdCard, Settings, Share2, UserPlus, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { NewCardDialog } from "@/components/app/new-card-dialog";
-import { ScanPointsDialog } from "@/components/app/scan-points-dialog";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/lib/supabase";
 import type { Merchant } from "@/lib/auth";
@@ -16,12 +15,11 @@ export const Route = createFileRoute("/business/")({
 const menuItems = [
   { to: "/business/program", label: "Ma carte", icon: IdCard, color: "bg-blue-500/10 text-blue-500" },
   { to: "/business/customers", label: "Mes clients", icon: Users, color: "bg-green-500/10 text-green-500" },
-  { to: "/business/qr", label: "Code QR", icon: QrCode, color: "bg-purple-500/10 text-purple-500" },
+  { to: "/business/qr", label: "Partager mon lien", icon: Share2, color: "bg-purple-500/10 text-purple-500" },
   { to: "/business/settings", label: "Paramètres", icon: Settings, color: "bg-orange-500/10 text-orange-500" },
 ];
 
 function Overview() {
-  const [scanOpen, setScanOpen] = useState(false);
   const [newCardOpen, setNewCardOpen] = useState(false);
   const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
@@ -70,16 +68,6 @@ function Overview() {
   const name = merchant?.name ?? "Mon commerce";
   const isSuspended = merchant?.status === "suspended";
 
-  function handleScanClick() {
-    if (isSuspended) {
-      toast.error("Compte désactivé", {
-        description: "Votre compte est actuellement désactivé par l'administrateur. Veuillez contacter le support.",
-      });
-      return;
-    }
-    setScanOpen(true);
-  }
-
   function handleNewCardClick() {
     if (isSuspended) {
       toast.error("Compte désactivé", {
@@ -109,19 +97,20 @@ function Overview() {
       {/* Boutons d'action principaux */}
       <div className="mb-4 flex w-full max-w-md gap-3">
         <button
-          id="btn-scan-qr"
-          onClick={handleScanClick}
-          className="flex flex-1 items-center justify-center rounded-2xl bg-primary px-3 py-4 text-center text-xs font-semibold text-primary-foreground shadow-[var(--shadow-soft)] transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 sm:px-4 sm:text-sm"
-        >
-          Scanner code QR
-        </button>
-        <button
           id="btn-nouvelle-carte"
           onClick={handleNewCardClick}
-          className="flex flex-1 items-center justify-center rounded-2xl border border-border bg-surface px-3 py-4 text-center text-xs font-semibold text-foreground shadow-[var(--shadow-soft)] transition-all hover:bg-accent active:scale-95 sm:px-4 sm:text-sm"
+          className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary px-3 py-4 text-center text-xs font-semibold text-primary-foreground shadow-[var(--shadow-soft)] transition-all hover:opacity-90 active:scale-95 sm:px-4 sm:text-sm"
         >
-          Créer une nouvelle carte
+          <UserPlus className="size-4" />
+          Créer une carte
         </button>
+        <Link
+          to="/business/customers"
+          className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-border bg-surface px-3 py-4 text-center text-xs font-semibold text-foreground shadow-[var(--shadow-soft)] transition-all hover:bg-accent active:scale-95 sm:px-4 sm:text-sm"
+        >
+          <Users className="size-4" />
+          Mes clients
+        </Link>
       </div>
 
       <div className="grid w-full max-w-md grid-cols-2 gap-4">
@@ -176,13 +165,6 @@ function Overview() {
       </div>
 
       {/* Dialogs */}
-      <ScanPointsDialog
-        open={scanOpen}
-        onOpenChange={setScanOpen}
-        onPointsAdded={() => {
-          toast.success("Points ajoutés avec succès");
-        }}
-      />
       <NewCardDialog
         open={newCardOpen}
         onOpenChange={setNewCardOpen}

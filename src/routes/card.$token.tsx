@@ -6,11 +6,12 @@
  * URL : /card/{qr_token}
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { Award, Loader2, QrCode, Star } from "lucide-react";
+import { Award, Check, Copy, CreditCard, Loader2, Share2, Star } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
-import { QrDisplay } from "@/components/app/qr-display";
 import { VirtualCard, themes } from "@/routes/business.program";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/card/$token")({
@@ -44,11 +45,11 @@ function PublicCardPage() {
   const { token } = Route.useParams();
   const [card, setCard] = useState<CardInfo | null>(null);
   const [step, setStep] = useState<"loading" | "found" | "error">("loading");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
-        // Lire la carte via qr_token (politique RLS permettant la lecture publique par token)
         const { data, error } = await supabase
           .from("loyalty_cards")
           .select(`
@@ -100,6 +101,33 @@ function PublicCardPage() {
     load();
   }, [token]);
 
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      toast.success("Lien de votre carte copié !");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Impossible de copier le lien.");
+    }
+  }
+
+  async function handleShare() {
+    if (typeof window !== "undefined" && navigator.share && card) {
+      try {
+        await navigator.share({
+          title: `Ma carte de fidélité ${card.merchant_name}`,
+          text: `Voici ma carte de fidélité ${card.merchant_name} avec ${card.points} points !`,
+          url: window.location.href,
+        });
+      } catch {
+        // Annulé
+      }
+    } else {
+      handleCopy();
+    }
+  }
+
   if (step === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -111,7 +139,7 @@ function PublicCardPage() {
   if (step === "error" || !card) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-4 text-center">
-        <QrCode className="size-12 text-muted-foreground" />
+        <CreditCard className="size-12 text-muted-foreground" />
         <p className="text-lg font-semibold">Carte introuvable</p>
         <p className="text-sm text-muted-foreground">
           Ce lien est invalide ou la carte n'existe plus.
@@ -122,14 +150,13 @@ function PublicCardPage() {
 
   const theme = themes.find((t) => t.id === card.theme_id) ?? themes[0]!;
 
-  // Récompenses atteignables et prochaine
   const unlockable = card.rewards.filter((r) => r.points_cost <= card.points);
   const nextReward = card.rewards
     .filter((r) => r.points_cost > card.points)
     .sort((a, b) => a.points_cost - b.points_cost)[0];
 
   return (
-    <div className="min-h-screen bg-background pb-10">
+    <div className="min-h-screen bg-background pb-12">
       {/* Header */}
       <div className="bg-surface-muted px-4 py-6 text-center">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -151,23 +178,27 @@ function PublicCardPage() {
           compact={false}
         />
 
-        {/* Solde + QR */}
-        <div className="card-surface space-y-4 p-5 text-center">
-          <div>
-            <p className="font-display text-5xl font-bold text-primary">{card.points}</p>
-            <p className="mt-1 text-sm text-muted-foreground">points disponibles</p>
+        {/* Solde de points */}
+        <div className="card-surface space-y-3 p-6 text-center">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Solde de points</p>
+          <p className="font-display text-6xl font-extrabold text-primary">{card.points}</p>
+          <p className="text-sm font-medium text-muted-foreground">points disponibles</p>
+          <div className="pt-3 text-xs text-muted-foreground border-t border-border flex items-center justify-between">
+            <span>Client : <strong className="text-foreground">{card.customer_name}</strong></span>
+            <span>Total cumulé : <strong className="text-foreground">{card.total_earned} pts</strong></span>
           </div>
+        </div>
 
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-xs font-medium text-muted-foreground">
-              QR Code — à présenter au caissier
-            </p>
-            <QrDisplay token={card.qr_token} size={180} />
-          </div>
-
-          <p className="text-xs text-muted-foreground">
-            Total cumulé : <span className="font-semibold text-foreground">{card.total_earned} pts</span>
-          </p>
+        {/* Bouton pour enregistrer / partager le lien */}
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={handleCopy}>
+            {copied ? <Check className="mr-2 size-4 text-success" /> : <Copy className="mr-2 size-4" />}
+            {copied ? "Lien copié !" : "Copier mon lien"}
+          </Button>
+          <Button variant="outline" className="flex-1" onClick={handleShare}>
+            <Share2 className="mr-2 size-4" />
+            Partager
+          </Button>
         </div>
 
         {/* Récompenses débloquées */}
@@ -216,7 +247,7 @@ function PublicCardPage() {
         )}
 
         <p className="text-center text-xs text-muted-foreground">
-          Présentez le QR Code ci-dessus lors de votre prochain achat pour accumuler des points.
+          Enregistrez ce lien dans vos favoris pour consulter votre solde à tout moment chez {card.merchant_name}.
         </p>
       </div>
     </div>

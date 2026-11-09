@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { EmptyState } from "@/components/app/empty-state";
 import { NewCardDialog } from "@/components/app/new-card-dialog";
 import { PageHeader } from "@/components/app/page-header";
-import { QrDisplay } from "@/components/app/qr-display";
 import { VirtualCard, themes } from "@/routes/business.program";
 import { StatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
@@ -272,14 +271,13 @@ function CustomersPage() {
                   compact
                 />
 
-                {/* QR + solde */}
-                <div className="rounded-xl bg-surface-muted p-4 text-center">
-                  <QrDisplay token={selected.card.qr_token} size={100} />
-                  <p className="mt-2 font-display text-2xl font-bold text-primary">
+                {/* Solde */}
+                <div className="rounded-xl bg-surface-muted p-5 text-center space-y-1">
+                  <p className="font-display text-4xl font-bold text-primary">
                     {selected.card.points} pts
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Total gagné : {selected.card.total_earned} pts
+                    Total cumulé : {selected.card.total_earned} pts
                   </p>
                 </div>
 

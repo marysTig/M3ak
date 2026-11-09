@@ -87,8 +87,8 @@ function CustomerHome() {
           Les points restent chez le commerce qui les a émis.
         </p>
         <Button asChild variant="secondary" size="sm" className="mt-4">
-          <Link to="/customer/scan">
-            <Plus className="size-4" /> Rejoindre un commerce
+          <Link to="/customer/discover">
+            <Plus className="size-4" /> Découvrir des commerces
           </Link>
         </Button>
       </section>
@@ -107,7 +107,7 @@ function CustomerHome() {
           <div className="rounded-xl border border-dashed border-border p-8 text-center">
             <p className="text-sm text-muted-foreground">Aucune carte pour l'instant.</p>
             <Button asChild variant="outline" size="sm" className="mt-3">
-              <Link to="/customer/scan">Rejoindre un commerce</Link>
+              <Link to="/customer/discover">Découvrir des commerces</Link>
             </Button>
           </div>
         ) : (

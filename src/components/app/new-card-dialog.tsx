@@ -9,7 +9,6 @@ import { Copy, Loader2, MessageCircle, Phone, Share2, Smartphone, UserPlus } fro
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { QrDisplay } from "@/components/app/qr-display";
 import { VirtualCard, themes } from "@/routes/business.program";
 import { Button } from "@/components/ui/button";
 import {
@@ -263,7 +262,7 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
             </DialogHeader>
             <div className="space-y-5 pt-2">
               {/* Aperçu carte */}
-              <div className="flex flex-col items-center gap-4">
+              <div className="flex flex-col items-center">
                 <div className="w-full max-w-[360px]">
                   <VirtualCard
                     theme={selectedTheme}
@@ -272,10 +271,6 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
                     customerName={created.customerName}
                     compact
                   />
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <p className="text-xs font-medium text-muted-foreground">QR Code de la carte</p>
-                  <QrDisplay token={created.qrToken} size={120} />
                 </div>
               </div>
 
