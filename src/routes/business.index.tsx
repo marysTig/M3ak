@@ -79,14 +79,14 @@ function Overview() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center py-10">
-      <div className="mb-10 text-center">
-        <h1 className="text-2xl font-bold">Bonjour, {name}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Gérez votre commerce en toute simplicité.</p>
+    <div className="flex flex-col items-center justify-center py-3 sm:py-8">
+      <div className="mb-6 sm:mb-8 text-center">
+        <h1 className="text-xl sm:text-2xl font-bold">Bonjour, {name}</h1>
+        <p className="mt-1 text-xs sm:text-sm text-muted-foreground">Gérez votre commerce en toute simplicité.</p>
       </div>
 
       {isSuspended && (
-        <div className="mb-6 flex w-full max-w-md items-center gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-destructive">
+        <div className="mb-5 flex w-full max-w-md items-center gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 p-3.5 sm:p-4 text-destructive">
           <AlertCircle className="size-5 shrink-0" />
           <p className="text-xs">
             Votre compte est désactivé par l'administrateur. Certaines fonctionnalités sont temporairement restreintes.
@@ -95,58 +95,58 @@ function Overview() {
       )}
 
       {/* Boutons d'action principaux */}
-      <div className="mb-4 flex w-full max-w-md gap-3">
+      <div className="mb-4 flex w-full max-w-md gap-2.5 sm:gap-3">
         <button
           id="btn-nouvelle-carte"
           onClick={handleNewCardClick}
-          className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary px-3 py-4 text-center text-xs font-semibold text-primary-foreground shadow-[var(--shadow-soft)] transition-all hover:opacity-90 active:scale-95 sm:px-4 sm:text-sm"
+          className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary px-3 py-3.5 sm:py-4 text-center text-xs font-semibold text-primary-foreground shadow-[var(--shadow-soft)] transition-all hover:opacity-90 active:scale-95 sm:px-4 sm:text-sm"
         >
           <UserPlus className="size-4" />
           Créer une carte
         </button>
         <Link
           to="/business/customers"
-          className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-border bg-surface px-3 py-4 text-center text-xs font-semibold text-foreground shadow-[var(--shadow-soft)] transition-all hover:bg-accent active:scale-95 sm:px-4 sm:text-sm"
+          className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-border bg-surface px-3 py-3.5 sm:py-4 text-center text-xs font-semibold text-foreground shadow-[var(--shadow-soft)] transition-all hover:bg-accent active:scale-95 sm:px-4 sm:text-sm"
         >
           <Users className="size-4" />
           Mes clients
         </Link>
       </div>
 
-      <div className="grid w-full max-w-md grid-cols-2 gap-4">
+      <div className="grid w-full max-w-md grid-cols-2 gap-3 sm:gap-4">
         {menuItems.map((item) => (
           <Link
             key={item.to}
             to={item.to}
-            className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-surface p-6 text-center transition-all hover:bg-accent hover:shadow-[var(--shadow-soft)] active:scale-95"
+            className="flex flex-col items-center justify-center gap-2.5 sm:gap-3 rounded-2xl border border-border bg-surface p-4 sm:p-6 text-center transition-all hover:bg-accent hover:shadow-[var(--shadow-soft)] active:scale-95"
           >
-            <span className={`flex size-14 items-center justify-center rounded-full ${item.color}`}>
-              <item.icon className="size-6" />
+            <span className={`flex size-12 sm:size-14 items-center justify-center rounded-full ${item.color}`}>
+              <item.icon className="size-5 sm:size-6" />
             </span>
-            <span className="font-medium">{item.label}</span>
+            <span className="text-xs sm:text-sm font-medium">{item.label}</span>
           </Link>
         ))}
       </div>
 
       {/* Statut du compte */}
-      <div className="mt-8 w-full max-w-md rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-soft)]">
+      <div className="mt-6 sm:mt-8 w-full max-w-md rounded-2xl border border-border bg-surface p-4 sm:p-5 shadow-[var(--shadow-soft)]">
         <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`flex size-10 items-center justify-center rounded-full ${isSuspended ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
-              {isSuspended ? <AlertCircle className="size-5" /> : <CheckCircle2 className="size-5" />}
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className={`flex size-9 sm:size-10 items-center justify-center rounded-full ${isSuspended ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
+              {isSuspended ? <AlertCircle className="size-4 sm:size-5" /> : <CheckCircle2 className="size-4 sm:size-5" />}
             </div>
             <div>
-              <h3 className="text-sm font-semibold">
+              <h3 className="text-xs sm:text-sm font-semibold">
                 {merchant?.status === "active" ? "Compte Activé" : isSuspended ? "Compte Désactivé" : "En attente de validation"}
               </h3>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[11px] sm:text-xs text-muted-foreground">
                 {isSuspended ? "Désactivé par l'administrateur" : merchant?.plan ? `Plan ${merchant.plan}` : "Compte actif"}
               </p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-sm font-bold text-primary">2500 DA</p>
-            <p className="text-xs text-muted-foreground">/ mois</p>
+            <p className="text-xs sm:text-sm font-bold text-primary">2500 DA</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">/ mois</p>
           </div>
         </div>
 

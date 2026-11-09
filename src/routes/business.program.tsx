@@ -94,7 +94,7 @@ export function VirtualCard({
       onClick={onClick}
       className={cn(
         "relative box-border grid w-full cursor-pointer grid-rows-[1fr_auto] overflow-hidden rounded-2xl text-left transition-all duration-300",
-        compact ? "h-[160px] p-4" : "h-[227px] p-6",
+        compact ? "h-[145px] sm:h-[160px] p-3.5 sm:p-4" : "min-h-[190px] sm:h-[227px] p-4 sm:p-6",
         "shadow-[0_4px_20px_rgb(0_0_0/30%),0_12px_40px_rgb(0_0_0/20%)]",
         selected
           ? "ring-4 ring-white/70 ring-offset-2 ring-offset-transparent scale-[1.03]"
@@ -191,19 +191,19 @@ function MaCartePage() {
   }
 
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
         title="Ma carte virtuelle"
         subtitle="Choisissez le thème Mesh Gradient de votre carte."
         actions={
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
             <Save className="size-4" />
             {saving ? "Sauvegarde…" : "Sauvegarder"}
           </Button>
         }
       />
 
-      <div className="space-y-8">
+      <div className="space-y-6">
         <section className="flex flex-col items-center gap-3">
           <p className="text-sm font-medium text-muted-foreground">Aperçu de votre carte</p>
           <div className="w-full max-w-[360px]">
@@ -216,9 +216,9 @@ function MaCartePage() {
           </div>
         </section>
 
-        <section className="card-surface space-y-4 p-5">
-          <h2 className="font-semibold">Choisir un thème</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="card-surface space-y-4 p-4 sm:p-5">
+          <h2 className="font-semibold text-sm sm:text-base">Choisir un thème</h2>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             {themes.map((theme) => (
               <VirtualCard
                 key={theme.id}
@@ -232,6 +232,6 @@ function MaCartePage() {
           </div>
         </section>
       </div>
-    </>
+    </div>
   );
 }

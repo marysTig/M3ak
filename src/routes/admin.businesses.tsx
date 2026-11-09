@@ -142,14 +142,14 @@ function AdminBusinesses() {
   }
 
   return (
-    <>
+    <div className="space-y-5 sm:space-y-6">
       <PageHeader
         title="Commerces"
         subtitle="Consultez, activez ou désactivez les comptes des commerces."
       />
 
       <div className="card-surface overflow-hidden">
-        <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 p-3.5 sm:p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -159,10 +159,10 @@ function AdminBusinesses() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <Tabs value={filter} onValueChange={setFilter}>
-            <TabsList>
+          <Tabs value={filter} onValueChange={setFilter} className="w-full sm:w-auto">
+            <TabsList className="w-full sm:w-auto grid grid-cols-4 sm:flex">
               {filters.map((f) => (
-                <TabsTrigger key={f.value} value={f.value}>
+                <TabsTrigger key={f.value} value={f.value} className="text-xs sm:text-sm px-2 sm:px-3">
                   {f.label}
                 </TabsTrigger>
               ))}
@@ -332,6 +332,6 @@ function AdminBusinesses() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 }

@@ -86,28 +86,28 @@ function ShareLinkPage() {
   }
 
   return (
-    <>
+    <div className="space-y-5 sm:space-y-6">
       <PageHeader
         title="Partager mon lien"
         subtitle="Partagez ce lien avec vos clients pour qu'ils rejoignent votre programme de fidélité."
       />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <div className="card-surface flex flex-col items-center gap-6 p-8">
-          <div className="flex size-20 items-center justify-center rounded-2xl bg-primary-soft text-primary">
-            <Share2 className="size-10" />
+      <div className="grid gap-5 sm:gap-6 lg:grid-cols-[1fr_360px]">
+        <div className="card-surface flex flex-col items-center gap-5 p-4 sm:p-8 text-center">
+          <div className="flex size-16 sm:size-20 items-center justify-center rounded-2xl bg-primary-soft text-primary">
+            <Share2 className="size-8 sm:size-10" />
           </div>
 
-          <div className="text-center">
-            <p className="font-display text-2xl font-bold">{merchant?.name ?? "—"}</p>
-            <p className="mt-1 text-sm text-muted-foreground">Lien d'adhésion client</p>
+          <div>
+            <p className="font-display text-xl sm:text-2xl font-bold">{merchant?.name ?? "—"}</p>
+            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">Lien d'adhésion client</p>
           </div>
 
           {/* Bloc lien */}
-          <div className="w-full max-w-md rounded-xl border bg-surface-muted p-4 space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lien unique de votre commerce</p>
+          <div className="w-full max-w-md rounded-xl border bg-surface-muted p-3.5 sm:p-4 space-y-2.5 text-left">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Lien unique de votre commerce</p>
             <div className="flex items-center gap-2">
-              <code className="flex-1 truncate rounded-lg bg-background px-3 py-2 text-xs font-mono">
+              <code className="flex-1 truncate rounded-lg bg-background px-2.5 py-2 text-xs font-mono">
                 {joinLink || "Chargement du lien…"}
               </code>
               <Button
@@ -124,11 +124,11 @@ function ShareLinkPage() {
           </div>
 
           {/* Boutons de partage rapides */}
-          <div className="grid w-full max-w-md grid-cols-2 gap-3">
+          <div className="grid w-full max-w-md grid-cols-2 gap-2.5 sm:gap-3">
             <Button
               onClick={handleShareWhatsApp}
               disabled={!joinLink}
-              className="bg-[#25D366] hover:bg-[#1ebe59] text-white"
+              className="bg-[#25D366] hover:bg-[#1ebe59] text-white h-11"
             >
               <MessageCircle className="mr-2 size-4" />
               WhatsApp
@@ -137,6 +137,7 @@ function ShareLinkPage() {
               variant="outline"
               onClick={handleShareSMS}
               disabled={!joinLink}
+              className="h-11"
             >
               <Smartphone className="mr-2 size-4" />
               SMS
@@ -148,7 +149,7 @@ function ShareLinkPage() {
               variant="outline"
               onClick={handleNativeShare}
               disabled={!joinLink}
-              className="w-full max-w-md"
+              className="w-full max-w-md h-11"
             >
               <Share2 className="mr-2 size-4" />
               Partager via une autre application
@@ -156,23 +157,23 @@ function ShareLinkPage() {
           )}
         </div>
 
-        <div className="card-surface h-fit p-6">
-          <h2 className="font-semibold">Comment ça fonctionne ?</h2>
-          <ol className="mt-4 space-y-4">
+        <div className="card-surface h-fit p-5 sm:p-6">
+          <h2 className="font-semibold text-sm sm:text-base">Comment ça fonctionne ?</h2>
+          <ol className="mt-4 space-y-3 sm:space-y-4">
             {steps.map((s, i) => (
               <li key={s} className="flex gap-3">
                 <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">
                   {i + 1}
                 </span>
-                <span className="text-sm">{s}</span>
+                <span className="text-xs sm:text-sm">{s}</span>
               </li>
             ))}
           </ol>
-          <p className="mt-6 rounded-xl bg-surface-muted p-4 text-xs text-muted-foreground">
+          <p className="mt-5 rounded-xl bg-surface-muted p-3.5 text-xs text-muted-foreground">
             Les clients n'ont pas besoin de mot de passe compliqué ni de télécharger une application. Un simple clic sur votre lien leur permet de voir leur carte et cumuler des points.
           </p>
         </div>
       </div>
-    </>
+    </div>
   );
 }

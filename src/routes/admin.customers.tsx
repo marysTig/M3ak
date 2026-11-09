@@ -61,11 +61,11 @@ function AdminCustomers() {
   }
 
   return (
-    <>
-      <PageHeader title="Customers" subtitle="One account per person, many loyalty memberships." />
+    <div className="space-y-5 sm:space-y-6">
+      <PageHeader title="Clients" subtitle="Un compte par personne, plusieurs adhésions de fidélité." />
 
       <div className="card-surface overflow-hidden">
-        <div className="p-4">
+        <div className="p-3.5 sm:p-4">
           <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Rechercher par nom ou numéro..." className="pl-9"
@@ -77,8 +77,8 @@ function AdminCustomers() {
           <div className="p-4">
             <EmptyState
               icon={Users}
-              title={all.length === 0 ? "Aucun client" : "No customers found"}
-              description={all.length === 0 ? "Les clients apparaîtront ici après leur inscription." : "Try another search."}
+              title={all.length === 0 ? "Aucun client" : "Aucun client trouvé"}
+              description={all.length === 0 ? "Les clients apparaîtront ici après leur inscription." : "Essayez une autre recherche."}
             />
           </div>
         ) : (
@@ -86,21 +86,21 @@ function AdminCustomers() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead className="text-right">Memberships</TableHead>
-                  <TableHead className="text-right">Total points</TableHead>
-                  <TableHead className="hidden lg:table-cell">Joined</TableHead>
+                  <TableHead className="px-3 sm:px-4">Client</TableHead>
+                  <TableHead className="text-right px-3 sm:px-4">Commerces</TableHead>
+                  <TableHead className="text-right px-3 sm:px-4">Total points</TableHead>
+                  <TableHead className="hidden lg:table-cell">Inscrit</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.map((c) => (
                   <TableRow key={c.id}>
-                    <TableCell className="font-medium">
-                      <div>{c.name}</div>
+                    <TableCell className="font-medium px-3 sm:px-4 py-3">
+                      <div className="truncate max-w-[150px] sm:max-w-none">{c.name}</div>
                       {c.phone && <div className="text-xs text-muted-foreground">{c.phone}</div>}
                     </TableCell>
-                    <TableCell className="text-right">{c.memberships}</TableCell>
-                    <TableCell className="text-right">{c.totalPoints.toLocaleString()}</TableCell>
+                    <TableCell className="text-right px-3 sm:px-4 py-3">{c.memberships}</TableCell>
+                    <TableCell className="text-right px-3 sm:px-4 py-3 font-semibold text-primary">{c.totalPoints.toLocaleString()}</TableCell>
                     <TableCell className="hidden text-muted-foreground lg:table-cell">{c.joined}</TableCell>
                   </TableRow>
                 ))}
@@ -109,6 +109,6 @@ function AdminCustomers() {
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }

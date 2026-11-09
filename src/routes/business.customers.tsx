@@ -192,28 +192,28 @@ function CustomersPage() {
   }
 
   return (
-    <>
+    <div className="space-y-5 sm:space-y-6">
       <PageHeader
         title="Clients"
         subtitle={`${customers.length} client${customers.length !== 1 ? "s" : ""} au total`}
         actions={
-          <Button onClick={() => setNewCardOpen(true)}>
+          <Button onClick={() => setNewCardOpen(true)} className="w-full sm:w-auto">
             <Plus className="size-4" /> Nouveau client
           </Button>
         }
       />
 
       <div className="card-surface overflow-hidden">
-        <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 p-3.5 sm:p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Rechercher par nom ou numéro (07…)" className="pl-9" value={query}
               onChange={(e) => setQuery(e.target.value)} />
           </div>
-          <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
-            <TabsList>
+          <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)} className="w-full sm:w-auto">
+            <TabsList className="w-full sm:w-auto grid grid-cols-4 sm:flex">
               {filters.map((f) => (
-                <TabsTrigger key={f} value={f} className="capitalize">{f}</TabsTrigger>
+                <TabsTrigger key={f} value={f} className="capitalize text-xs sm:text-sm px-2 sm:px-3">{f}</TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
@@ -231,38 +231,44 @@ function CustomersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Client</TableHead>
-                  <TableHead className="text-right">Points</TableHead>
+                  <TableHead className="px-3 sm:px-4">Client</TableHead>
+                  <TableHead className="text-right px-3 sm:px-4">Points</TableHead>
                   <TableHead className="hidden sm:table-cell text-right">Total gagné</TableHead>
                   <TableHead className="hidden md:table-cell">Inscrit</TableHead>
-                  <TableHead>Statut</TableHead>
+                  <TableHead className="hidden sm:table-cell">Statut</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.map((c) => (
-                  <TableRow key={c.card.id} className="cursor-pointer hover:bg-accent"
+                  <TableRow key={c.card.id} className="cursor-pointer hover:bg-accent active:bg-accent/80 transition-colors"
                     onClick={() => openSheet(c)}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">
+                    <TableCell className="px-3 sm:px-4 py-3">
+                      <div className="flex items-center gap-2.5 sm:gap-3">
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">
                           {initials(c.customer.full_name)}
                         </span>
-                        <div>
-                          <p className="font-medium">{c.customer.full_name}</p>
-                          {c.customer.phone && (
-                            <p className="text-xs text-muted-foreground">{c.customer.phone}</p>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{c.customer.full_name}</p>
+                          {c.customer.phone ? (
+                            <p className="text-xs text-muted-foreground truncate">{c.customer.phone}</p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground/60 italic sm:hidden">Sans numéro</p>
                           )}
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right font-semibold">{c.card.points}</TableCell>
+                    <TableCell className="text-right font-semibold px-3 sm:px-4 py-3 whitespace-nowrap">
+                      <span className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs sm:text-sm font-bold text-primary">
+                        {c.card.points} pts
+                      </span>
+                    </TableCell>
                     <TableCell className="hidden text-right text-muted-foreground sm:table-cell">
                       {c.card.total_earned}
                     </TableCell>
                     <TableCell className="hidden text-muted-foreground md:table-cell">
                       {c.joinedFormatted}
                     </TableCell>
-                    <TableCell><StatusBadge status={c.status} /></TableCell>
+                    <TableCell className="hidden sm:table-cell"><StatusBadge status={c.status} /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -273,7 +279,7 @@ function CustomersPage() {
 
       {/* Fiche client */}
       <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-md">
+        <SheetContent className="w-full overflow-y-auto sm:max-w-md p-4 sm:p-6">
           {selected && (
             <>
               <SheetHeader>
@@ -407,6 +413,6 @@ function CustomersPage() {
           if (merchantId) await reload(merchantId);
         }}
       />
-    </>
+    </div>
   );
 }

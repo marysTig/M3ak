@@ -231,7 +231,7 @@ function AuthPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-3.5 sm:px-4 py-8 sm:py-12">
 
       {/* Fond décoratif */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -240,22 +240,22 @@ function AuthPage() {
         <div className="absolute left-1/2 top-1/2 size-[300px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/4 blur-2xl" />
       </div>
 
-      <div className="relative z-10 w-full max-w-[400px] space-y-6">
+      <div className="relative z-10 w-full max-w-[400px] space-y-5 sm:space-y-6">
 
         {/* Logo */}
-        <div className="flex flex-col items-center gap-3">
+        <div className="flex flex-col items-center gap-2.5 sm:gap-3">
           <img
             src="/ChatGPT_Image_27_sept._2026__16_31_22-removebg-preview (1).png"
             alt="M3ak Logo"
-            className="h-14 w-auto object-contain drop-shadow-lg"
+            className="h-12 sm:h-14 w-auto object-contain drop-shadow-lg"
           />
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs sm:text-sm text-muted-foreground text-center">
             {mode === "signin" ? "Connectez-vous à votre espace" : "Créez votre programme de fidélité"}
           </p>
         </div>
 
         {/* Card formulaire */}
-        <div className="rounded-2xl border border-border bg-surface/80 p-7 shadow-[0_8px_32px_rgba(0,0,0,0.12)] backdrop-blur-xl">
+        <div className="rounded-2xl border border-border bg-surface/80 p-5 sm:p-7 shadow-[0_8px_32px_rgba(0,0,0,0.12)] backdrop-blur-xl">
 
           {/* Onglets Sign In / Sign Up */}
           <div className="mb-6 flex rounded-xl bg-surface-muted p-1">

@@ -158,32 +158,34 @@ function PublicCardPage() {
   return (
     <div className="min-h-screen bg-background pb-12">
       {/* Header */}
-      <div className="bg-surface-muted px-4 py-6 text-center">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+      <div className="bg-surface-muted px-4 py-5 sm:py-6 text-center">
+        <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           Programme de fidélité
         </p>
-        <p className="mt-1 font-display text-2xl font-bold">{card.merchant_name}</p>
+        <p className="mt-1 font-display text-xl sm:text-2xl font-bold truncate max-w-xs mx-auto">{card.merchant_name}</p>
         {card.merchant_category && (
-          <p className="text-sm text-muted-foreground">{card.merchant_category}</p>
+          <p className="text-xs sm:text-sm text-muted-foreground">{card.merchant_category}</p>
         )}
       </div>
 
-      <div className="mx-auto max-w-sm space-y-6 px-4 pt-6">
+      <div className="mx-auto max-w-sm space-y-5 px-3.5 sm:px-4 pt-4 sm:pt-6">
         {/* Carte virtuelle */}
-        <VirtualCard
-          theme={theme}
-          businessName={card.merchant_name}
-          points={card.points}
-          customerName={card.customer_name}
-          compact={false}
-        />
+        <div className="w-full">
+          <VirtualCard
+            theme={theme}
+            businessName={card.merchant_name}
+            points={card.points}
+            customerName={card.customer_name}
+            compact={false}
+          />
+        </div>
 
         {/* Solde de points */}
-        <div className="card-surface space-y-3 p-6 text-center">
+        <div className="card-surface space-y-2.5 p-4 sm:p-6 text-center">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Solde de points</p>
-          <p className="font-display text-6xl font-extrabold text-primary">{card.points}</p>
-          <p className="text-sm font-medium text-muted-foreground">points disponibles</p>
-          <div className="pt-3 text-xs text-muted-foreground border-t border-border flex items-center justify-between">
+          <p className="font-display text-5xl sm:text-6xl font-extrabold text-primary">{card.points}</p>
+          <p className="text-xs sm:text-sm font-medium text-muted-foreground">points disponibles</p>
+          <div className="pt-3 text-xs text-muted-foreground border-t border-border flex flex-col xs:flex-row gap-1.5 items-center justify-between text-center xs:text-left">
             <span>Client : <strong className="text-foreground">{card.customer_name}</strong></span>
             <span>Total cumulé : <strong className="text-foreground">{card.total_earned} pts</strong></span>
           </div>
@@ -191,28 +193,28 @@ function PublicCardPage() {
 
         {/* Bouton pour enregistrer / partager le lien */}
         <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={handleCopy}>
-            {copied ? <Check className="mr-2 size-4 text-success" /> : <Copy className="mr-2 size-4" />}
+          <Button variant="outline" className="flex-1 h-11 sm:h-10 text-xs sm:text-sm" onClick={handleCopy}>
+            {copied ? <Check className="mr-1.5 size-4 text-success" /> : <Copy className="mr-1.5 size-4" />}
             {copied ? "Lien copié !" : "Copier mon lien"}
           </Button>
-          <Button variant="outline" className="flex-1" onClick={handleShare}>
-            <Share2 className="mr-2 size-4" />
+          <Button variant="outline" className="flex-1 h-11 sm:h-10 text-xs sm:text-sm" onClick={handleShare}>
+            <Share2 className="mr-1.5 size-4" />
             Partager
           </Button>
         </div>
 
         {/* Récompenses débloquées */}
         {unlockable.length > 0 && (
-          <div className="card-surface p-5">
-            <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-success">
+          <div className="card-surface p-4 sm:p-5">
+            <p className="mb-3 flex items-center gap-2 text-xs sm:text-sm font-semibold text-success">
               <Award className="size-4" />
               Récompenses disponibles
             </p>
             <ul className="space-y-2">
               {unlockable.map((r) => (
-                <li key={r.id} className="flex items-center justify-between rounded-lg bg-success/5 px-3 py-2 text-sm">
-                  <span className="font-medium">{r.name}</span>
-                  <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">
+                <li key={r.id} className="flex items-center justify-between rounded-lg bg-success/5 px-3 py-2 text-xs sm:text-sm">
+                  <span className="font-medium truncate mr-2">{r.name}</span>
+                  <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold text-success shrink-0">
                     {r.points_cost} pts
                   </span>
                 </li>
@@ -223,15 +225,15 @@ function PublicCardPage() {
 
         {/* Prochaine récompense */}
         {nextReward && (
-          <div className="card-surface p-5">
-            <p className="mb-3 flex items-center gap-2 text-sm font-semibold">
+          <div className="card-surface p-4 sm:p-5">
+            <p className="mb-3 flex items-center gap-2 text-xs sm:text-sm font-semibold">
               <Star className="size-4 text-warning" />
               Prochaine récompense
             </p>
             <div className="rounded-lg bg-surface-muted px-3 py-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium">{nextReward.name}</span>
-                <span className="text-muted-foreground">{nextReward.points_cost} pts</span>
+              <div className="flex items-center justify-between text-xs sm:text-sm">
+                <span className="font-medium truncate mr-2">{nextReward.name}</span>
+                <span className="text-muted-foreground shrink-0">{nextReward.points_cost} pts</span>
               </div>
               <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div
@@ -239,14 +241,14 @@ function PublicCardPage() {
                   style={{ width: `${Math.min(100, Math.round((card.points / nextReward.points_cost) * 100))}%` }}
                 />
               </div>
-              <p className="mt-1.5 text-right text-xs text-muted-foreground">
+              <p className="mt-1.5 text-right text-[11px] sm:text-xs text-muted-foreground">
                 encore {nextReward.points_cost - card.points} points
               </p>
             </div>
           </div>
         )}
 
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="text-center text-[11px] sm:text-xs text-muted-foreground px-2">
           Enregistrez ce lien dans vos favoris pour consulter votre solde à tout moment chez {card.merchant_name}.
         </p>
       </div>

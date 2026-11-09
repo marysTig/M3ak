@@ -142,13 +142,13 @@ function SettingsPage() {
   }
 
   return (
-    <>
+    <div className="space-y-5 sm:space-y-6">
       <PageHeader
-        title="Settings"
-        subtitle="Manage your business profile and loyalty rules."
+        title="Paramètres"
+        subtitle="Gérez votre profil commerce et les règles de fidélité."
         actions={
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Sauvegarde..." : "Save changes"}
+          <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
+            {saving ? "Sauvegarde..." : "Enregistrer"}
           </Button>
         }
       />
@@ -242,6 +242,6 @@ function SettingsPage() {
           </AlertDialogContent>
         </AlertDialog>
       </section>
-    </>
+    </div>
   );
 }
