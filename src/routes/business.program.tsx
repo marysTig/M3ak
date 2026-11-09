@@ -140,8 +140,14 @@ export function VirtualCard({
 
       <div className="relative z-10 flex items-end justify-between">
         <div>
+          {customerName && (
+            <p className={cn("font-medium truncate max-w-[160px] sm:max-w-[200px]", compact ? "text-xs mb-0.5" : "text-sm mb-1")}
+              style={{ color: theme.textColor, opacity: 0.9 }}>
+              {customerName}
+            </p>
+          )}
           <p className="text-[9px] font-semibold uppercase tracking-[2px]" style={{ color: theme.textColor, opacity: 0.6 }}>Points</p>
-          <p className={cn("font-bold", compact ? "text-lg" : "text-2xl")}
+          <p className={cn("font-bold leading-tight", compact ? "text-lg" : "text-2xl")}
             style={{ color: theme.textColor, textShadow: "0 1px 8px rgba(0,0,0,0.2)" }}>
             {points}
           </p>

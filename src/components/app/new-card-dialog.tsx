@@ -34,6 +34,7 @@ interface CreatedData {
   points: number;
   themeId: string;
   cardLink: string;
+  phone?: string;
 }
 
 /** Génère le lien public de la carte */
@@ -166,6 +167,7 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
         points: card.points,
         themeId,
         cardLink,
+        phone: form.phone.trim() || undefined,
       });
       setStep("created");
       onCreated?.();
@@ -231,18 +233,18 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[calc(100%-1.5rem)] sm:max-w-md max-h-[92dvh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
         {step === "form" && (
           <>
-            <DialogHeader>
-              <DialogTitle>Créer une nouvelle carte</DialogTitle>
-              <DialogDescription>
+            <DialogHeader className="text-center sm:text-left space-y-1">
+              <DialogTitle className="text-base sm:text-lg font-bold">Créer une nouvelle carte</DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm">
                 Saisissez le nom du client. Un lien unique sera généré pour partager sa carte via WhatsApp ou SMS.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-              <div className="space-y-2">
-                <Label htmlFor="customer-name">Nom du client</Label>
+            <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4 pt-1 sm:pt-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="customer-name" className="text-xs sm:text-sm">Nom du client</Label>
                 <Input
                   id="customer-name"
                   placeholder="Ahmed Belkacem"
@@ -250,11 +252,12 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   disabled={loading}
                   autoComplete="off"
+                  className="h-10 text-sm"
                 />
                 {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="customer-phone">
+              <div className="space-y-1.5">
+                <Label htmlFor="customer-phone" className="text-xs sm:text-sm">
                   Numéro de téléphone{" "}
                   <span className="text-muted-foreground font-normal">(optionnel)</span>
                 </Label>
@@ -268,26 +271,26 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
                     onChange={(e) => setForm({ ...form, phone: normalizeLocalPhone(e.target.value) })}
                     disabled={loading}
                     autoComplete="off"
-                    className="pl-9"
+                    className="pl-9 h-10 text-sm font-mono"
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[11px] sm:text-xs text-muted-foreground">
                   Format direct : 07XXXXXXXX, 05XXXXXXXX, 06XXXXXXXX
                 </p>
               </div>
-              <div className="flex gap-2 pt-2">
-                <Button type="button" variant="outline" className="flex-1" onClick={() => handleOpenChange(false)}>
+              <div className="flex gap-2 pt-1 sm:pt-2">
+                <Button type="button" variant="outline" className="flex-1 h-10 sm:h-11 rounded-xl text-xs sm:text-sm" onClick={() => handleOpenChange(false)}>
                   Annuler
                 </Button>
-                <Button type="submit" className="flex-1" disabled={loading}>
+                <Button type="submit" className="flex-1 h-10 sm:h-11 rounded-xl text-xs sm:text-sm font-semibold" disabled={loading}>
                   {loading ? (
                     <>
-                      <Loader2 className="size-4 animate-spin" />
+                      <Loader2 className="size-4 animate-spin mr-1.5" />
                       Création...
                     </>
                   ) : (
                     <>
-                      <UserPlus className="size-4" />
+                      <UserPlus className="size-4 mr-1.5" />
                       Créer la carte
                     </>
                   )}
@@ -299,16 +302,19 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
 
         {step === "created" && created && (
           <>
-            <DialogHeader>
-              <DialogTitle>Carte créée ! Partagez le lien</DialogTitle>
-              <DialogDescription>
-                La carte de <strong>{created.customerName}</strong> est prête. Envoyez le lien via WhatsApp ou SMS.
+            <DialogHeader className="text-center sm:text-left space-y-1">
+              <DialogTitle className="text-base sm:text-lg font-bold">
+                Carte créée ! Partagez le lien
+              </DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm">
+                La carte de <strong className="text-foreground">{created.customerName}</strong> est prête. Envoyez le lien via WhatsApp ou SMS.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-5 pt-2">
-              {/* Aperçu carte */}
+
+            <div className="space-y-3 sm:space-y-4 pt-1 sm:pt-2">
+              {/* Aperçu carte responsive */}
               <div className="flex flex-col items-center">
-                <div className="w-full max-w-[360px]">
+                <div className="w-full max-w-[300px] sm:max-w-[340px]">
                   <VirtualCard
                     theme={selectedTheme}
                     businessName={merchantName}
@@ -319,43 +325,50 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
                 </div>
               </div>
 
-              {/* Lien unique */}
-              <div className="rounded-xl border bg-surface-muted px-3 py-3">
-                <p className="mb-1.5 text-xs font-medium text-muted-foreground">Lien unique de la carte</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 truncate rounded-md bg-background px-2 py-1.5 text-xs font-mono">
+              {/* Bloc lien unique */}
+              <div className="rounded-xl border bg-surface-muted p-2.5 sm:p-3 space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+                  <span>Lien unique de la carte</span>
+                  {created.phone ? (
+                    <span className="font-mono text-foreground font-semibold text-[11px]">
+                      {created.phone}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <code className="flex-1 truncate rounded-lg bg-background px-2.5 py-1.5 text-xs font-mono select-all">
                     {created.cardLink}
                   </code>
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={handleCopyLink}
-                    className="shrink-0"
+                    className="shrink-0 h-8 px-2.5 text-xs rounded-lg"
                   >
-                    <Copy className="size-4" />
+                    {copied ? <Check className="size-3.5 mr-1 text-success" /> : <Copy className="size-3.5 mr-1" />}
                     {copied ? "Copié !" : "Copier"}
                   </Button>
                 </div>
               </div>
 
-              {/* Boutons de partage */}
-              <div className="grid grid-cols-2 gap-2">
+              {/* Boutons de partage rapides */}
+              <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
                 <Button
                   type="button"
                   onClick={handleShareWhatsApp}
-                  className="flex-1 bg-[#25D366] hover:bg-[#1ebe59] text-white"
+                  className="h-11 rounded-xl bg-[#25D366] hover:bg-[#1ebe59] text-white font-semibold text-xs sm:text-sm shadow-sm active:scale-95 transition-all"
                 >
-                  <MessageCircle className="size-4" />
+                  <MessageCircle className="size-4 mr-1.5 shrink-0" />
                   WhatsApp
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleShareSMS}
-                  className="flex-1"
+                  className="h-11 rounded-xl font-semibold text-xs sm:text-sm active:scale-95 transition-all"
                 >
-                  <Smartphone className="size-4" />
+                  <Smartphone className="size-4 mr-1.5 shrink-0" />
                   SMS
                 </Button>
               </div>
@@ -364,15 +377,18 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full"
+                  className="w-full h-10 rounded-xl text-xs sm:text-sm active:scale-95 transition-all"
                   onClick={handleNativeShare}
                 >
-                  <Share2 className="size-4" />
+                  <Share2 className="size-4 mr-1.5 shrink-0" />
                   Partager via l'appareil
                 </Button>
               )}
 
-              <Button className="w-full" onClick={() => handleOpenChange(false)}>
+              <Button
+                className="w-full h-11 rounded-xl text-xs sm:text-sm font-semibold active:scale-95 transition-all"
+                onClick={() => handleOpenChange(false)}
+              >
                 Terminer
               </Button>
             </div>
