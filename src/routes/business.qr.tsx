@@ -32,8 +32,10 @@ function ShareLinkPage() {
   const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [joinLink, setJoinLink] = useState("");
   const [copied, setCopied] = useState(false);
+  const [hasNativeShare, setHasNativeShare] = useState(false);
 
   useEffect(() => {
+    setHasNativeShare(typeof navigator !== "undefined" && !!navigator.share);
     getMyMerchant().then(async (m) => {
       if (m) {
         setMerchant(m);
@@ -73,7 +75,7 @@ function ShareLinkPage() {
   }
 
   async function handleNativeShare() {
-    if (!joinLink || typeof window === "undefined" || !navigator.share) return;
+    if (!joinLink || !navigator.share) return;
     try {
       await navigator.share({
         title: `Programme de fidélité ${merchant?.name ?? ""}`,
@@ -86,91 +88,102 @@ function ShareLinkPage() {
   }
 
   return (
-    <div className="space-y-5 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <PageHeader
         title="Partager mon lien"
         subtitle="Partagez ce lien avec vos clients pour qu'ils rejoignent votre programme de fidélité."
       />
 
-      <div className="grid gap-5 sm:gap-6 lg:grid-cols-[1fr_360px]">
-        <div className="card-surface flex flex-col items-center gap-5 p-4 sm:p-8 text-center">
-          <div className="flex size-16 sm:size-20 items-center justify-center rounded-2xl bg-primary-soft text-primary">
-            <Share2 className="size-8 sm:size-10" />
-          </div>
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-[1fr_360px]">
 
-          <div>
-            <p className="font-display text-xl sm:text-2xl font-bold">{merchant?.name ?? "—"}</p>
-            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">Lien d'adhésion client</p>
-          </div>
+        {/* ── Carte principale ── */}
+        <div className="card-surface p-4 sm:p-6 space-y-4">
 
-          {/* Bloc lien */}
-          <div className="w-full max-w-md rounded-xl border bg-surface-muted p-3.5 sm:p-4 space-y-2.5 text-left">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Lien unique de votre commerce</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 truncate rounded-lg bg-background px-2.5 py-2 text-xs font-mono">
-                {joinLink || "Chargement du lien…"}
-              </code>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCopyLink}
-                disabled={!joinLink}
-                className="shrink-0"
-              >
-                {copied ? <Check className="size-4 text-success" /> : <Copy className="size-4" />}
-                <span className="ml-1.5">{copied ? "Copié !" : "Copier"}</span>
-              </Button>
+          {/* En-tête : icône + nom du commerce */}
+          <div className="flex items-center gap-3">
+            <div className="flex size-12 sm:size-14 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+              <Share2 className="size-6 sm:size-7" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-display text-base sm:text-xl font-bold leading-tight truncate">
+                {merchant?.name ?? "—"}
+              </p>
+              <p className="text-xs text-muted-foreground">Lien d'adhésion client</p>
             </div>
           </div>
 
-          {/* Boutons de partage rapides */}
-          <div className="grid w-full max-w-md grid-cols-2 gap-2.5 sm:gap-3">
+          {/* Bloc lien */}
+          <div className="rounded-xl border bg-surface-muted p-3 space-y-2.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Lien unique de votre commerce
+            </p>
+            <code className="block w-full break-all rounded-lg bg-background px-3 py-2.5 text-xs font-mono leading-relaxed">
+              {joinLink || "Chargement du lien…"}
+            </code>
+            <Button
+              variant="outline"
+              onClick={handleCopyLink}
+              disabled={!joinLink}
+              className="w-full h-10 rounded-xl gap-2"
+            >
+              {copied
+                ? <Check className="size-4 text-success" />
+                : <Copy className="size-4" />}
+              {copied ? "Lien copié !" : "Copier le lien"}
+            </Button>
+          </div>
+
+          {/* Boutons de partage */}
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
             <Button
               onClick={handleShareWhatsApp}
               disabled={!joinLink}
-              className="bg-[#25D366] hover:bg-[#1ebe59] text-white h-11"
+              className="bg-[#25D366] hover:bg-[#1ebe59] text-white h-12 rounded-xl gap-2 text-sm"
             >
-              <MessageCircle className="mr-2 size-4" />
+              <MessageCircle className="size-4 shrink-0" />
               WhatsApp
             </Button>
             <Button
               variant="outline"
               onClick={handleShareSMS}
               disabled={!joinLink}
-              className="h-11"
+              className="h-12 rounded-xl gap-2 text-sm"
             >
-              <Smartphone className="mr-2 size-4" />
+              <Smartphone className="size-4 shrink-0" />
               SMS
             </Button>
           </div>
 
-          {typeof window !== "undefined" && navigator.share && (
+          {/* Partage natif (Android / iOS) */}
+          {hasNativeShare && (
             <Button
               variant="outline"
               onClick={handleNativeShare}
               disabled={!joinLink}
-              className="w-full max-w-md h-11"
+              className="w-full h-11 rounded-xl gap-2"
             >
-              <Share2 className="mr-2 size-4" />
-              Partager via une autre application
+              <Share2 className="size-4" />
+              Partager via l'appareil
             </Button>
           )}
         </div>
 
-        <div className="card-surface h-fit p-5 sm:p-6">
+        {/* ── Comment ça fonctionne ? ── */}
+        <div className="card-surface h-fit p-4 sm:p-6 space-y-3">
           <h2 className="font-semibold text-sm sm:text-base">Comment ça fonctionne ?</h2>
-          <ol className="mt-4 space-y-3 sm:space-y-4">
+          <ol className="space-y-3">
             {steps.map((s, i) => (
-              <li key={s} className="flex gap-3">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">
+              <li key={s} className="flex gap-3 items-start">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">
                   {i + 1}
                 </span>
-                <span className="text-xs sm:text-sm">{s}</span>
+                <span className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{s}</span>
               </li>
             ))}
           </ol>
-          <p className="mt-5 rounded-xl bg-surface-muted p-3.5 text-xs text-muted-foreground">
-            Les clients n'ont pas besoin de mot de passe compliqué ni de télécharger une application. Un simple clic sur votre lien leur permet de voir leur carte et cumuler des points.
+          <p className="rounded-xl bg-surface-muted p-3 text-xs text-muted-foreground leading-relaxed">
+            Les clients n'ont pas besoin de mot de passe compliqué ni de télécharger une application.
+            Un simple clic sur votre lien leur permet de voir leur carte et cumuler des points.
           </p>
         </div>
       </div>
