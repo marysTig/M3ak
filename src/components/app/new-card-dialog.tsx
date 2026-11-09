@@ -42,6 +42,50 @@ function buildCardLink(qrToken: string): string {
   return `${base}/card/${qrToken}`;
 }
 
+/** Formate le numéro local saisi (commence directement par 07, 05 ou 06, sans +213 ni 213) */
+function normalizeLocalPhone(value: string): string {
+  let v = value.trim().replace(/\s+/g, "");
+  // Si l'utilisateur colle avec +2130... ou 2130...
+  if (v.startsWith("+2130")) {
+    return "0" + v.slice(5);
+  }
+  if (v.startsWith("+213")) {
+    return "0" + v.slice(4);
+  }
+  if (v.startsWith("2130")) {
+    return "0" + v.slice(4);
+  }
+  if (v.startsWith("213") && v.length >= 11) {
+    return "0" + v.slice(3);
+  }
+  return value;
+}
+
+/** Formate le numéro pour l'API WhatsApp (wa.me) : doit être 2137XXXXXXXX (SANS 0 entre 213 et 7) */
+function formatWhatsAppPhone(raw: string): string {
+  let digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+
+  // Si l'utilisateur avait écrit 21307... -> corriger en 2137...
+  if (digits.startsWith("2130")) {
+    return "213" + digits.slice(4);
+  }
+  // Si le numéro commence par 0 (ex: 07XXXXXXXX) -> remplacer le 0 par 213
+  if (digits.startsWith("0")) {
+    return "213" + digits.slice(1);
+  }
+  // Si déjà 9 chiffres sans préfixe (ex: 7XXXXXXXX) -> ajouter 213
+  if (!digits.startsWith("213") && digits.length === 9) {
+    return "213" + digits;
+  }
+  return digits;
+}
+
+/** Formate le numéro pour l'application SMS : format direct 07XXXXXXXX */
+function formatSMSPhone(raw: string): string {
+  return normalizeLocalPhone(raw);
+}
+
 export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogProps) {
   const [step, setStep] = useState<Step>("form");
   const [form, setForm] = useState({ name: "", phone: "" });
@@ -148,23 +192,23 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
 
   function handleShareWhatsApp() {
     if (!created) return;
-    const phone = form.phone.trim().replace(/\s+/g, "");
+    const waPhone = formatWhatsAppPhone(form.phone);
     const msg = encodeURIComponent(
       `Bonjour ${created.customerName} 👋\n\nVoici votre carte de fidélité *${merchantName}* :\n${created.cardLink}\n\nOuvrez ce lien pour voir vos points et récompenses 🎁`
     );
-    const url = phone
-      ? `https://wa.me/${phone.startsWith("+") ? phone.slice(1) : phone}?text=${msg}`
+    const url = waPhone
+      ? `https://wa.me/${waPhone}?text=${msg}`
       : `https://wa.me/?text=${msg}`;
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
   function handleShareSMS() {
     if (!created) return;
-    const phone = form.phone.trim().replace(/\s+/g, "");
+    const smsPhone = formatSMSPhone(form.phone);
     const body = encodeURIComponent(
       `Bonjour ${created.customerName}, voici votre carte de fidélité ${merchantName} : ${created.cardLink}`
     );
-    const url = phone ? `sms:${phone}?body=${body}` : `sms:?body=${body}`;
+    const url = smsPhone ? `sms:${smsPhone}?body=${body}` : `sms:?body=${body}`;
     window.open(url, "_self");
   }
 
@@ -218,16 +262,16 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
                   <Input
                     id="customer-phone"
                     type="tel"
-                    placeholder="+213 6XX XXX XXX"
+                    placeholder="07XXXXXXXX"
                     value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    onChange={(e) => setForm({ ...form, phone: normalizeLocalPhone(e.target.value) })}
                     disabled={loading}
                     autoComplete="off"
                     className="pl-9"
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Si renseigné, le lien sera pré-rempli dans WhatsApp/SMS.
+                  Format direct : 07XXXXXXXX, 05XXXXXXXX, 06XXXXXXXX
                 </p>
               </div>
               <div className="flex gap-2 pt-2">
