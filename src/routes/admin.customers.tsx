@@ -30,6 +30,40 @@ export const Route = createFileRoute("/admin/customers")({
   component: AdminCustomers,
 });
 
+function normalizeText(str: string): string {
+  return (str || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function matchesAdminCustomer(c: CustomerRow, rawQuery: string): boolean {
+  const q = rawQuery.trim();
+  if (!q) return true;
+
+  const qNorm = normalizeText(q);
+  const nameNorm = normalizeText(c.name);
+
+  // 1. Recherche par nom (multi-mots et insensible aux accents)
+  const qWords = qNorm.split(/\s+/).filter(Boolean);
+  if (qWords.length > 0 && qWords.every((w) => nameNorm.includes(w))) {
+    return true;
+  }
+
+  // 2. Recherche par numéro de téléphone
+  const qDigits = q.replace(/\D/g, "");
+  const phoneDigits = (c.phone || "").replace(/\D/g, "");
+  if (qDigits.length >= 2 && phoneDigits.length >= 2) {
+    if (phoneDigits.includes(qDigits)) return true;
+    const localPhone = phoneDigits.startsWith("213") ? "0" + phoneDigits.slice(3) : phoneDigits;
+    const intlPhone = phoneDigits.startsWith("0") ? "213" + phoneDigits.slice(1) : phoneDigits;
+    if (localPhone.includes(qDigits) || intlPhone.includes(qDigits)) return true;
+  }
+
+  return false;
+}
+
 function AdminCustomers() {
   const [all, setAll] = useState<CustomerRow[]>([]);
   const [query, setQuery] = useState("");
@@ -42,19 +76,7 @@ function AdminCustomers() {
       .finally(() => setLoading(false));
   }, []);
 
-  const cleanQ = query.trim().toLowerCase();
-  const cleanDigits = query.replace(/\D/g, "");
-
-  const rows = all.filter((c) => {
-    if (!cleanQ) return true;
-    if (c.name.toLowerCase().includes(cleanQ)) return true;
-    if (c.phone) {
-      const phoneDigits = c.phone.replace(/\D/g, "");
-      if (cleanDigits && phoneDigits.includes(cleanDigits)) return true;
-      if (c.phone.toLowerCase().includes(cleanQ)) return true;
-    }
-    return false;
-  });
+  const rows = all.filter((c) => matchesAdminCustomer(c, query));
 
   if (loading) {
     return <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">Chargement…</div>;

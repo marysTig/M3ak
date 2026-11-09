@@ -74,9 +74,10 @@ function TransactionsPage() {
     }
     const q = query.trim().toLowerCase();
     if (q) {
-      list = list.filter((t) =>
-        t.description.toLowerCase().includes(q)
-      );
+      list = list.filter((t) => {
+        const custName = (t as any).loyalty_cards?.profiles?.full_name?.toLowerCase() || "";
+        return t.description.toLowerCase().includes(q) || custName.includes(q);
+      });
     }
     return list;
   }, [transactions, filter, query]);

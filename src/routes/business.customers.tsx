@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Copy, MessageCircle, Plus, Search, Share2, Smartphone, Users } from "lucide-react";
+import { Check, Copy, Edit2, MessageCircle, Phone, Plus, Search, Share2, Smartphone, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -37,10 +37,57 @@ export const Route = createFileRoute("/business/customers")({
   component: CustomersPage,
 });
 
-const filters = ["all", "active", "inactive", "new"] as const;
+const filters = [
+  { id: "all", label: "Tous" },
+  { id: "active", label: "Actifs" },
+  { id: "inactive", label: "Inactifs" },
+  { id: "new", label: "Nouveaux" },
+] as const;
 
 function initials(name: string) {
-  return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+  if (!name) return "CL";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return parts.map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "CL";
+}
+
+function normalizeText(str: string): string {
+  return (str || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function matchesCustomer(c: CustomerWithCard, rawQuery: string): boolean {
+  const q = rawQuery.trim();
+  if (!q) return true;
+
+  const qNorm = normalizeText(q);
+  const nameNorm = normalizeText(c.customer.full_name);
+
+  // 1. Recherche par nom (multi-mots et insensible aux accents)
+  const qWords = qNorm.split(/\s+/).filter(Boolean);
+  if (qWords.length > 0 && qWords.every((w) => nameNorm.includes(w))) {
+    return true;
+  }
+
+  // 2. Recherche par numéro de téléphone (formats variés: 07..., +213..., 213..., espaces)
+  const qDigits = q.replace(/\D/g, "");
+  const phoneDigits = (c.customer.phone || "").replace(/\D/g, "");
+  if (qDigits.length >= 2 && phoneDigits.length >= 2) {
+    if (phoneDigits.includes(qDigits)) return true;
+    const localPhone = phoneDigits.startsWith("213") ? "0" + phoneDigits.slice(3) : phoneDigits;
+    const intlPhone = phoneDigits.startsWith("0") ? "213" + phoneDigits.slice(1) : phoneDigits;
+    if (localPhone.includes(qDigits) || intlPhone.includes(qDigits)) return true;
+  }
+
+  // 3. Recherche par token de carte ou lien
+  const token = (c.card?.qr_token || "").toLowerCase();
+  if (token && (token.includes(qNorm) || qNorm.includes(token))) {
+    return true;
+  }
+
+  return false;
 }
 
 function formatDate(iso: string) {
@@ -57,7 +104,7 @@ function CustomersPage() {
   const [loading, setLoading] = useState(true);
 
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<(typeof filters)[number]>("all");
+  const [filter, setFilter] = useState<string>("all");
   const [selected, setSelected] = useState<CustomerWithCard | null>(null);
   const [newCardOpen, setNewCardOpen] = useState(false);
   const [pointsInput, setPointsInput] = useState("");
@@ -65,6 +112,32 @@ function CustomersPage() {
   const [addingPoints, setAddingPoints] = useState(false);
   const [cardTx, setCardTx] = useState<Transaction[]>([]);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+
+  // Édition du numéro de téléphone du client
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [phoneInput, setPhoneInput] = useState("");
+  const [savingPhone, setSavingPhone] = useState(false);
+
+  async function handleSavePhone() {
+    if (!selected) return;
+    setSavingPhone(true);
+    try {
+      const cleanPhone = phoneInput.trim();
+      const { error } = await supabase
+        .from("profiles")
+        .update({ phone: cleanPhone || null })
+        .eq("id", selected.customer.id);
+      if (error) throw error;
+      toast.success("Numéro de téléphone enregistré !");
+      setSelected((prev) => (prev ? { ...prev, customer: { ...prev.customer, phone: cleanPhone } } : null));
+      if (merchantId) await reload(merchantId);
+      setEditingPhone(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la mise à jour");
+    } finally {
+      setSavingPhone(false);
+    }
+  }
 
   function buildCardLink(qrToken: string) {
     return `${window.location.origin}/card/${qrToken}`;
@@ -127,22 +200,20 @@ function CustomersPage() {
   }, [reload]);
 
   const rows = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const cleanQ = q.replace(/\s+/g, "");
+    const hasQuery = query.trim().length > 0;
     return customers.filter((c) => {
-      const matchFilter = filter === "all" || c.status === filter;
-      const phone = c.customer.phone ? c.customer.phone.replace(/\s+/g, "") : "";
-      const matchQuery =
-        !q ||
-        c.customer.full_name.toLowerCase().includes(q) ||
-        (phone && (phone.includes(cleanQ) || ("213" + phone.replace(/^0/, "")).includes(cleanQ)));
-      return matchFilter && matchQuery;
+      // Si une recherche est en cours, chercher dans TOUS les clients (ne pas bloquer par le statut)
+      const matchFilter = hasQuery || filter === "all" || c.status === filter;
+      return matchFilter && matchesCustomer(c, query);
     });
   }, [customers, query, filter]);
 
   async function openSheet(c: CustomerWithCard) {
     setSelected(c);
     setPointsInput("");
+    setPointsError("");
+    setEditingPhone(false);
+    setPhoneInput(c.customer.phone || "");
     setPointsError("");
     // Charger les dernières transactions de la carte
     try {
@@ -210,10 +281,12 @@ function CustomersPage() {
             <Input placeholder="Rechercher par nom ou numéro (07…)" className="pl-9" value={query}
               onChange={(e) => setQuery(e.target.value)} />
           </div>
-          <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)} className="w-full sm:w-auto">
+          <Tabs value={filter} onValueChange={(v) => setFilter(v)} className="w-full sm:w-auto">
             <TabsList className="w-full sm:w-auto grid grid-cols-4 sm:flex">
               {filters.map((f) => (
-                <TabsTrigger key={f} value={f} className="capitalize text-xs sm:text-sm px-2 sm:px-3">{f}</TabsTrigger>
+                <TabsTrigger key={f.id} value={f.id} className="text-xs sm:text-sm px-2 sm:px-3">
+                  {f.label}
+                </TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
@@ -289,7 +362,7 @@ function CustomersPage() {
                 </SheetDescription>
               </SheetHeader>
 
-              <div className="mt-6 space-y-6">
+              <div className="mt-6 space-y-5">
                 {/* Carte virtuelle */}
                 <VirtualCard
                   theme={selectedTheme}
@@ -306,6 +379,73 @@ function CustomersPage() {
                   <p className="text-xs text-muted-foreground">
                     Total cumulé : {selected.card.total_earned} pts
                   </p>
+                </div>
+
+                {/* Numéro de téléphone du client */}
+                <div className="rounded-xl border p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                      <Phone className="size-3.5" />
+                      Numéro de téléphone
+                    </p>
+                    {!editingPhone && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => {
+                          setPhoneInput(selected.customer.phone || "");
+                          setEditingPhone(true);
+                        }}
+                      >
+                        <Edit2 className="mr-1 size-3" />
+                        {selected.customer.phone ? "Modifier" : "Ajouter"}
+                      </Button>
+                    )}
+                  </div>
+
+                  {editingPhone ? (
+                    <div className="space-y-2 pt-1">
+                      <Input
+                        type="tel"
+                        placeholder="07XXXXXXXX"
+                        value={phoneInput}
+                        onChange={(e) => setPhoneInput(e.target.value)}
+                        className="h-8 text-xs font-mono"
+                        autoFocus
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setEditingPhone(false)}
+                          disabled={savingPhone}
+                        >
+                          Annuler
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={handleSavePhone}
+                          disabled={savingPhone}
+                        >
+                          {savingPhone ? "Enregistrement…" : "Enregistrer"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm font-medium font-mono">
+                      {selected.customer.phone || (
+                        <span className="text-xs text-muted-foreground italic font-sans">
+                          Aucun numéro enregistré
+                        </span>
+                      )}
+                    </p>
+                  )}
                 </div>
 
                 {/* Partage du lien de la carte */}
