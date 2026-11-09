@@ -142,6 +142,7 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
       const { data, error } = await supabase.rpc("merchant_create_card", {
         p_customer_name: form.name.trim(),
         p_merchant_id: merchantId,
+        p_phone: form.phone.trim() || null,
       });
 
       if (error) {

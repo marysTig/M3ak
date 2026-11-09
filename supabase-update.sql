@@ -43,6 +43,11 @@ create trigger trg_cards_updated_at
   for each row execute function public.set_updated_at();
 
 
+-- ─── 2b. Colonne téléphone dans profiles ─────────────────────────────────────
+
+alter table public.profiles add column if not exists phone text;
+
+
 -- ─── 3. Trigger handle_new_user ───────────────────────────────────────────────
 -- Crée automatiquement le profil et la fiche commerce si le rôle est 'merchant'
 
@@ -53,6 +58,7 @@ declare
   v_role      text;
   v_username  text;
   v_slug      text;
+  v_phone     text;
 begin
   v_username := split_part(new.email, '@', 1);
 
@@ -68,11 +74,14 @@ begin
     'customer'
   );
 
+  v_phone := nullif(trim(new.raw_user_meta_data->>'phone'), '');
+
   -- Création ou mise à jour du profil
-  insert into public.profiles (id, full_name, role)
-  values (new.id, v_full_name, v_role)
+  insert into public.profiles (id, full_name, phone, role)
+  values (new.id, v_full_name, v_phone, v_role)
   on conflict (id) do update
     set full_name  = excluded.full_name,
+        phone      = coalesce(excluded.phone, public.profiles.phone),
         role       = excluded.role,
         updated_at = now();
 
@@ -338,9 +347,13 @@ create policy "lp_public"
 -- Le commerçant appelle cette fonction ; elle crée le profil fantôme + la carte
 -- en SECURITY DEFINER (bypass RLS) sans déconnecter le commerçant.
 
+drop function if exists public.merchant_create_card(text, uuid);
+drop function if exists public.merchant_create_card(text, uuid, text);
+
 create or replace function public.merchant_create_card(
   p_customer_name text,
-  p_merchant_id   uuid
+  p_merchant_id   uuid,
+  p_phone         text default null
 )
 returns json
 language plpgsql
@@ -356,6 +369,7 @@ declare
   v_card        public.loyalty_cards%rowtype;
   v_hash        text;
   v_dummy_pwd   text;
+  v_clean_phone text;
 begin
   -- Vérifier que l'appelant est bien le propriétaire du commerce
   select owner_id into v_owner_id
@@ -370,8 +384,10 @@ begin
     raise exception 'Accès refusé : vous n''êtes pas le propriétaire de ce commerce.';
   end if;
 
+  v_clean_phone := nullif(trim(p_phone), '');
+
   -- Générer un email interne unique (sans dépendance externe)
-  v_hash       := substr(md5(p_customer_name || p_merchant_id::text || now()::text || random()::text), 1, 8);
+  v_hash       := substr(md5(p_customer_name || coalesce(v_clean_phone, '') || p_merchant_id::text || now()::text || random()::text), 1, 8);
   v_slug       := lower(regexp_replace(
                     regexp_replace(trim(p_customer_name), '[^a-zA-Z0-9 ]+', '', 'g'),
                     '[ ]+', '-', 'g'
@@ -395,7 +411,7 @@ begin
       v_dummy_pwd,
       now(),
       '{"provider":"email","providers":["email"]}',
-      json_build_object('full_name', p_customer_name, 'role', 'customer')::jsonb,
+      json_build_object('full_name', p_customer_name, 'phone', v_clean_phone, 'role', 'customer')::jsonb,
       now(), now(),
       'authenticated', 'authenticated', ''
     );
@@ -404,10 +420,12 @@ begin
   -- Récupérer l'ID du compte fantôme
   select id into v_customer_id from auth.users where email = v_fake_email;
 
-  -- S'assurer que le profil existe
-  insert into public.profiles (id, full_name, role)
-  values (v_customer_id, p_customer_name, 'customer')
-  on conflict (id) do nothing;
+  -- S'assurer que le profil existe et enregistre le téléphone
+  insert into public.profiles (id, full_name, phone, role)
+  values (v_customer_id, p_customer_name, v_clean_phone, 'customer')
+  on conflict (id) do update
+    set full_name = excluded.full_name,
+        phone     = coalesce(excluded.phone, public.profiles.phone);
 
   -- Récupérer ou créer la carte
   select * into v_card
@@ -424,12 +442,13 @@ begin
     'card_id',       v_card.id,
     'qr_token',      v_card.qr_token,
     'points',        v_card.points,
-    'customer_name', p_customer_name
+    'customer_name', p_customer_name,
+    'phone',         v_clean_phone
   );
 end;
 $$;
 
-grant execute on function public.merchant_create_card(text, uuid) to authenticated;
+grant execute on function public.merchant_create_card(text, uuid, text) to authenticated;
 
 
 -- =============================================================================

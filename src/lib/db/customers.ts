@@ -8,6 +8,7 @@ export interface CustomerWithCard {
     id: string;
     full_name: string;
     email: string;
+    phone?: string;
   };
   card: {
     id: string;
@@ -29,7 +30,7 @@ export async function getMerchantCustomers(merchantId: string): Promise<Customer
     .select(`
       id, qr_token, points, total_earned, status, created_at, updated_at,
       profiles!loyalty_cards_customer_id_fkey (
-        id, full_name
+        id, full_name, phone
       )
     `)
     .eq("merchant_id", merchantId)
@@ -57,6 +58,7 @@ export async function getMerchantCustomers(merchantId: string): Promise<Customer
       customer: {
         id: profile?.id ?? "",
         full_name: profile?.full_name ?? "Client",
+        phone: profile?.phone ?? "",
         email: "",  // email non stocké dans profiles (via auth.users)
       },
       card: {
@@ -140,7 +142,7 @@ export async function getAllCustomers() {
   const { data, error } = await supabase
     .from("profiles")
     .select(`
-      id, full_name, role, created_at,
+      id, full_name, phone, role, created_at,
       loyalty_cards!loyalty_cards_customer_id_fkey (
         id, points, merchant_id
       )
@@ -156,6 +158,7 @@ export async function getAllCustomers() {
     return {
       id: p.id,
       name: p.full_name,
+      phone: (p as { phone?: string }).phone ?? "",
       memberships: cards.length,
       totalPoints,
       joined: new Date(p.created_at).toLocaleDateString("fr-FR", {

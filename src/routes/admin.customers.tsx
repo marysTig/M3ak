@@ -11,6 +11,7 @@ import { getAllCustomers } from "@/lib/db/customers";
 interface CustomerRow {
   id: string;
   name: string;
+  phone?: string;
   memberships: number;
   totalPoints: number;
   joined: string;
@@ -41,9 +42,19 @@ function AdminCustomers() {
       .finally(() => setLoading(false));
   }, []);
 
-  const rows = all.filter((c) =>
-    c.name.toLowerCase().includes(query.trim().toLowerCase()),
-  );
+  const cleanQ = query.trim().toLowerCase();
+  const cleanDigits = query.replace(/\D/g, "");
+
+  const rows = all.filter((c) => {
+    if (!cleanQ) return true;
+    if (c.name.toLowerCase().includes(cleanQ)) return true;
+    if (c.phone) {
+      const phoneDigits = c.phone.replace(/\D/g, "");
+      if (cleanDigits && phoneDigits.includes(cleanDigits)) return true;
+      if (c.phone.toLowerCase().includes(cleanQ)) return true;
+    }
+    return false;
+  });
 
   if (loading) {
     return <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">Chargement…</div>;
@@ -57,7 +68,7 @@ function AdminCustomers() {
         <div className="p-4">
           <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search customers..." className="pl-9"
+            <Input placeholder="Rechercher par nom ou numéro..." className="pl-9"
               value={query} onChange={(e) => setQuery(e.target.value)} />
           </div>
         </div>
@@ -84,7 +95,10 @@ function AdminCustomers() {
               <TableBody>
                 {rows.map((c) => (
                   <TableRow key={c.id}>
-                    <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div>{c.name}</div>
+                      {c.phone && <div className="text-xs text-muted-foreground">{c.phone}</div>}
+                    </TableCell>
                     <TableCell className="text-right">{c.memberships}</TableCell>
                     <TableCell className="text-right">{c.totalPoints.toLocaleString()}</TableCell>
                     <TableCell className="hidden text-muted-foreground lg:table-cell">{c.joined}</TableCell>

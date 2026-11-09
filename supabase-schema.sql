@@ -24,6 +24,7 @@ drop table if exists public.profiles cascade;
 create table public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
   full_name   text not null,
+  phone       text,
   role        text not null default 'customer' check (role in ('admin', 'merchant', 'customer')),
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
@@ -175,6 +176,7 @@ declare
   v_full_name text;
   v_role      text;
   v_username  text;
+  v_phone     text;
 begin
   -- Extraire le username depuis l'email synthétique (format: username@m3ak.app)
   if new.email like '%@m3ak.app' then
@@ -197,11 +199,14 @@ begin
     'customer'
   );
 
-  insert into public.profiles (id, full_name, role)
-  values (new.id, v_full_name, v_role)
+  v_phone := nullif(trim(new.raw_user_meta_data->>'phone'), '');
+
+  insert into public.profiles (id, full_name, phone, role)
+  values (new.id, v_full_name, v_phone, v_role)
   on conflict (id) do update
-    set full_name = excluded.full_name,
-        role      = excluded.role,
+    set full_name  = excluded.full_name,
+        phone      = coalesce(excluded.phone, public.profiles.phone),
+        role       = excluded.role,
         updated_at = now();
 
   return new;
@@ -603,9 +608,13 @@ drop policy if exists "lp_public" on public.loyalty_programs;
 create policy "lp_public" on public.loyalty_programs for select using (status = 'active');
 
 -- ─── RPC : merchant_create_card ──────────────────────────────────────────────
+drop function if exists public.merchant_create_card(text, uuid);
+drop function if exists public.merchant_create_card(text, uuid, text);
+
 create or replace function public.merchant_create_card(
   p_customer_name text,
-  p_merchant_id   uuid
+  p_merchant_id   uuid,
+  p_phone         text default null
 )
 returns json
 language plpgsql
@@ -621,6 +630,7 @@ declare
   v_card        public.loyalty_cards%rowtype;
   v_hash        text;
   v_dummy_pwd   text;
+  v_clean_phone text;
 begin
   select owner_id into v_owner_id
   from public.merchants
@@ -634,7 +644,9 @@ begin
     raise exception 'Accès refusé : vous n''êtes pas le propriétaire de ce commerce.';
   end if;
 
-  v_hash       := substr(md5(p_customer_name || p_merchant_id::text || now()::text || random()::text), 1, 8);
+  v_clean_phone := nullif(trim(p_phone), '');
+
+  v_hash       := substr(md5(p_customer_name || coalesce(v_clean_phone, '') || p_merchant_id::text || now()::text || random()::text), 1, 8);
   v_slug       := lower(regexp_replace(
                     regexp_replace(trim(p_customer_name), '[^a-zA-Z0-9 ]+', '', 'g'),
                     '[ ]+', '-', 'g'
@@ -655,7 +667,7 @@ begin
       v_dummy_pwd,
       now(),
       '{"provider":"email","providers":["email"]}',
-      json_build_object('full_name', p_customer_name, 'role', 'customer')::jsonb,
+      json_build_object('full_name', p_customer_name, 'phone', v_clean_phone, 'role', 'customer')::jsonb,
       now(), now(),
       'authenticated', 'authenticated', ''
     );
@@ -663,9 +675,11 @@ begin
 
   select id into v_customer_id from auth.users where email = v_fake_email;
 
-  insert into public.profiles (id, full_name, role)
-  values (v_customer_id, p_customer_name, 'customer')
-  on conflict (id) do nothing;
+  insert into public.profiles (id, full_name, phone, role)
+  values (v_customer_id, p_customer_name, v_clean_phone, 'customer')
+  on conflict (id) do update
+    set full_name = excluded.full_name,
+        phone     = coalesce(excluded.phone, public.profiles.phone);
 
   select * into v_card
   from public.loyalty_cards
@@ -681,12 +695,13 @@ begin
     'card_id',       v_card.id,
     'qr_token',      v_card.qr_token,
     'points',        v_card.points,
-    'customer_name', p_customer_name
+    'customer_name', p_customer_name,
+    'phone',         v_clean_phone
   );
 end;
 $$;
 
-grant execute on function public.merchant_create_card(text, uuid) to authenticated;
+grant execute on function public.merchant_create_card(text, uuid, text) to authenticated;
 
 
 

@@ -86,7 +86,16 @@ function CustomersPage() {
     const msg = encodeURIComponent(
       `Bonjour ${c.customer.full_name} 👋\n\nVoici votre carte de fidélité *${merchantName}* :\n${link}\n\nOuvrez ce lien pour voir vos points 🎁`
     );
-    window.open(`https://wa.me/?text=${msg}`, "_blank", "noopener,noreferrer");
+    let waPhone = "";
+    if (c.customer.phone) {
+      let digits = c.customer.phone.replace(/\D/g, "");
+      if (digits.startsWith("0")) digits = "213" + digits.slice(1);
+      else if (digits.startsWith("2130")) digits = "213" + digits.slice(4);
+      else if (!digits.startsWith("213") && digits.length === 9) digits = "213" + digits;
+      waPhone = digits;
+    }
+    const url = waPhone ? `https://wa.me/${waPhone}?text=${msg}` : `https://wa.me/?text=${msg}`;
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   function handleShareSMS(c: CustomerWithCard) {
@@ -94,7 +103,9 @@ function CustomersPage() {
     const body = encodeURIComponent(
       `Bonjour ${c.customer.full_name}, voici votre carte de fidélité ${merchantName} : ${link}`
     );
-    window.open(`sms:?body=${body}`, "_self");
+    const smsPhone = c.customer.phone?.trim().replace(/\s+/g, "") || "";
+    const url = smsPhone ? `sms:${smsPhone}?body=${body}` : `sms:?body=${body}`;
+    window.open(url, "_self");
   }
 
   const reload = useCallback(async (mId: string) => {
@@ -117,9 +128,14 @@ function CustomersPage() {
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const cleanQ = q.replace(/\s+/g, "");
     return customers.filter((c) => {
       const matchFilter = filter === "all" || c.status === filter;
-      const matchQuery = !q || c.customer.full_name.toLowerCase().includes(q);
+      const phone = c.customer.phone ? c.customer.phone.replace(/\s+/g, "") : "";
+      const matchQuery =
+        !q ||
+        c.customer.full_name.toLowerCase().includes(q) ||
+        (phone && (phone.includes(cleanQ) || ("213" + phone.replace(/^0/, "")).includes(cleanQ)));
       return matchFilter && matchQuery;
     });
   }, [customers, query, filter]);
@@ -191,7 +207,7 @@ function CustomersPage() {
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Rechercher un client…" className="pl-9" value={query}
+            <Input placeholder="Rechercher par nom ou numéro (07…)" className="pl-9" value={query}
               onChange={(e) => setQuery(e.target.value)} />
           </div>
           <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
@@ -231,7 +247,12 @@ function CustomersPage() {
                         <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">
                           {initials(c.customer.full_name)}
                         </span>
-                        <p className="font-medium">{c.customer.full_name}</p>
+                        <div>
+                          <p className="font-medium">{c.customer.full_name}</p>
+                          {c.customer.phone && (
+                            <p className="text-xs text-muted-foreground">{c.customer.phone}</p>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-semibold">{c.card.points}</TableCell>
@@ -258,7 +279,7 @@ function CustomersPage() {
               <SheetHeader>
                 <SheetTitle>{selected.customer.full_name}</SheetTitle>
                 <SheetDescription>
-                  Inscrit le {selected.joinedFormatted}
+                  {selected.customer.phone ? `${selected.customer.phone} · ` : ""}Inscrit le {selected.joinedFormatted}
                 </SheetDescription>
               </SheetHeader>
 
