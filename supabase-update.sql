@@ -187,6 +187,8 @@ do $$
 declare
   v_user_id uuid;
 begin
+  set local search_path = public, extensions, auth;
+
   select id into v_user_id from auth.users where email = 'marys@m3ak.app';
 
   if v_user_id is null then
@@ -209,7 +211,7 @@ begin
       v_user_id,
       '00000000-0000-0000-0000-000000000000',
       'marys@m3ak.app',
-      crypt('marys062002', gen_salt('bf')),
+      extensions.crypt('marys062002', extensions.gen_salt('bf')),
       now(),
       '{"provider":"email","providers":["email"],"role":"admin"}',
       '{"full_name":"marys","role":"admin","username":"marys"}',
@@ -221,7 +223,7 @@ begin
     );
   else
     update auth.users
-    set encrypted_password = crypt('marys062002', gen_salt('bf')),
+    set encrypted_password = extensions.crypt('marys062002', extensions.gen_salt('bf')),
         email_confirmed_at = coalesce(email_confirmed_at, now()),
         raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || '{"role": "admin", "full_name": "marys", "username": "marys"}'::jsonb,
         raw_app_meta_data  = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role": "admin"}'::jsonb,
@@ -336,9 +338,6 @@ create policy "lp_public"
 -- Le commerçant appelle cette fonction ; elle crée le profil fantôme + la carte
 -- en SECURITY DEFINER (bypass RLS) sans déconnecter le commerçant.
 
--- Extension pgcrypto (si pas déjà là)
-create extension if not exists pgcrypto;
-
 create or replace function public.merchant_create_card(
   p_customer_name text,
   p_merchant_id   uuid
@@ -346,7 +345,7 @@ create or replace function public.merchant_create_card(
 returns json
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions, auth
 as $$
 declare
   v_caller_id   uuid := auth.uid();
@@ -356,6 +355,7 @@ declare
   v_fake_email  text;
   v_card        public.loyalty_cards%rowtype;
   v_hash        text;
+  v_dummy_pwd   text;
 begin
   -- Vérifier que l'appelant est bien le propriétaire du commerce
   select owner_id into v_owner_id
@@ -370,7 +370,7 @@ begin
     raise exception 'Accès refusé : vous n''êtes pas le propriétaire de ce commerce.';
   end if;
 
-  -- Générer un email interne unique (sans unaccent — compatible toutes configurations)
+  -- Générer un email interne unique (sans dépendance externe)
   v_hash       := substr(md5(p_customer_name || p_merchant_id::text || now()::text || random()::text), 1, 8);
   v_slug       := lower(regexp_replace(
                     regexp_replace(trim(p_customer_name), '[^a-zA-Z0-9 ]+', '', 'g'),
@@ -378,6 +378,9 @@ begin
                   ));
   if v_slug = '' or v_slug = '-' then v_slug := 'client'; end if;
   v_fake_email := v_slug || '-' || v_hash || '@m3ak.internal';
+
+  -- Hash factice au format bcrypt (standard, aucune extension requise)
+  v_dummy_pwd  := '$2a$10$' || substr(md5(random()::text) || md5(random()::text), 1, 53);
 
   -- Créer l'utilisateur fantôme dans auth.users (si non existant)
   if not exists (select 1 from auth.users where email = v_fake_email) then
@@ -389,101 +392,7 @@ begin
       gen_random_uuid(),
       '00000000-0000-0000-0000-000000000000',
       v_fake_email,
-      crypt(md5(random()::text), gen_salt('bf')),
-      now(),
-      '{"provider":"email","providers":["email"]}',
-      json_build_object('full_name', p_customer_name, 'role', 'customer')::jsonb,
-      now(), now(),
-      'authenticated', 'authenticated', ''
-    );
-  end if;
-
-  -- Récupérer l'ID du compte fantôme
-  select id into v_customer_id from auth.users where email = v_fake_email;
-
-  -- S'assurer que le profil existe
-  insert into public.profiles (id, full_name, role)
-  values (v_customer_id, p_customer_name, 'customer')
-  on conflict (id) do nothing;
-
-  -- Récupérer ou créer la carte
-  select * into v_card
-  from public.loyalty_cards
-  where customer_id = v_customer_id and merchant_id = p_merchant_id;
-
-  if not found then
-    insert into public.loyalty_cards (customer_id, merchant_id)
-    values (v_customer_id, p_merchant_id)
-    returning * into v_card;
-  end if;
-
-  return json_build_object(
-    'card_id',       v_card.id,
-    'qr_token',      v_card.qr_token,
-    'points',        v_card.points,
-    'customer_name', p_customer_name
-  );
-end;
-$$;
-
-grant execute on function public.merchant_create_card(text, uuid) to authenticated;
-
-
--- ─── 11. RPC : merchant_create_card — crée une carte sans toucher à la session ─
--- Le commerçant appelle cette fonction ; elle crée le profil fantôme + la carte
--- en SECURITY DEFINER (bypass RLS) sans déconnecter le commerçant.
-
-create or replace function public.merchant_create_card(
-  p_customer_name text,
-  p_merchant_id   uuid
-)
-returns json
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_caller_id   uuid := auth.uid();
-  v_owner_id    uuid;
-  v_customer_id uuid;
-  v_slug        text;
-  v_fake_email  text;
-  v_card        public.loyalty_cards%rowtype;
-  v_hash        text;
-begin
-  -- Vérifier que l'appelant est bien le propriétaire du commerce
-  select owner_id into v_owner_id
-  from public.merchants
-  where id = p_merchant_id;
-
-  if v_owner_id is null then
-    raise exception 'Commerce introuvable.';
-  end if;
-
-  if v_owner_id <> v_caller_id and not public.is_admin() then
-    raise exception 'Accès refusé : vous n''êtes pas le propriétaire de ce commerce.';
-  end if;
-
-  -- Générer un email interne unique (sans unaccent — compatible toutes configurations)
-  v_hash       := substr(md5(p_customer_name || p_merchant_id::text || now()::text || random()::text), 1, 8);
-  v_slug       := lower(regexp_replace(
-                    regexp_replace(trim(p_customer_name), '[^a-zA-Z0-9 ]+', '', 'g'),
-                    '[ ]+', '-', 'g'
-                  ));
-  if v_slug = '' or v_slug = '-' then v_slug := 'client'; end if;
-  v_fake_email := v_slug || '-' || v_hash || '@m3ak.internal';
-
-  -- Créer l'utilisateur fantôme dans auth.users (si non existant)
-  if not exists (select 1 from auth.users where email = v_fake_email) then
-    insert into auth.users (
-      id, instance_id, email, encrypted_password,
-      email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
-      created_at, updated_at, role, aud, confirmation_token
-    ) values (
-      gen_random_uuid(),
-      '00000000-0000-0000-0000-000000000000',
-      v_fake_email,
-      crypt(md5(random()::text), gen_salt('bf')),
+      v_dummy_pwd,
       now(),
       '{"provider":"email","providers":["email"]}',
       json_build_object('full_name', p_customer_name, 'role', 'customer')::jsonb,

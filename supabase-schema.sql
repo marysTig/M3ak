@@ -589,4 +589,104 @@ $$;
 
 grant execute on function public.delete_merchant_account(uuid) to authenticated;
 
+-- ─── Accès public aux cartes via qr_token (lien de partage sans compte) ──────
+drop policy if exists "cards_public_by_token" on public.loyalty_cards;
+create policy "cards_public_by_token" on public.loyalty_cards for select using (true);
+
+drop policy if exists "profiles_public_for_card" on public.profiles;
+create policy "profiles_public_for_card" on public.profiles for select using (true);
+
+drop policy if exists "rewards_public" on public.rewards;
+create policy "rewards_public" on public.rewards for select using (active = true);
+
+drop policy if exists "lp_public" on public.loyalty_programs;
+create policy "lp_public" on public.loyalty_programs for select using (status = 'active');
+
+-- ─── RPC : merchant_create_card ──────────────────────────────────────────────
+create or replace function public.merchant_create_card(
+  p_customer_name text,
+  p_merchant_id   uuid
+)
+returns json
+language plpgsql
+security definer
+set search_path = public, extensions, auth
+as $$
+declare
+  v_caller_id   uuid := auth.uid();
+  v_owner_id    uuid;
+  v_customer_id uuid;
+  v_slug        text;
+  v_fake_email  text;
+  v_card        public.loyalty_cards%rowtype;
+  v_hash        text;
+  v_dummy_pwd   text;
+begin
+  select owner_id into v_owner_id
+  from public.merchants
+  where id = p_merchant_id;
+
+  if v_owner_id is null then
+    raise exception 'Commerce introuvable.';
+  end if;
+
+  if v_owner_id <> v_caller_id and not public.is_admin() then
+    raise exception 'Accès refusé : vous n''êtes pas le propriétaire de ce commerce.';
+  end if;
+
+  v_hash       := substr(md5(p_customer_name || p_merchant_id::text || now()::text || random()::text), 1, 8);
+  v_slug       := lower(regexp_replace(
+                    regexp_replace(trim(p_customer_name), '[^a-zA-Z0-9 ]+', '', 'g'),
+                    '[ ]+', '-', 'g'
+                  ));
+  if v_slug = '' or v_slug = '-' then v_slug := 'client'; end if;
+  v_fake_email := v_slug || '-' || v_hash || '@m3ak.internal';
+  v_dummy_pwd  := '$2a$10$' || substr(md5(random()::text) || md5(random()::text), 1, 53);
+
+  if not exists (select 1 from auth.users where email = v_fake_email) then
+    insert into auth.users (
+      id, instance_id, email, encrypted_password,
+      email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+      created_at, updated_at, role, aud, confirmation_token
+    ) values (
+      gen_random_uuid(),
+      '00000000-0000-0000-0000-000000000000',
+      v_fake_email,
+      v_dummy_pwd,
+      now(),
+      '{"provider":"email","providers":["email"]}',
+      json_build_object('full_name', p_customer_name, 'role', 'customer')::jsonb,
+      now(), now(),
+      'authenticated', 'authenticated', ''
+    );
+  end if;
+
+  select id into v_customer_id from auth.users where email = v_fake_email;
+
+  insert into public.profiles (id, full_name, role)
+  values (v_customer_id, p_customer_name, 'customer')
+  on conflict (id) do nothing;
+
+  select * into v_card
+  from public.loyalty_cards
+  where customer_id = v_customer_id and merchant_id = p_merchant_id;
+
+  if not found then
+    insert into public.loyalty_cards (customer_id, merchant_id)
+    values (v_customer_id, p_merchant_id)
+    returning * into v_card;
+  end if;
+
+  return json_build_object(
+    'card_id',       v_card.id,
+    'qr_token',      v_card.qr_token,
+    'points',        v_card.points,
+    'customer_name', p_customer_name
+  );
+end;
+$$;
+
+grant execute on function public.merchant_create_card(text, uuid) to authenticated;
+
+
 
