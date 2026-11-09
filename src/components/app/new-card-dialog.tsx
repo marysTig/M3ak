@@ -101,7 +101,15 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
         p_merchant_id: merchantId,
       });
 
-      if (error) throw new Error(error.message);
+      if (error) {
+        // Message d'erreur clair si la RPC n'a pas encore été créée dans Supabase
+        if (error.message?.includes("Could not find the function") || error.code === "PGRST202") {
+          throw new Error(
+            "La fonction SQL n'est pas encore créée dans Supabase. Exécutez le script supabase-update.sql dans votre Supabase SQL Editor.",
+          );
+        }
+        throw new Error(error.message);
+      }
       if (!data) throw new Error("Erreur lors de la création de la carte.");
 
       const card = data as { card_id: string; qr_token: string; points: number; customer_name: string };

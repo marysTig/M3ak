@@ -336,6 +336,9 @@ create policy "lp_public"
 -- Le commerçant appelle cette fonction ; elle crée le profil fantôme + la carte
 -- en SECURITY DEFINER (bypass RLS) sans déconnecter le commerçant.
 
+-- Extension pgcrypto (si pas déjà là)
+create extension if not exists pgcrypto;
+
 create or replace function public.merchant_create_card(
   p_customer_name text,
   p_merchant_id   uuid
@@ -346,8 +349,8 @@ security definer
 set search_path = public
 as $$
 declare
-  v_caller_id  uuid := auth.uid();
-  v_owner_id   uuid;
+  v_caller_id   uuid := auth.uid();
+  v_owner_id    uuid;
   v_customer_id uuid;
   v_slug        text;
   v_fake_email  text;
@@ -367,11 +370,11 @@ begin
     raise exception 'Accès refusé : vous n''êtes pas le propriétaire de ce commerce.';
   end if;
 
-  -- Générer un email interne unique pour le compte fantôme
+  -- Générer un email interne unique (sans unaccent — compatible toutes configurations)
   v_hash       := substr(md5(p_customer_name || p_merchant_id::text || now()::text || random()::text), 1, 8);
   v_slug       := lower(regexp_replace(
-                    unaccent(trim(p_customer_name)),
-                    '[^a-z0-9]+', '-', 'g'
+                    regexp_replace(trim(p_customer_name), '[^a-zA-Z0-9 ]+', '', 'g'),
+                    '[ ]+', '-', 'g'
                   ));
   if v_slug = '' or v_slug = '-' then v_slug := 'client'; end if;
   v_fake_email := v_slug || '-' || v_hash || '@m3ak.internal';
