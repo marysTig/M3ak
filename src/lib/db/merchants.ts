@@ -8,6 +8,33 @@ export type MerchantUpdate = Partial<Pick<Merchant,
   "name" | "category" | "email" | "phone" | "address" | "logo_url" | "slug"
 >>;
 
+/** Durée d'activation : 1 mois ou 1 an */
+export type ActivationDuration = "1month" | "1year";
+
+/** Active un commerce pour 1 mois ou 1 an */
+export async function activateMerchant(merchantId: string, duration: ActivationDuration) {
+  const now = new Date();
+  const expires = new Date(now);
+  if (duration === "1year") {
+    expires.setFullYear(expires.getFullYear() + 1);
+  } else {
+    expires.setMonth(expires.getMonth() + 1);
+  }
+
+  const { data, error } = await supabase
+    .from("merchants")
+    .update({
+      status: "active",
+      subscription_expires_at: expires.toISOString(),
+      updated_at: now.toISOString(),
+    })
+    .eq("id", merchantId)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data as Merchant;
+}
+
 /** Récupère le commerce du commerçant connecté */
 export async function getMyMerchant(): Promise<Merchant | null> {
   const { data: { user } } = await supabase.auth.getUser();

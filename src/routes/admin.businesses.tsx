@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, Power, PowerOff, Search, Store, Trash2 } from "lucide-react";
+import { Calendar, CheckCircle2, Clock, PowerOff, Search, Store, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -17,19 +17,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { deleteMerchant, getAllMerchants, setMerchantStatus } from "@/lib/db/merchants";
+import { activateMerchant, deleteMerchant, getAllMerchants, setMerchantStatus } from "@/lib/db/merchants";
+import type { ActivationDuration } from "@/lib/db/merchants";
 
 const filters = [
   { value: "all", label: "Tous" },
   { value: "active", label: "Actifs" },
   { value: "suspended", label: "Désactivés" },
   { value: "pending", label: "En attente" },
+  { value: "expired", label: "Expirés" },
 ] as const;
 
 interface MerchantRow {
@@ -39,8 +38,23 @@ interface MerchantRow {
   owner_id: string;
   plan: string;
   status: "active" | "pending" | "suspended";
+  subscription_expires_at: string | null;
   customers: number;
   joined: string;
+}
+
+function formatExpiry(expiresAt: string | null): { label: string; expired: boolean; soon: boolean } {
+  if (!expiresAt) return { label: "—", expired: false, soon: false };
+  const exp = new Date(expiresAt);
+  const now = new Date();
+  const diff = exp.getTime() - now.getTime();
+  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+  const expired = diff < 0;
+  const soon = !expired && days <= 7;
+  const label = expired
+    ? `Expiré le ${exp.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}`
+    : `${exp.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })} (${days}j)`;
+  return { label, expired, soon };
 }
 
 export const Route = createFileRoute("/admin/businesses")({
@@ -65,6 +79,11 @@ function AdminBusinesses() {
   const [businessToDelete, setBusinessToDelete] = useState<MerchantRow | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Activation dialog state
+  const [businessToActivate, setBusinessToActivate] = useState<MerchantRow | null>(null);
+  const [activationDuration, setActivationDuration] = useState<ActivationDuration>("1month");
+  const [activating, setActivating] = useState(false);
+
   async function load() {
     try {
       const data = await getAllMerchants();
@@ -75,6 +94,7 @@ function AdminBusinesses() {
         owner_id: m.owner_id,
         plan: m.plan,
         status: m.status,
+        subscription_expires_at: (m as any).subscription_expires_at ?? null,
         customers: Array.isArray(m.loyalty_cards) ? m.loyalty_cards.length : 0,
         joined: new Date(m.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }),
       }));
@@ -88,16 +108,22 @@ function AdminBusinesses() {
 
   useEffect(() => { load(); }, []);
 
-  async function handleActivate(b: MerchantRow) {
-    setUpdatingId(b.id);
+  async function handleActivate() {
+    if (!businessToActivate) return;
+    setActivating(true);
     try {
-      await setMerchantStatus(b.id, "active");
-      setRows((prev) => prev.map((r) => r.id === b.id ? { ...r, status: "active" } : r));
-      toast.success(`${b.name} activé avec succès`);
+      const updated = await activateMerchant(businessToActivate.id, activationDuration);
+      setRows((prev) => prev.map((r) => r.id === businessToActivate.id
+        ? { ...r, status: "active", subscription_expires_at: (updated as any).subscription_expires_at }
+        : r
+      ));
+      const durationLabel = activationDuration === "1year" ? "1 an" : "1 mois";
+      toast.success(`${businessToActivate.name} activé pour ${durationLabel}`);
+      setBusinessToActivate(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur lors de l'activation.");
     } finally {
-      setUpdatingId(null);
+      setActivating(false);
     }
   }
 
@@ -130,10 +156,16 @@ function AdminBusinesses() {
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const now = new Date();
     return rows.filter((b) => {
-      const matchFilter = filter === "all" || b.status === filter;
+      const isExpired = b.subscription_expires_at && new Date(b.subscription_expires_at) < now && b.status === "active";
+      const statusMatch =
+        filter === "all" ? true :
+        filter === "expired" ? !!isExpired :
+        filter === "active" ? b.status === "active" && !isExpired :
+        b.status === filter;
       const matchQuery = !q || `${b.name} ${b.category ?? ""}`.toLowerCase().includes(q);
-      return matchFilter && matchQuery;
+      return statusMatch && matchQuery;
     });
   }, [rows, query, filter]);
 
@@ -159,10 +191,10 @@ function AdminBusinesses() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <Tabs value={filter} onValueChange={setFilter} className="w-full sm:w-auto">
-            <TabsList className="w-full sm:w-auto grid grid-cols-4 sm:flex">
+          <Tabs value={filter} onValueChange={setFilter} className="w-full sm:w-auto overflow-x-auto">
+            <TabsList className="w-full sm:w-auto inline-flex">
               {filters.map((f) => (
-                <TabsTrigger key={f.value} value={f.value} className="text-xs sm:text-sm px-2 sm:px-3">
+                <TabsTrigger key={f.value} value={f.value} className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap">
                   {f.label}
                 </TabsTrigger>
               ))}
@@ -185,7 +217,7 @@ function AdminBusinesses() {
                 <TableRow>
                   <TableHead>Commerce</TableHead>
                   <TableHead className="text-right">Clients</TableHead>
-                  <TableHead className="hidden sm:table-cell">Plan</TableHead>
+                  <TableHead className="hidden sm:table-cell">Activation expire</TableHead>
                   <TableHead className="hidden lg:table-cell">Inscription</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -193,8 +225,11 @@ function AdminBusinesses() {
               </TableHeader>
               <TableBody>
                 {visible.map((b) => {
-                  const isActive = b.status === "active";
+                  const now = new Date();
+                  const isExpired = b.subscription_expires_at && new Date(b.subscription_expires_at) < now;
+                  const isActive = b.status === "active" && !isExpired;
                   const isUpdating = updatingId === b.id;
+                  const expiry = formatExpiry(b.subscription_expires_at);
 
                   return (
                     <TableRow key={b.id}>
@@ -203,12 +238,21 @@ function AdminBusinesses() {
                         <p className="text-xs text-muted-foreground">{b.category ?? "Commerce général"}</p>
                       </TableCell>
                       <TableCell className="text-right font-medium">{b.customers.toLocaleString()}</TableCell>
-                      <TableCell className="hidden sm:table-cell capitalize">{b.plan}</TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        {b.subscription_expires_at ? (
+                          <span className={`flex items-center gap-1.5 text-xs ${expiry.expired ? "text-destructive font-medium" : expiry.soon ? "text-warning font-medium" : "text-muted-foreground"}`}>
+                            <Clock className="size-3 shrink-0" />
+                            {expiry.label}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                       <TableCell className="hidden text-muted-foreground lg:table-cell">{b.joined}</TableCell>
                       <TableCell>
                         <StatusBadge
-                          status={isActive ? "Actif" : b.status === "suspended" ? "Désactivé" : "En attente"}
-                          tone={isActive ? "success" : b.status === "suspended" ? "danger" : "warning"}
+                          status={isExpired ? "Expiré" : isActive ? "Actif" : b.status === "suspended" ? "Désactivé" : "En attente"}
+                          tone={isExpired ? "warning" : isActive ? "success" : b.status === "suspended" ? "danger" : "warning"}
                         />
                       </TableCell>
                       <TableCell className="text-right">
@@ -229,7 +273,7 @@ function AdminBusinesses() {
                               variant="outline"
                               size="sm"
                               disabled={isUpdating}
-                              onClick={() => handleActivate(b)}
+                              onClick={() => { setBusinessToActivate(b); setActivationDuration("1month"); }}
                               className="text-success hover:bg-success/10 hover:text-success text-xs"
                             >
                               <CheckCircle2 className="mr-1.5 size-3.5" />
@@ -248,36 +292,6 @@ function AdminBusinesses() {
                             <Trash2 className="size-3.5" />
                             <span className="sr-only sm:not-sr-only sm:ml-1">Supprimer</span>
                           </Button>
-
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">Options</Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {!isActive && (
-                                <DropdownMenuItem onClick={() => handleActivate(b)}>
-                                  <Power className="mr-2 size-4 text-success" />
-                                  Activer le compte
-                                </DropdownMenuItem>
-                              )}
-                              {isActive && (
-                                <DropdownMenuItem
-                                  className="text-muted-foreground"
-                                  onClick={() => handleDeactivate(b)}
-                                >
-                                  <PowerOff className="mr-2 size-4" />
-                                  Désactiver le compte
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                                onClick={() => setBusinessToDelete(b)}
-                              >
-                                <Trash2 className="mr-2 size-4" />
-                                Supprimer définitivement
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -289,12 +303,78 @@ function AdminBusinesses() {
         )}
       </div>
 
-      {/* Boîte de dialogue de confirmation de suppression définitive */}
+      {/* ── Dialogue d'activation ── */}
+      <AlertDialog
+        open={!!businessToActivate}
+        onOpenChange={(open) => { if (!open && !activating) setBusinessToActivate(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-success">
+              <CheckCircle2 className="size-5" />
+              Activer {businessToActivate?.name}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4 pt-1">
+                <p className="text-sm text-muted-foreground">
+                  Choisissez la durée d'activation pour ce commerce.
+                </p>
+                {/* Choix de durée */}
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setActivationDuration("1month")}
+                    className={`flex flex-col items-center gap-1.5 rounded-xl border-2 p-4 transition-colors ${
+                      activationDuration === "1month"
+                        ? "border-primary bg-primary-soft text-primary"
+                        : "border-border bg-surface-muted text-muted-foreground hover:border-primary/50"
+                    }`}
+                  >
+                    <Calendar className="size-6" />
+                    <span className="font-semibold text-sm">1 mois</span>
+                    <span className="text-xs opacity-70">30 jours</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActivationDuration("1year")}
+                    className={`flex flex-col items-center gap-1.5 rounded-xl border-2 p-4 transition-colors ${
+                      activationDuration === "1year"
+                        ? "border-primary bg-primary-soft text-primary"
+                        : "border-border bg-surface-muted text-muted-foreground hover:border-primary/50"
+                    }`}
+                  >
+                    <Calendar className="size-6" />
+                    <span className="font-semibold text-sm">1 an</span>
+                    <span className="text-xs opacity-70">365 jours</span>
+                  </button>
+                </div>
+                <p className="rounded-lg bg-surface-muted px-3 py-2 text-xs text-muted-foreground">
+                  <strong>Expiration :</strong>{" "}
+                  {activationDuration === "1year"
+                    ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })
+                    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })
+                  }
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={activating}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleActivate(); }}
+              disabled={activating}
+              className="bg-success text-white hover:bg-success/90"
+            >
+              {activating ? "Activation…" : `Activer pour ${activationDuration === "1year" ? "1 an" : "1 mois"}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Dialogue de suppression ── */}
       <AlertDialog
         open={!!businessToDelete}
-        onOpenChange={(open) => {
-          if (!open && !deleting) setBusinessToDelete(null);
-        }}
+        onOpenChange={(open) => { if (!open && !deleting) setBusinessToDelete(null); }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -318,12 +398,7 @@ function AdminBusinesses() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Annuler</AlertDialogCancel>
             <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                if (businessToDelete) {
-                  handleDelete(businessToDelete);
-                }
-              }}
+              onClick={(e) => { e.preventDefault(); if (businessToDelete) handleDelete(businessToDelete); }}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >

@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { Activity, LayoutDashboard, LogOut, Settings, Store, Users } from "lucide-react";
+import { LayoutDashboard, Settings, Store } from "lucide-react";
 import { toast } from "sonner";
 
 import { DashboardShell, type NavItem } from "@/components/app/dashboard-shell";
@@ -14,7 +14,6 @@ export const Route = createFileRoute("/admin")({
 const items: NavItem[] = [
   { to: "/admin", label: "Aperçu", icon: LayoutDashboard, exact: true },
   { to: "/admin/businesses", label: "Commerces", icon: Store },
-  { to: "/admin/customers", label: "Clients", icon: Users },
   { to: "/admin/settings", label: "Paramètres", icon: Settings },
 ];
 

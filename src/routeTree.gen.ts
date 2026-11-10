@@ -15,7 +15,6 @@ import { Route as BusinessRouteImport } from './routes/business'
 import { Route as CustomerRouteImport } from './routes/customer'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminBusinessesRouteImport } from './routes/admin.businesses'
-import { Route as AdminCustomersRouteImport } from './routes/admin.customers'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as BusinessIndexRouteImport } from './routes/business.index'
 import { Route as BusinessAnalyticsRouteImport } from './routes/business.analytics'
@@ -61,11 +60,6 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const AdminBusinessesRoute = AdminBusinessesRouteImport.update({
   id: '/businesses',
   path: '/businesses',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminCustomersRoute = AdminCustomersRouteImport.update({
-  id: '/customers',
-  path: '/customers',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
@@ -155,7 +149,6 @@ export interface FileRoutesByFullPath {
   '/business': typeof BusinessRouteWithChildren
   '/customer': typeof CustomerRouteWithChildren
   '/admin/businesses': typeof AdminBusinessesRoute
-  '/admin/customers': typeof AdminCustomersRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/business/analytics': typeof BusinessAnalyticsRoute
   '/business/customers': typeof BusinessCustomersRoute
@@ -177,7 +170,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin/businesses': typeof AdminBusinessesRoute
-  '/admin/customers': typeof AdminCustomersRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/business/analytics': typeof BusinessAnalyticsRoute
   '/business/customers': typeof BusinessCustomersRoute
@@ -203,7 +195,6 @@ export interface FileRoutesById {
   '/business': typeof BusinessRouteWithChildren
   '/customer': typeof CustomerRouteWithChildren
   '/admin/businesses': typeof AdminBusinessesRoute
-  '/admin/customers': typeof AdminCustomersRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/business/analytics': typeof BusinessAnalyticsRoute
   '/business/customers': typeof BusinessCustomersRoute
@@ -230,7 +221,6 @@ export interface FileRouteTypes {
     | '/business'
     | '/customer'
     | '/admin/businesses'
-    | '/admin/customers'
     | '/admin/settings'
     | '/business/analytics'
     | '/business/customers'
@@ -252,7 +242,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin/businesses'
-    | '/admin/customers'
     | '/admin/settings'
     | '/business/analytics'
     | '/business/customers'
@@ -277,7 +266,6 @@ export interface FileRouteTypes {
     | '/business'
     | '/customer'
     | '/admin/businesses'
-    | '/admin/customers'
     | '/admin/settings'
     | '/business/analytics'
     | '/business/customers'
@@ -348,13 +336,6 @@ declare module '@tanstack/react-router' {
       path: '/businesses'
       fullPath: '/admin/businesses'
       preLoaderRoute: typeof AdminBusinessesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/customers': {
-      id: '/admin/customers'
-      path: '/customers'
-      fullPath: '/admin/customers'
-      preLoaderRoute: typeof AdminCustomersRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/settings': {
@@ -474,14 +455,12 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminBusinessesRoute: typeof AdminBusinessesRoute
-  AdminCustomersRoute: typeof AdminCustomersRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminBusinessesRoute: AdminBusinessesRoute,
-  AdminCustomersRoute: AdminCustomersRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }

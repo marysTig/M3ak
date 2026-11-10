@@ -47,6 +47,10 @@ create trigger trg_cards_updated_at
 
 alter table public.profiles add column if not exists phone text;
 
+-- ─── 2c. Colonne subscription_expires_at dans merchants ──────────────────────
+
+alter table public.merchants add column if not exists subscription_expires_at timestamptz;
+
 
 -- ─── 3. Trigger handle_new_user ───────────────────────────────────────────────
 -- Crée automatiquement le profil et la fiche commerce si le rôle est 'merchant'

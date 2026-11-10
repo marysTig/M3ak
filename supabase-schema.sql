@@ -43,6 +43,7 @@ create table public.merchants (
   slug        text unique,           -- utilisé dans le lien QR : /join/{slug}
   plan        text not null default 'starter' check (plan in ('starter', 'growth', 'pro')),
   status      text not null default 'active' check (status in ('active', 'pending', 'suspended')),
+  subscription_expires_at timestamptz,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );

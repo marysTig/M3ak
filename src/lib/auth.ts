@@ -33,6 +33,7 @@ export interface Merchant {
   slug: string | null;
   plan: "starter" | "growth" | "pro";
   status: "active" | "pending" | "suspended";
+  subscription_expires_at: string | null;
   created_at: string;
   updated_at: string;
 }
