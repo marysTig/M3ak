@@ -41,18 +41,8 @@ export async function getMerchantCustomers(merchantId: string): Promise<Customer
   return (data ?? []).map((row) => {
     const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
 
-    // Calculer le statut basé sur la date de mise à jour
-    const daysSinceActivity =
-      (Date.now() - new Date(row.updated_at).getTime()) / (1000 * 60 * 60 * 24);
-
-    let status: "active" | "inactive" | "new" = "new";
-    if (row.total_earned === 0) {
-      status = "new";
-    } else if (daysSinceActivity > 90) {
-      status = "inactive";
-    } else {
-      status = "active";
-    }
+    // Tout client possédant une carte est considéré comme actif
+    const status: "active" | "inactive" | "new" = "active";
 
     return {
       customer: {

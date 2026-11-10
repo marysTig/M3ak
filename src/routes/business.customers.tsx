@@ -15,7 +15,6 @@ import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase";
 import { getMerchantCustomers, type CustomerWithCard } from "@/lib/db/customers";
 import { addPoints } from "@/lib/db/cards";
@@ -36,13 +35,6 @@ export const Route = createFileRoute("/business/customers")({
   }),
   component: CustomersPage,
 });
-
-const filters = [
-  { id: "all", label: "Tous" },
-  { id: "active", label: "Actifs" },
-  { id: "inactive", label: "Inactifs" },
-  { id: "new", label: "Nouveaux" },
-] as const;
 
 function initials(name: string) {
   if (!name) return "CL";
@@ -104,7 +96,6 @@ function CustomersPage() {
   const [loading, setLoading] = useState(true);
 
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<string>("all");
   const [selected, setSelected] = useState<CustomerWithCard | null>(null);
   const [newCardOpen, setNewCardOpen] = useState(false);
   const [pointsInput, setPointsInput] = useState("");
@@ -200,13 +191,8 @@ function CustomersPage() {
   }, [reload]);
 
   const rows = useMemo(() => {
-    const hasQuery = query.trim().length > 0;
-    return customers.filter((c) => {
-      // Si une recherche est en cours, chercher dans TOUS les clients (ne pas bloquer par le statut)
-      const matchFilter = hasQuery || filter === "all" || c.status === filter;
-      return matchFilter && matchesCustomer(c, query);
-    });
-  }, [customers, query, filter]);
+    return customers.filter((c) => matchesCustomer(c, query));
+  }, [customers, query]);
 
   async function openSheet(c: CustomerWithCard) {
     setSelected(c);
@@ -275,29 +261,29 @@ function CustomersPage() {
       />
 
       <div className="card-surface overflow-hidden">
-        <div className="flex flex-col gap-3 p-3.5 sm:p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative w-full sm:max-w-xs">
+        <div className="p-3.5 sm:p-4">
+          <div className="relative w-full sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Rechercher par nom ou numéro (07…)" className="pl-9" value={query}
-              onChange={(e) => setQuery(e.target.value)} />
+            <Input
+              placeholder="Rechercher par nom ou numéro (07…)"
+              className="pl-9"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
           </div>
-          <Tabs value={filter} onValueChange={(v) => setFilter(v)} className="w-full sm:w-auto">
-            <TabsList className="w-full sm:w-auto grid grid-cols-4 sm:flex">
-              {filters.map((f) => (
-                <TabsTrigger key={f.id} value={f.id} className="text-xs sm:text-sm px-2 sm:px-3">
-                  {f.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
         </div>
 
         {rows.length === 0 ? (
           <div className="p-4">
-            <EmptyState icon={Users} title="Aucun client trouvé"
-              description={customers.length === 0
-                ? "Créez votre premier client avec le bouton ci-dessus."
-                : "Essayez un autre filtre ou terme de recherche."} />
+            <EmptyState
+              icon={Users}
+              title="Aucun client trouvé"
+              description={
+                customers.length === 0
+                  ? "Créez votre premier client avec le bouton ci-dessus."
+                  : "Aucun client ne correspond à votre recherche."
+              }
+            />
           </div>
         ) : (
           <div className="overflow-x-auto">
