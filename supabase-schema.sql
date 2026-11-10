@@ -90,12 +90,30 @@ create table public.loyalty_cards (
   merchant_id   uuid not null references public.merchants(id) on delete cascade,
   store_id      uuid references public.stores(id),
   qr_token      text not null unique default encode(gen_random_bytes(16), 'hex'),
+  card_type     text not null default 'points' check (card_type in ('points', 'vip', 'stamps')),
+  card_name     text,
+  theme_id      text default 'aurora',
+  -- Type Points
   points        integer not null default 0 check (points >= 0),
   total_earned  integer not null default 0 check (total_earned >= 0),
+  -- Type Tampons
+  stamps_count  integer default 0,
+  stamps_target integer default 10,
+  stamp_reward  text default '1 produit offert au 10ème passage',
+  stamp_conditions text,
+  -- Type VIP
+  vip_tier      text default 'bronze' check (vip_tier in ('bronze', 'silver', 'gold')),
+  vip_spent     numeric default 0,
+  vip_bronze_threshold numeric default 0,
+  vip_silver_threshold numeric default 15000,
+  vip_gold_threshold numeric default 30000,
+  vip_bronze_benefits text default '-5% de réduction',
+  vip_silver_benefits text default '-10% de réduction + Cadeau',
+  vip_gold_benefits text default '-15% de réduction + Accès prioritaire',
   status        text not null default 'active' check (status in ('active', 'inactive', 'suspended')),
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
-  unique (customer_id, merchant_id)
+  unique (customer_id, merchant_id, card_type)
 );
 
 -- ─── transactions — Historique points (immutable, append-only) ───────────────
@@ -611,11 +629,16 @@ create policy "lp_public" on public.loyalty_programs for select using (status = 
 -- ─── RPC : merchant_create_card ──────────────────────────────────────────────
 drop function if exists public.merchant_create_card(text, uuid);
 drop function if exists public.merchant_create_card(text, uuid, text);
+drop function if exists public.merchant_create_card(text, uuid, text, text, text, text, jsonb);
 
 create or replace function public.merchant_create_card(
   p_customer_name text,
   p_merchant_id   uuid,
-  p_phone         text default null
+  p_phone         text default null,
+  p_card_type     text default 'points',
+  p_card_name     text default null,
+  p_theme_id      text default 'aurora',
+  p_config        jsonb default '{}'::jsonb
 )
 returns json
 language plpgsql
@@ -632,6 +655,7 @@ declare
   v_hash        text;
   v_dummy_pwd   text;
   v_clean_phone text;
+  v_type        text := coalesce(nullif(trim(p_card_type), ''), 'points');
 begin
   select owner_id into v_owner_id
   from public.merchants
@@ -698,25 +722,71 @@ begin
 
   select * into v_card
   from public.loyalty_cards
-  where customer_id = v_customer_id and merchant_id = p_merchant_id;
+  where customer_id = v_customer_id and merchant_id = p_merchant_id and card_type = v_type;
 
   if not found then
-    insert into public.loyalty_cards (customer_id, merchant_id)
-    values (v_customer_id, p_merchant_id)
+    insert into public.loyalty_cards (
+      customer_id,
+      merchant_id,
+      card_type,
+      card_name,
+      theme_id,
+      points,
+      total_earned,
+      stamps_count,
+      stamps_target,
+      stamp_reward,
+      stamp_conditions,
+      vip_tier,
+      vip_spent,
+      vip_bronze_threshold,
+      vip_silver_threshold,
+      vip_gold_threshold,
+      vip_bronze_benefits,
+      vip_silver_benefits,
+      vip_gold_benefits
+    ) values (
+      v_customer_id,
+      p_merchant_id,
+      v_type,
+      p_card_name,
+      coalesce(nullif(trim(p_theme_id), ''), 'aurora'),
+      coalesce((p_config->>'initial_points')::integer, 0),
+      coalesce((p_config->>'initial_points')::integer, 0),
+      0,
+      coalesce((p_config->>'stamps_target')::integer, 10),
+      coalesce(p_config->>'stamp_reward', '1 produit offert au 10ème passage'),
+      p_config->>'stamp_conditions',
+      'bronze',
+      0,
+      coalesce((p_config->>'bronze_threshold')::numeric, 0),
+      coalesce((p_config->>'silver_threshold')::numeric, 15000),
+      coalesce((p_config->>'gold_threshold')::numeric, 30000),
+      coalesce(p_config->>'bronze_benefits', '-5% de réduction'),
+      coalesce(p_config->>'silver_benefits', '-10% de réduction + Cadeau'),
+      coalesce(p_config->>'gold_benefits', '-15% de réduction + Accès prioritaire')
+    )
     returning * into v_card;
   end if;
 
   return json_build_object(
     'card_id',       v_card.id,
     'qr_token',      v_card.qr_token,
+    'card_type',     v_card.card_type,
+    'card_name',     v_card.card_name,
+    'theme_id',      v_card.theme_id,
     'points',        v_card.points,
+    'stamps_count',  v_card.stamps_count,
+    'stamps_target', v_card.stamps_target,
+    'vip_tier',      v_card.vip_tier,
+    'vip_spent',     v_card.vip_spent,
     'customer_name', p_customer_name,
     'phone',         v_clean_phone
   );
 end;
 $$;
 
-grant execute on function public.merchant_create_card(text, uuid, text) to authenticated;
+grant execute on function public.merchant_create_card(text, uuid, text, text, text, text, jsonb) to authenticated;
 
 
 

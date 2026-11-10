@@ -3,6 +3,9 @@
  */
 import { supabase } from "../supabase";
 
+export type CardType = "points" | "vip" | "stamps";
+export type VipTier = "bronze" | "silver" | "gold";
+
 export interface LoyaltyCard {
   id: string;
   customer_id: string;
@@ -14,6 +17,27 @@ export interface LoyaltyCard {
   status: "active" | "inactive" | "suspended";
   created_at: string;
   updated_at: string;
+
+  // Type & configuration
+  card_type?: CardType;
+  card_name?: string | null;
+  theme_id?: string | null;
+
+  // Tampons (Stamps)
+  stamps_count?: number;
+  stamps_target?: number;
+  stamp_reward?: string | null;
+  stamp_conditions?: string | null;
+
+  // VIP
+  vip_tier?: VipTier;
+  vip_spent?: number;
+  vip_bronze_threshold?: number;
+  vip_silver_threshold?: number;
+  vip_gold_threshold?: number;
+  vip_bronze_benefits?: string | null;
+  vip_silver_benefits?: string | null;
+  vip_gold_benefits?: string | null;
 }
 
 export interface CardWithProfile extends LoyaltyCard {
@@ -174,5 +198,110 @@ export async function redeemReward(cardId: string, rewardId: string) {
     previous_balance: number;
     new_balance: number;
     transaction_id: string;
+  };
+}
+
+/** Ajoute des tampons à une carte de type stamps */
+export async function addStamps(params: {
+  cardId: string;
+  count: number;
+}): Promise<{ newCount: number; target: number; completed: boolean }> {
+  const { data: current, error: fetchErr } = await supabase
+    .from("loyalty_cards")
+    .select("stamps_count, stamps_target")
+    .eq("id", params.cardId)
+    .single();
+
+  if (fetchErr || !current) throw new Error(fetchErr?.message || "Carte introuvable");
+
+  const currentCount = Number(current.stamps_count ?? 0);
+  const target = Number(current.stamps_target ?? 10);
+  const newCount = currentCount + params.count;
+
+  const { error: updateErr } = await supabase
+    .from("loyalty_cards")
+    .update({ stamps_count: newCount, updated_at: new Date().toISOString() })
+    .eq("id", params.cardId);
+
+  if (updateErr) throw new Error(updateErr.message);
+
+  return {
+    newCount,
+    target,
+    completed: newCount >= target,
+  };
+}
+
+/** Réinitialise ou déduit les tampons après récompense */
+export async function redeemStamps(params: {
+  cardId: string;
+  stampsTarget: number;
+}): Promise<{ newCount: number }> {
+  const { data: current, error: fetchErr } = await supabase
+    .from("loyalty_cards")
+    .select("stamps_count")
+    .eq("id", params.cardId)
+    .single();
+
+  if (fetchErr || !current) throw new Error(fetchErr?.message || "Carte introuvable");
+
+  const currentCount = Number(current.stamps_count ?? 0);
+  const target = Number(params.stampsTarget ?? 10);
+  const newCount = Math.max(0, currentCount - target);
+
+  const { error: updateErr } = await supabase
+    .from("loyalty_cards")
+    .update({ stamps_count: newCount, updated_at: new Date().toISOString() })
+    .eq("id", params.cardId);
+
+  if (updateErr) throw new Error(updateErr.message);
+
+  return { newCount };
+}
+
+/** Ajoute une dépense VIP et recalcule le palier (Bronze / Silver / Gold) */
+export async function addVipSpending(params: {
+  cardId: string;
+  amount: number;
+}): Promise<{ newSpent: number; newTier: VipTier; previousTier: VipTier; tierUpgraded: boolean }> {
+  const { data: current, error: fetchErr } = await supabase
+    .from("loyalty_cards")
+    .select("vip_spent, vip_tier, vip_silver_threshold, vip_gold_threshold")
+    .eq("id", params.cardId)
+    .single();
+
+  if (fetchErr || !current) throw new Error(fetchErr?.message || "Carte introuvable");
+
+  const currentSpent = Number(current.vip_spent ?? 0);
+  const previousTier = (current.vip_tier as VipTier) || "bronze";
+  const silverThreshold = Number(current.vip_silver_threshold ?? 15000);
+  const goldThreshold = Number(current.vip_gold_threshold ?? 30000);
+
+  const newSpent = currentSpent + params.amount;
+  let newTier: VipTier = "bronze";
+  if (newSpent >= goldThreshold) {
+    newTier = "gold";
+  } else if (newSpent >= silverThreshold) {
+    newTier = "silver";
+  } else {
+    newTier = "bronze";
+  }
+
+  const { error: updateErr } = await supabase
+    .from("loyalty_cards")
+    .update({
+      vip_spent: newSpent,
+      vip_tier: newTier,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", params.cardId);
+
+  if (updateErr) throw new Error(updateErr.message);
+
+  return {
+    newSpent,
+    newTier,
+    previousTier,
+    tierUpgraded: newTier !== previousTier,
   };
 }

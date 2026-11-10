@@ -51,6 +51,28 @@ alter table public.profiles add column if not exists phone text;
 
 alter table public.merchants add column if not exists subscription_expires_at timestamptz;
 
+-- ─── 2d. Colonnes pour les 3 types de cartes (VIP, Points, Tampons) ───────────
+
+alter table public.loyalty_cards add column if not exists card_type text not null default 'points';
+alter table public.loyalty_cards add column if not exists card_name text;
+alter table public.loyalty_cards add column if not exists theme_id text default 'aurora';
+
+-- Tampons
+alter table public.loyalty_cards add column if not exists stamps_count integer default 0;
+alter table public.loyalty_cards add column if not exists stamps_target integer default 10;
+alter table public.loyalty_cards add column if not exists stamp_reward text default '1 produit offert au 10ème passage';
+alter table public.loyalty_cards add column if not exists stamp_conditions text;
+
+-- VIP
+alter table public.loyalty_cards add column if not exists vip_tier text default 'bronze';
+alter table public.loyalty_cards add column if not exists vip_spent numeric default 0;
+alter table public.loyalty_cards add column if not exists vip_bronze_threshold numeric default 0;
+alter table public.loyalty_cards add column if not exists vip_silver_threshold numeric default 15000;
+alter table public.loyalty_cards add column if not exists vip_gold_threshold numeric default 30000;
+alter table public.loyalty_cards add column if not exists vip_bronze_benefits text default '-5% de réduction';
+alter table public.loyalty_cards add column if not exists vip_silver_benefits text default '-10% de réduction + Cadeau';
+alter table public.loyalty_cards add column if not exists vip_gold_benefits text default '-15% de réduction + Accès prioritaire';
+
 
 -- ─── 3. Trigger handle_new_user ───────────────────────────────────────────────
 -- Crée automatiquement le profil et la fiche commerce si le rôle est 'merchant'
@@ -348,16 +370,20 @@ create policy "lp_public"
 
 
 -- ─── 11. RPC : merchant_create_card — crée une carte sans toucher à la session ─
--- Le commerçant appelle cette fonction ; elle crée le profil fantôme + la carte
--- en SECURITY DEFINER (bypass RLS) sans déconnecter le commerçant.
+-- Supporte les 3 types de cartes : 'points', 'vip', 'stamps'
 
 drop function if exists public.merchant_create_card(text, uuid);
 drop function if exists public.merchant_create_card(text, uuid, text);
+drop function if exists public.merchant_create_card(text, uuid, text, text, text, text, jsonb);
 
 create or replace function public.merchant_create_card(
   p_customer_name text,
   p_merchant_id   uuid,
-  p_phone         text default null
+  p_phone         text default null,
+  p_card_type     text default 'points',
+  p_card_name     text default null,
+  p_theme_id      text default 'aurora',
+  p_config        jsonb default '{}'::jsonb
 )
 returns json
 language plpgsql
@@ -374,6 +400,7 @@ declare
   v_hash        text;
   v_dummy_pwd   text;
   v_clean_phone text;
+  v_type        text := coalesce(nullif(trim(p_card_type), ''), 'points');
 begin
   -- Vérifier que l'appelant est bien le propriétaire du commerce
   select owner_id into v_owner_id
@@ -445,28 +472,74 @@ begin
     set full_name = excluded.full_name,
         phone     = coalesce(excluded.phone, public.profiles.phone);
 
-  -- Récupérer ou créer la carte
+  -- Récupérer ou créer la carte avec son type
   select * into v_card
   from public.loyalty_cards
-  where customer_id = v_customer_id and merchant_id = p_merchant_id;
+  where customer_id = v_customer_id and merchant_id = p_merchant_id and card_type = v_type;
 
   if not found then
-    insert into public.loyalty_cards (customer_id, merchant_id)
-    values (v_customer_id, p_merchant_id)
+    insert into public.loyalty_cards (
+      customer_id,
+      merchant_id,
+      card_type,
+      card_name,
+      theme_id,
+      points,
+      total_earned,
+      stamps_count,
+      stamps_target,
+      stamp_reward,
+      stamp_conditions,
+      vip_tier,
+      vip_spent,
+      vip_bronze_threshold,
+      vip_silver_threshold,
+      vip_gold_threshold,
+      vip_bronze_benefits,
+      vip_silver_benefits,
+      vip_gold_benefits
+    ) values (
+      v_customer_id,
+      p_merchant_id,
+      v_type,
+      p_card_name,
+      coalesce(nullif(trim(p_theme_id), ''), 'aurora'),
+      coalesce((p_config->>'initial_points')::integer, 0),
+      coalesce((p_config->>'initial_points')::integer, 0),
+      0,
+      coalesce((p_config->>'stamps_target')::integer, 10),
+      coalesce(p_config->>'stamp_reward', '1 produit offert au 10ème passage'),
+      p_config->>'stamp_conditions',
+      'bronze',
+      0,
+      coalesce((p_config->>'bronze_threshold')::numeric, 0),
+      coalesce((p_config->>'silver_threshold')::numeric, 15000),
+      coalesce((p_config->>'gold_threshold')::numeric, 30000),
+      coalesce(p_config->>'bronze_benefits', '-5% de réduction'),
+      coalesce(p_config->>'silver_benefits', '-10% de réduction + Cadeau'),
+      coalesce(p_config->>'gold_benefits', '-15% de réduction + Accès prioritaire')
+    )
     returning * into v_card;
   end if;
 
   return json_build_object(
     'card_id',       v_card.id,
     'qr_token',      v_card.qr_token,
+    'card_type',     v_card.card_type,
+    'card_name',     v_card.card_name,
+    'theme_id',      v_card.theme_id,
     'points',        v_card.points,
+    'stamps_count',  v_card.stamps_count,
+    'stamps_target', v_card.stamps_target,
+    'vip_tier',      v_card.vip_tier,
+    'vip_spent',     v_card.vip_spent,
     'customer_name', p_customer_name,
     'phone',         v_clean_phone
   );
 end;
 $$;
 
-grant execute on function public.merchant_create_card(text, uuid, text) to authenticated;
+grant execute on function public.merchant_create_card(text, uuid, text, text, text, text, jsonb) to authenticated;
 
 
 -- =============================================================================

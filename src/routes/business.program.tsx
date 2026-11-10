@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, Save } from "lucide-react";
+import { Award, Check, Crown, Flame, Save, Sparkles, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -73,8 +73,22 @@ function getInitials(name: string) {
 }
 
 export function VirtualCard({
-  theme, businessName, category, points = 120, customerName, qrToken,
-  selected, onClick, compact = false,
+  theme,
+  businessName,
+  category,
+  points = 120,
+  customerName,
+  qrToken,
+  selected,
+  onClick,
+  compact = false,
+  cardType = "points",
+  cardName,
+  stampsCount = 0,
+  stampsTarget = 10,
+  stampReward,
+  vipTier = "bronze",
+  vipSpent = 0,
 }: {
   theme: (typeof themes)[number];
   businessName: string;
@@ -85,16 +99,30 @@ export function VirtualCard({
   selected?: boolean;
   onClick?: () => void;
   compact?: boolean;
+  cardType?: "points" | "vip" | "stamps";
+  cardName?: string;
+  stampsCount?: number;
+  stampsTarget?: number;
+  stampReward?: string;
+  vipTier?: "bronze" | "silver" | "gold";
+  vipSpent?: number;
 }) {
   const initials = getInitials(businessName);
   const isLight = theme.textColor === "#1a1d21";
+
+  const tierColors: Record<string, { label: string; badgeBg: string; text: string; border: string }> = {
+    bronze: { label: "BRONZE", badgeBg: "rgba(180, 83, 9, 0.4)", text: "#fed7aa", border: "rgba(251, 146, 60, 0.5)" },
+    silver: { label: "SILVER", badgeBg: "rgba(148, 163, 184, 0.4)", text: "#f1f5f9", border: "rgba(203, 213, 225, 0.6)" },
+    gold: { label: "GOLD", badgeBg: "rgba(234, 179, 8, 0.4)", text: "#fef08a", border: "rgba(250, 204, 21, 0.7)" },
+  };
+  const currentTier = tierColors[vipTier] || tierColors.bronze;
 
   return (
     <button
       onClick={onClick}
       className={cn(
         "relative box-border grid w-full cursor-pointer grid-rows-[1fr_auto] overflow-hidden rounded-2xl text-left transition-all duration-300",
-        compact ? "h-[145px] sm:h-[160px] p-3.5 sm:p-4" : "min-h-[190px] sm:h-[227px] p-4 sm:p-6",
+        compact ? "h-[150px] sm:h-[165px] p-3.5 sm:p-4" : "min-h-[195px] sm:h-[230px] p-4 sm:p-6",
         "shadow-[0_4px_20px_rgb(0_0_0/30%),0_12px_40px_rgb(0_0_0/20%)]",
         selected
           ? "ring-4 ring-white/70 ring-offset-2 ring-offset-transparent scale-[1.03]"
@@ -115,12 +143,28 @@ export function VirtualCard({
         </span>
       )}
 
+      {/* Header section */}
       <div className="relative z-10 flex items-start justify-between">
-        <div>
-          <p className="text-[9px] font-semibold uppercase tracking-[2px]" style={{ color: theme.textColor, opacity: 0.6 }}>
-            Carte de fidélité
-          </p>
-          <p className={cn("mt-0.5 max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap font-bold tracking-wide", compact ? "text-sm" : "text-base")}
+        <div className="min-w-0 pr-2">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span
+              className="text-[9px] font-bold uppercase tracking-[1.5px] px-1.5 py-0.5 rounded-md"
+              style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(4px)" }}
+            >
+              {cardType === "vip"
+                ? "CARTE VIP"
+                : cardType === "stamps"
+                ? "CARTE À TAMPONS"
+                : "CARTE DE FIDÉLITÉ"}
+            </span>
+            {cardName && (
+              <span className="text-[10px] opacity-80 truncate max-w-[140px]">
+                · {cardName}
+              </span>
+            )}
+          </div>
+
+          <p className={cn("mt-1 max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap font-bold tracking-wide", compact ? "text-sm" : "text-base")}
             style={{ color: theme.textColor, textShadow: "0 1px 8px rgba(0,0,0,0.2)" }}>
             {businessName}
           </p>
@@ -128,34 +172,89 @@ export function VirtualCard({
             <p className="text-[10px]" style={{ color: theme.textColor, opacity: 0.55 }}>{category}</p>
           )}
         </div>
-        <div className="flex flex-col items-end gap-2">
+
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
           <span
             className={cn("flex items-center justify-center rounded-xl font-bold", isLight ? "text-white" : "text-white", compact ? "size-8 text-xs" : "size-10 text-sm")}
             style={{ background: "rgba(255,255,255,0.2)", backdropFilter: "blur(8px)", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}
           >
             {initials}
           </span>
+          {cardType === "vip" && (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase shadow-sm"
+              style={{
+                background: currentTier.badgeBg,
+                color: currentTier.text,
+                border: `1px solid ${currentTier.border}`,
+                backdropFilter: "blur(6px)",
+              }}
+            >
+              <Crown className="size-2.5" />
+              {currentTier.label}
+            </span>
+          )}
         </div>
       </div>
 
-      <div className="relative z-10 flex items-end justify-between">
-        <div>
+      {/* Bottom section depending on cardType */}
+      <div className="relative z-10 flex items-end justify-between pt-2">
+        <div className="min-w-0">
           {customerName && (
-            <p className={cn("font-medium truncate max-w-[160px] sm:max-w-[200px]", compact ? "text-xs mb-0.5" : "text-sm mb-1")}
+            <p className={cn("font-medium truncate max-w-[180px] sm:max-w-[220px]", compact ? "text-xs mb-0.5" : "text-sm mb-1")}
               style={{ color: theme.textColor, opacity: 0.9 }}>
               {customerName}
             </p>
           )}
-          <p className="text-[9px] font-semibold uppercase tracking-[2px]" style={{ color: theme.textColor, opacity: 0.6 }}>Points</p>
-          <p className={cn("font-bold leading-tight", compact ? "text-lg" : "text-2xl")}
-            style={{ color: theme.textColor, textShadow: "0 1px 8px rgba(0,0,0,0.2)" }}>
-            {points}
-          </p>
+
+          {cardType === "vip" ? (
+            <div>
+              <p className="text-[9px] font-semibold uppercase tracking-[1.5px]" style={{ color: theme.textColor, opacity: 0.7 }}>
+                Achats cumulés
+              </p>
+              <p className={cn("font-bold leading-tight flex items-baseline gap-1", compact ? "text-base sm:text-lg" : "text-xl sm:text-2xl")}
+                style={{ color: theme.textColor, textShadow: "0 1px 8px rgba(0,0,0,0.2)" }}>
+                <span>{vipSpent.toLocaleString("fr-FR")}</span>
+                <span className="text-xs font-normal opacity-80">DA</span>
+              </p>
+            </div>
+          ) : cardType === "stamps" ? (
+            <div>
+              <p className="text-[9px] font-semibold uppercase tracking-[1.5px]" style={{ color: theme.textColor, opacity: 0.7 }}>
+                Tampons validés
+              </p>
+              <p className={cn("font-bold leading-tight", compact ? "text-base sm:text-lg" : "text-xl sm:text-2xl")}
+                style={{ color: theme.textColor, textShadow: "0 1px 8px rgba(0,0,0,0.2)" }}>
+                {stampsCount} <span className="text-xs font-normal opacity-80">/ {stampsTarget}</span>
+              </p>
+            </div>
+          ) : (
+            <div>
+              <p className="text-[9px] font-semibold uppercase tracking-[2px]" style={{ color: theme.textColor, opacity: 0.6 }}>Points</p>
+              <p className={cn("font-bold leading-tight", compact ? "text-lg" : "text-2xl")}
+                style={{ color: theme.textColor, textShadow: "0 1px 8px rgba(0,0,0,0.2)" }}>
+                {points}
+              </p>
+            </div>
+          )}
         </div>
-        <div className="text-right">
-          <p className="text-[9px] font-medium uppercase tracking-widest" style={{ color: theme.textColor, opacity: 0.5 }}>
-            {theme.label}
-          </p>
+
+        <div className="text-right shrink-0">
+          {cardType === "stamps" && stampReward ? (
+            <div className="max-w-[140px] text-right">
+              <span
+                className="inline-block text-[9px] px-2 py-0.5 rounded-md truncate max-w-full font-medium"
+                style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(4px)" }}
+                title={stampReward}
+              >
+                🎁 {stampReward}
+              </span>
+            </div>
+          ) : (
+            <p className="text-[9px] font-medium uppercase tracking-widest" style={{ color: theme.textColor, opacity: 0.55 }}>
+              {theme.label}
+            </p>
+          )}
         </div>
       </div>
     </button>

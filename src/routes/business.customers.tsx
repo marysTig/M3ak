@@ -1,5 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, Copy, Edit2, MessageCircle, Phone, Plus, Search, Share2, Smartphone, Users } from "lucide-react";
+import {
+  Award,
+  Check,
+  CheckCircle2,
+  Copy,
+  Crown,
+  Edit2,
+  Gift,
+  MessageCircle,
+  Phone,
+  Plus,
+  Search,
+  Share2,
+  Smartphone,
+  Sparkles,
+  Ticket,
+  Users,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -17,11 +34,12 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/lib/supabase";
 import { getMerchantCustomers, type CustomerWithCard } from "@/lib/db/customers";
-import { addPoints } from "@/lib/db/cards";
+import { addPoints, addStamps, redeemStamps, addVipSpending } from "@/lib/db/cards";
 import { getCardTransactions } from "@/lib/db/transactions";
 import type { Transaction } from "@/lib/db/transactions";
 import { getLoyaltyProgram } from "@/lib/db/program";
 import { getMyMerchant } from "@/lib/db/merchants";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/business/customers")({
   head: () => ({
@@ -101,6 +119,15 @@ function CustomersPage() {
   const [pointsInput, setPointsInput] = useState("");
   const [pointsError, setPointsError] = useState("");
   const [addingPoints, setAddingPoints] = useState(false);
+
+  // Actions VIP
+  const [vipSpendInput, setVipSpendInput] = useState("");
+  const [addingVipSpend, setAddingVipSpend] = useState(false);
+
+  // Actions Tampons
+  const [stampsAdding, setStampsAdding] = useState(false);
+  const [redeemingReward, setRedeemingReward] = useState(false);
+
   const [cardTx, setCardTx] = useState<Transaction[]>([]);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
@@ -198,9 +225,9 @@ function CustomersPage() {
     setSelected(c);
     setPointsInput("");
     setPointsError("");
+    setVipSpendInput("");
     setEditingPhone(false);
     setPhoneInput(c.customer.phone || "");
-    setPointsError("");
     // Charger les dernières transactions de la carte
     try {
       const tx = await getCardTransactions(c.card.id);
@@ -239,6 +266,108 @@ function CustomersPage() {
       toast.error(err instanceof Error ? err.message : "Erreur lors de l'ajout.");
     } finally {
       setAddingPoints(false);
+    }
+  }
+
+  async function handleAddVipSpend(e?: React.FormEvent, directAmount?: number) {
+    if (e) e.preventDefault();
+    if (!selected || !merchantId) return;
+    const amount = directAmount ?? Number(vipSpendInput);
+    if (!amount || amount <= 0) {
+      toast.error("Veuillez saisir un montant d'achat valide.");
+      return;
+    }
+    setAddingVipSpend(true);
+    try {
+      const res = await addVipSpending({ cardId: selected.card.id, amount });
+      if (res.tierUpgraded) {
+        toast.success(`🎉 Félicitations ! ${selected.customer.full_name} passe au niveau ${res.newTier.toUpperCase()} !`, {
+          description: `Total achats : ${res.newSpent.toLocaleString()} DA`,
+        });
+      } else {
+        toast.success(`+${amount.toLocaleString()} DA enregistrés`, {
+          description: `Total achats : ${res.newSpent.toLocaleString()} DA (Niveau ${res.newTier.toUpperCase()})`,
+        });
+      }
+      setVipSpendInput("");
+      setSelected((prev) =>
+        prev
+          ? {
+              ...prev,
+              card: {
+                ...prev.card,
+                vip_spent: res.newSpent,
+                vip_tier: res.newTier,
+              },
+            }
+          : null
+      );
+      if (merchantId) await reload(merchantId);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de l'enregistrement de l'achat.");
+    } finally {
+      setAddingVipSpend(false);
+    }
+  }
+
+  async function handleAddStamps(count: number = 1) {
+    if (!selected || !merchantId) return;
+    setStampsAdding(true);
+    try {
+      const res = await addStamps({ cardId: selected.card.id, count });
+      if (res.completed) {
+        toast.success(`🎉 Carte complétée pour ${selected.customer.full_name} !`, {
+          description: `Récompense débloquée : ${selected.card.stamp_reward || "Cadeau offert"}`,
+        });
+      } else {
+        toast.success(`+${count} tampon${count > 1 ? "s" : ""} validé${count > 1 ? "s" : ""}`, {
+          description: `${res.newCount} / ${res.target} tampons`,
+        });
+      }
+      setSelected((prev) =>
+        prev
+          ? {
+              ...prev,
+              card: {
+                ...prev.card,
+                stamps_count: res.newCount,
+              },
+            }
+          : null
+      );
+      if (merchantId) await reload(merchantId);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de l'ajout des tampons.");
+    } finally {
+      setStampsAdding(false);
+    }
+  }
+
+  async function handleRedeemStampReward() {
+    if (!selected || !merchantId) return;
+    setRedeemingReward(true);
+    try {
+      const target = selected.card.stamps_target || 10;
+      const res = await redeemStamps({ cardId: selected.card.id, stampsTarget: target });
+      toast.success(`Cadeau remis avec succès à ${selected.customer.full_name} !`, {
+        description: `La carte a été renouvelée. Tampons restants : ${res.newCount}`,
+      });
+      setSelected((prev) =>
+        prev
+          ? {
+              ...prev,
+              card: {
+                ...prev.card,
+                stamps_count: res.newCount,
+              },
+            }
+          : null
+      );
+      if (merchantId) await reload(merchantId);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la remise de la récompense.");
+    } finally {
+      setRedeemingReward(false);
     }
   }
 
@@ -291,244 +420,567 @@ function CustomersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="px-3 sm:px-4">Client</TableHead>
-                  <TableHead className="text-right px-3 sm:px-4">Points</TableHead>
-                  <TableHead className="hidden sm:table-cell text-right">Total gagné</TableHead>
+                  <TableHead className="text-right px-3 sm:px-4">Fidélité / Solde</TableHead>
+                  <TableHead className="hidden sm:table-cell text-right">Activité cumulée</TableHead>
                   <TableHead className="hidden md:table-cell">Inscrit</TableHead>
                   <TableHead className="hidden sm:table-cell">Statut</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((c) => (
-                  <TableRow key={c.card.id} className="cursor-pointer hover:bg-accent active:bg-accent/80 transition-colors"
-                    onClick={() => openSheet(c)}>
-                    <TableCell className="px-3 sm:px-4 py-3">
-                      <div className="flex items-center gap-2.5 sm:gap-3">
-                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">
-                          {initials(c.customer.full_name)}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">{c.customer.full_name}</p>
-                          {c.customer.phone ? (
-                            <p className="text-xs text-muted-foreground truncate">{c.customer.phone}</p>
-                          ) : (
-                            <p className="text-xs text-muted-foreground/60 italic sm:hidden">Sans numéro</p>
-                          )}
+                {rows.map((c) => {
+                  const cardType = c.card.card_type || "points";
+                  return (
+                    <TableRow
+                      key={c.card.id}
+                      className="cursor-pointer hover:bg-accent active:bg-accent/80 transition-colors"
+                      onClick={() => openSheet(c)}
+                    >
+                      <TableCell className="px-3 sm:px-4 py-3">
+                        <div className="flex items-center gap-2.5 sm:gap-3">
+                          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">
+                            {initials(c.customer.full_name)}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{c.customer.full_name}</p>
+                            {c.customer.phone ? (
+                              <p className="text-xs text-muted-foreground truncate">{c.customer.phone}</p>
+                            ) : (
+                              <p className="text-xs text-muted-foreground/60 italic sm:hidden">Sans numéro</p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right font-semibold px-3 sm:px-4 py-3 whitespace-nowrap">
-                      <span className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs sm:text-sm font-bold text-primary">
-                        {c.card.points} pts
-                      </span>
-                    </TableCell>
-                    <TableCell className="hidden text-right text-muted-foreground sm:table-cell">
-                      {c.card.total_earned}
-                    </TableCell>
-                    <TableCell className="hidden text-muted-foreground md:table-cell">
-                      {c.joinedFormatted}
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell"><StatusBadge status={c.status} /></TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+
+                      {/* Colonne Type / Solde */}
+                      <TableCell className="text-right font-semibold px-3 sm:px-4 py-3 whitespace-nowrap">
+                        {cardType === "vip" ? (
+                          <div className="flex flex-col items-end">
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase",
+                                c.card.vip_tier === "gold"
+                                  ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                                  : c.card.vip_tier === "silver"
+                                  ? "bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30"
+                                  : "bg-orange-500/15 text-orange-700 dark:text-orange-400 border border-orange-500/30"
+                              )}
+                            >
+                              <Crown className="size-3" />
+                              VIP {c.card.vip_tier || "bronze"}
+                            </span>
+                            <span className="text-[10px] sm:text-xs text-muted-foreground font-mono mt-0.5">
+                              {(c.card.vip_spent ?? 0).toLocaleString()} DA
+                            </span>
+                          </div>
+                        ) : cardType === "stamps" ? (
+                          <div className="flex flex-col items-end">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                              <Ticket className="size-3" />
+                              {c.card.stamps_count ?? 0} / {c.card.stamps_target ?? 10}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground mt-0.5">Tampons</span>
+                          </div>
+                        ) : (
+                          <span className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs sm:text-sm font-bold text-primary">
+                            {c.card.points} pts
+                          </span>
+                        )}
+                      </TableCell>
+
+                      {/* Activité cumulée */}
+                      <TableCell className="hidden text-right text-muted-foreground sm:table-cell text-xs font-mono">
+                        {cardType === "vip"
+                          ? `${(c.card.vip_spent ?? 0).toLocaleString()} DA`
+                          : cardType === "stamps"
+                          ? `${c.card.stamps_count ?? 0} tampon${(c.card.stamps_count ?? 0) > 1 ? "s" : ""}`
+                          : `${c.card.total_earned} pts`}
+                      </TableCell>
+
+                      <TableCell className="hidden text-muted-foreground md:table-cell text-xs">
+                        {c.joinedFormatted}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <StatusBadge status={c.status} />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
         )}
       </div>
 
-      {/* Fiche client */}
+      {/* ========================================================================= */}
+      {/* FICHE CLIENT (SHEET DRAWER)                                               */}
+      {/* ========================================================================= */}
       <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-md p-4 sm:p-6">
-          {selected && (
-            <>
-              <SheetHeader>
-                <SheetTitle>{selected.customer.full_name}</SheetTitle>
-                <SheetDescription>
-                  {selected.customer.phone ? `${selected.customer.phone} · ` : ""}Inscrit le {selected.joinedFormatted}
-                </SheetDescription>
-              </SheetHeader>
+          {selected && (() => {
+            const cardType = selected.card.card_type || "points";
+            const cardTheme = themes.find((t) => t.id === selected.card.theme_id) ?? selectedTheme;
 
-              <div className="mt-6 space-y-5">
-                {/* Carte virtuelle */}
-                <VirtualCard
-                  theme={selectedTheme}
-                  businessName={merchantName}
-                  points={selected.card.points}
-                  compact
-                />
+            // Calculs VIP
+            const vipSpent = Number(selected.card.vip_spent ?? 0);
+            const vipTier = selected.card.vip_tier || "bronze";
+            const silverThreshold = Number(selected.card.vip_silver_threshold ?? 15000);
+            const goldThreshold = Number(selected.card.vip_gold_threshold ?? 30000);
 
-                {/* Solde */}
-                <div className="rounded-xl bg-surface-muted p-5 text-center space-y-1">
-                  <p className="font-display text-4xl font-bold text-primary">
-                    {selected.card.points} pts
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Total cumulé : {selected.card.total_earned} pts
-                  </p>
-                </div>
+            let nextThreshold = silverThreshold;
+            let nextTierName = "Silver";
+            if (vipTier === "silver") {
+              nextThreshold = goldThreshold;
+              nextTierName = "Gold";
+            }
+            const progressPercent =
+              vipTier === "gold"
+                ? 100
+                : Math.min(100, Math.round((vipSpent / nextThreshold) * 100));
 
-                {/* Numéro de téléphone du client */}
-                <div className="rounded-xl border p-3.5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                      <Phone className="size-3.5" />
-                      Numéro de téléphone
-                    </p>
-                    {!editingPhone && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xs"
-                        onClick={() => {
-                          setPhoneInput(selected.customer.phone || "");
-                          setEditingPhone(true);
-                        }}
-                      >
-                        <Edit2 className="mr-1 size-3" />
-                        {selected.customer.phone ? "Modifier" : "Ajouter"}
-                      </Button>
-                    )}
+            // Calculs Tampons
+            const stampsCount = Number(selected.card.stamps_count ?? 0);
+            const stampsTarget = Number(selected.card.stamps_target ?? 10);
+            const stampsCompleted = stampsCount >= stampsTarget;
+
+            return (
+              <>
+                <SheetHeader>
+                  <div className="flex items-center gap-2">
+                    <SheetTitle>{selected.customer.full_name}</SheetTitle>
+                    <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border">
+                      {cardType === "vip" ? "VIP" : cardType === "stamps" ? "Tampons" : "Points"}
+                    </span>
                   </div>
+                  <SheetDescription>
+                    {selected.customer.phone ? `${selected.customer.phone} · ` : ""}Inscrit le {selected.joinedFormatted}
+                  </SheetDescription>
+                </SheetHeader>
 
-                  {editingPhone ? (
-                    <div className="space-y-2 pt-1">
-                      <Input
-                        type="tel"
-                        placeholder="07XXXXXXXX"
-                        value={phoneInput}
-                        onChange={(e) => setPhoneInput(e.target.value)}
-                        className="h-8 text-xs font-mono"
-                        autoFocus
-                      />
-                      <div className="flex justify-end gap-2">
+                <div className="mt-5 space-y-4">
+                  {/* Carte virtuelle interactive */}
+                  <VirtualCard
+                    theme={cardTheme}
+                    businessName={merchantName}
+                    customerName={selected.customer.full_name}
+                    cardType={cardType}
+                    cardName={selected.card.card_name || undefined}
+                    points={selected.card.points}
+                    stampsCount={stampsCount}
+                    stampsTarget={stampsTarget}
+                    stampReward={selected.card.stamp_reward || undefined}
+                    vipTier={vipTier}
+                    vipSpent={vipSpent}
+                    compact
+                  />
+
+                  {/* ───────────────────────────────────────────────────────────── */}
+                  {/* BLOC ÉTAT : VIP                                               */}
+                  {/* ───────────────────────────────────────────────────────────── */}
+                  {cardType === "vip" && (
+                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Crown className="size-4 text-amber-500" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                            Niveau {vipTier.toUpperCase()}
+                          </span>
+                        </div>
+                        <span className="font-mono text-xs font-bold text-foreground">
+                          {vipSpent.toLocaleString()} DA
+                        </span>
+                      </div>
+
+                      {/* Barre de progression vers le palier suivant */}
+                      {vipTier !== "gold" ? (
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[11px] text-muted-foreground">
+                            <span>Progression vers {nextTierName}</span>
+                            <span>{vipSpent.toLocaleString()} / {nextThreshold.toLocaleString()} DA</span>
+                          </div>
+                          <div className="h-2 w-full rounded-full bg-surface-muted overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-amber-500 transition-all duration-300"
+                              style={{ width: `${progressPercent}%` }}
+                            />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground text-right">
+                            Encore {Math.max(0, nextThreshold - vipSpent).toLocaleString()} DA pour passer {nextTierName}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+                          <Sparkles className="size-3.5" /> Niveau maximal Gold atteint !
+                        </p>
+                      )}
+
+                      {/* Avantages du niveau */}
+                      <div className="pt-2 border-t border-amber-500/20 text-xs space-y-1">
+                        <p className="font-semibold text-foreground">Avantages accordés :</p>
+                        <p className="text-muted-foreground">
+                          {vipTier === "gold"
+                            ? selected.card.vip_gold_benefits || "-15% de réduction + Accès prioritaire"
+                            : vipTier === "silver"
+                            ? selected.card.vip_silver_benefits || "-10% de réduction + Cadeau"
+                            : selected.card.vip_bronze_benefits || "-5% de réduction"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ───────────────────────────────────────────────────────────── */}
+                  {/* BLOC ÉTAT : TAMPONS                                           */}
+                  {/* ───────────────────────────────────────────────────────────── */}
+                  {cardType === "stamps" && (
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Ticket className="size-4 text-emerald-600 dark:text-emerald-400" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                            Carte à Tampons
+                          </span>
+                        </div>
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400 text-xs">
+                          {stampsCount} / {stampsTarget} tampons
+                        </span>
+                      </div>
+
+                      {/* Grille visuelle de tampons */}
+                      <div className="grid grid-cols-5 gap-2 py-1">
+                        {Array.from({ length: stampsTarget }).map((_, idx) => {
+                          const isStamped = idx < stampsCount;
+                          const isLast = idx === stampsTarget - 1;
+                          return (
+                            <div
+                              key={idx}
+                              className={cn(
+                                "aspect-square rounded-xl flex flex-col items-center justify-center font-bold text-xs border transition-all",
+                                isStamped
+                                  ? "bg-emerald-500 text-white border-emerald-600 shadow-sm"
+                                  : isLast
+                                  ? "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                                  : "bg-surface text-muted-foreground border-border"
+                              )}
+                            >
+                              {isStamped ? (
+                                <Check className="size-4 stroke-[3]" />
+                              ) : isLast ? (
+                                <Gift className="size-4" />
+                              ) : (
+                                <span>{idx + 1}</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Récompense */}
+                      <div className="rounded-lg bg-surface-muted p-2.5 space-y-0.5">
+                        <p className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
+                          <Gift className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                          {selected.card.stamp_reward || "1 produit offert au 10ème passage"}
+                        </p>
+                        {selected.card.stamp_conditions && (
+                          <p className="text-[10px] text-muted-foreground italic">
+                            {selected.card.stamp_conditions}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ───────────────────────────────────────────────────────────── */}
+                  {/* BLOC ÉTAT : POINTS                                            */}
+                  {/* ───────────────────────────────────────────────────────────── */}
+                  {cardType === "points" && (
+                    <div className="rounded-xl bg-surface-muted p-4 text-center space-y-1">
+                      <p className="font-display text-4xl font-bold text-primary">
+                        {selected.card.points} pts
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Total cumulé : {selected.card.total_earned} pts
+                      </p>
+                    </div>
+                  )}
+
+                  {/* ───────────────────────────────────────────────────────────── */}
+                  {/* ACTIONS SPÉCIFIQUES                                           */}
+                  {/* ───────────────────────────────────────────────────────────── */}
+
+                  {/* Action VIP : Ajouter un montant d'achat */}
+                  {cardType === "vip" && (
+                    <form onSubmit={(e) => handleAddVipSpend(e)} className="space-y-2.5 rounded-xl border p-3.5">
+                      <Label htmlFor="vip-amount" className="text-xs font-bold">
+                        Enregistrer un achat (DA)
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="vip-amount"
+                          type="number"
+                          placeholder="Montant en DA (ex: 2500)"
+                          value={vipSpendInput}
+                          onChange={(e) => setVipSpendInput(e.target.value)}
+                          className="h-9 text-xs font-mono"
+                        />
+                        <Button type="submit" disabled={addingVipSpend || !vipSpendInput} className="h-9 px-3 text-xs">
+                          {addingVipSpend ? "..." : "+ Ajouter"}
+                        </Button>
+                      </div>
+
+                      {/* Boutons rapides */}
+                      <div className="flex gap-1.5 pt-1">
+                        {[1000, 3000, 5000, 10000].map((amt) => (
+                          <button
+                            key={amt}
+                            type="button"
+                            onClick={() => handleAddVipSpend(undefined, amt)}
+                            disabled={addingVipSpend}
+                            className="flex-1 py-1 rounded-md text-[10px] font-mono border bg-surface-muted hover:bg-accent transition-colors"
+                          >
+                            +{amt.toLocaleString()}
+                          </button>
+                        ))}
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Action Tampons : +1, +2, ou remise récompense */}
+                  {cardType === "stamps" && (
+                    <div className="space-y-2.5 rounded-xl border p-3.5">
+                      {stampsCompleted ? (
+                        <div className="space-y-2">
+                          <div className="rounded-lg bg-emerald-500/15 p-2.5 text-center text-xs text-emerald-800 dark:text-emerald-300 font-semibold border border-emerald-500/30">
+                            🎉 Objectif atteint ! Le client a droit à sa récompense.
+                          </div>
+                          <Button
+                            type="button"
+                            onClick={handleRedeemStampReward}
+                            disabled={redeemingReward}
+                            className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md"
+                          >
+                            <Gift className="size-4 mr-2" />
+                            {redeemingReward ? "Validation..." : "Valider la remise du cadeau"}
+                          </Button>
+                        </div>
+                      ) : (
+                        <div>
+                          <Label className="text-xs font-bold block mb-2">
+                            Valider des tampons
+                          </Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button
+                              type="button"
+                              onClick={() => handleAddStamps(1)}
+                              disabled={stampsAdding}
+                              className="h-10 text-xs font-semibold"
+                            >
+                              <Plus className="size-3.5 mr-1" /> 1 Tampon
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => handleAddStamps(2)}
+                              disabled={stampsAdding}
+                              className="h-10 text-xs font-semibold"
+                            >
+                              <Plus className="size-3.5 mr-1" /> 2 Tampons
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Action Points : Ajouter des points */}
+                  {cardType === "points" && (
+                    <form onSubmit={handleAddPoints} className="space-y-2.5 rounded-xl border p-3.5">
+                      <Label htmlFor="pts" className="text-xs font-bold">
+                        Ajouter des points
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="pts"
+                          inputMode="numeric"
+                          placeholder="ex: 20"
+                          value={pointsInput}
+                          onChange={(e) => {
+                            setPointsInput(e.target.value);
+                            setPointsError("");
+                          }}
+                          className="h-9 text-xs"
+                        />
+                        <Button type="submit" disabled={addingPoints || !pointsInput} className="h-9 px-3 text-xs">
+                          {addingPoints ? "…" : "+ Ajouter"}
+                        </Button>
+                      </div>
+                      {pointsError && <p className="text-xs text-destructive">{pointsError}</p>}
+                    </form>
+                  )}
+
+                  {/* ───────────────────────────────────────────────────────────── */}
+                  {/* NUMÉRO DE TÉLÉPHONE DU CLIENT                                 */}
+                  {/* ───────────────────────────────────────────────────────────── */}
+                  <div className="rounded-xl border p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                        <Phone className="size-3.5" />
+                        Numéro de téléphone
+                      </p>
+                      {!editingPhone && (
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => setEditingPhone(false)}
-                          disabled={savingPhone}
+                          className="h-7 px-2 text-xs"
+                          onClick={() => {
+                            setPhoneInput(selected.customer.phone || "");
+                            setEditingPhone(true);
+                          }}
                         >
-                          Annuler
+                          <Edit2 className="mr-1 size-3" />
+                          {selected.customer.phone ? "Modifier" : "Ajouter"}
                         </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={handleSavePhone}
-                          disabled={savingPhone}
-                        >
-                          {savingPhone ? "Enregistrement…" : "Enregistrer"}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm font-medium font-mono">
-                      {selected.customer.phone || (
-                        <span className="text-xs text-muted-foreground italic font-sans">
-                          Aucun numéro enregistré
-                        </span>
                       )}
-                    </p>
-                  )}
-                </div>
+                    </div>
 
-                {/* Partage du lien de la carte */}
-                <div className="rounded-xl border p-4 space-y-3">
-                  <p className="text-sm font-semibold">Partager la carte</p>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 truncate rounded-md bg-surface-muted px-2 py-1.5 text-xs font-mono">
-                      {buildCardLink(selected.card.qr_token)}
-                    </code>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="shrink-0"
-                      onClick={() => handleCopyLink(selected.card.qr_token)}
-                    >
-                      <Copy className="size-4" />
-                      {copiedToken === selected.card.qr_token ? "Copié !" : "Copier"}
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => handleShareWhatsApp(selected)}
-                      className="bg-[#25D366] hover:bg-[#1ebe59] text-white"
-                    >
-                      <MessageCircle className="size-4" />
-                      WhatsApp
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleShareSMS(selected)}
-                    >
-                      <Smartphone className="size-4" />
-                      SMS
-                    </Button>
-                  </div>
-                  {typeof window !== "undefined" && navigator.share && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={async () => {
-                        try {
-                          await navigator.share({
-                            title: `Carte de fidélité ${merchantName}`,
-                            text: `Bonjour ${selected.customer.full_name} , Voici votre carte de fidélité *${merchantName}* :\n Ouvrez ce lien pour voir vos points et récompenses`,
-                            url: buildCardLink(selected.card.qr_token),
-                          });
-                        } catch { /* annulé */ }
-                      }}
-                    >
-                      <Share2 className="size-4" />
-                      Partager via l'appareil
-                    </Button>
-                  )}
-                </div>
-
-                {/* Ajout de points */}
-                <form onSubmit={handleAddPoints} className="space-y-3">
-                  <Label htmlFor="pts">Ajouter des points</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="pts" inputMode="numeric" placeholder="ex: 20"
-                      value={pointsInput}
-                      onChange={(e) => { setPointsInput(e.target.value); setPointsError(""); }}
-                    />
-                    <Button type="submit" disabled={addingPoints || !pointsInput}>
-                      {addingPoints ? "…" : "+"}
-                    </Button>
-                  </div>
-                  {pointsError && <p className="text-xs text-destructive">{pointsError}</p>}
-                </form>
-
-                {/* Historique transactions */}
-                {cardTx.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold">Dernières transactions</p>
-                    <ul className="space-y-1">
-                      {cardTx.map((t) => (
-                        <li key={t.id} className="flex items-center justify-between rounded-lg bg-surface-muted px-3 py-2 text-xs">
-                          <span className="text-muted-foreground">{t.description}</span>
-                          <span className={t.points_delta > 0 ? "font-semibold text-success" : "font-semibold text-destructive"}>
-                            {t.points_delta > 0 ? "+" : ""}{t.points_delta}
+                    {editingPhone ? (
+                      <div className="space-y-2 pt-1">
+                        <Input
+                          type="tel"
+                          placeholder="07XXXXXXXX"
+                          value={phoneInput}
+                          onChange={(e) => setPhoneInput(e.target.value)}
+                          className="h-8 text-xs font-mono"
+                          autoFocus
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => setEditingPhone(false)}
+                            disabled={savingPhone}
+                          >
+                            Annuler
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={handleSavePhone}
+                            disabled={savingPhone}
+                          >
+                            {savingPhone ? "Enregistrement…" : "Enregistrer"}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm font-medium font-mono">
+                        {selected.customer.phone || (
+                          <span className="text-xs text-muted-foreground italic font-sans">
+                            Aucun numéro enregistré
                           </span>
-                        </li>
-                      ))}
-                    </ul>
+                        )}
+                      </p>
+                    )}
                   </div>
-                )}
-              </div>
-            </>
-          )}
+
+                  {/* ───────────────────────────────────────────────────────────── */}
+                  {/* PARTAGE DU LIEN DE LA CARTE                                   */}
+                  {/* ───────────────────────────────────────────────────────────── */}
+                  <div className="rounded-xl border p-4 space-y-3">
+                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Partager la carte
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 truncate rounded-md bg-surface-muted px-2 py-1.5 text-xs font-mono">
+                        {buildCardLink(selected.card.qr_token)}
+                      </code>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => handleCopyLink(selected.card.qr_token)}
+                      >
+                        <Copy className="size-4" />
+                        {copiedToken === selected.card.qr_token ? "Copié !" : "Copier"}
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleShareWhatsApp(selected)}
+                        className="bg-[#25D366] hover:bg-[#1ebe59] text-white"
+                      >
+                        <MessageCircle className="size-4" />
+                        WhatsApp
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleShareSMS(selected)}
+                      >
+                        <Smartphone className="size-4" />
+                        SMS
+                      </Button>
+                    </div>
+                    {typeof window !== "undefined" && navigator.share && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={async () => {
+                          try {
+                            await navigator.share({
+                              title: `Carte de fidélité ${merchantName}`,
+                              text: `Bonjour ${selected.customer.full_name} , Voici votre carte de fidélité *${merchantName}* :\n Ouvrez ce lien pour voir vos avantages et récompenses`,
+                              url: buildCardLink(selected.card.qr_token),
+                            });
+                          } catch {
+                            // annulé
+                          }
+                        }}
+                      >
+                        <Share2 className="size-4" />
+                        Partager via l'appareil
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Historique transactions (pour points) */}
+                  {cardTx.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-semibold">Dernières transactions</p>
+                      <ul className="space-y-1">
+                        {cardTx.map((t) => (
+                          <li
+                            key={t.id}
+                            className="flex items-center justify-between rounded-lg bg-surface-muted px-3 py-2 text-xs"
+                          >
+                            <span className="text-muted-foreground">{t.description}</span>
+                            <span
+                              className={
+                                t.points_delta > 0
+                                  ? "font-semibold text-success"
+                                  : "font-semibold text-destructive"
+                              }
+                            >
+                              {t.points_delta > 0 ? "+" : ""}
+                              {t.points_delta}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
         </SheetContent>
       </Sheet>
 

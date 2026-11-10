@@ -2,6 +2,7 @@
  * db/customers.ts — Gestion des clients (vue commerçant et admin)
  */
 import { supabase } from "../supabase";
+import type { CardType, VipTier } from "./cards";
 
 export interface CustomerWithCard {
   customer: {
@@ -18,6 +19,21 @@ export interface CustomerWithCard {
     status: "active" | "inactive" | "suspended";
     created_at: string;
     updated_at: string;
+    card_type?: CardType;
+    card_name?: string | null;
+    theme_id?: string | null;
+    stamps_count?: number;
+    stamps_target?: number;
+    stamp_reward?: string | null;
+    stamp_conditions?: string | null;
+    vip_tier?: VipTier;
+    vip_spent?: number;
+    vip_bronze_threshold?: number;
+    vip_silver_threshold?: number;
+    vip_gold_threshold?: number;
+    vip_bronze_benefits?: string | null;
+    vip_silver_benefits?: string | null;
+    vip_gold_benefits?: string | null;
   };
   status: "active" | "inactive" | "new";
   joinedFormatted: string;
@@ -28,7 +44,7 @@ export async function getMerchantCustomers(merchantId: string): Promise<Customer
   const { data, error } = await supabase
     .from("loyalty_cards")
     .select(`
-      id, qr_token, points, total_earned, status, created_at, updated_at,
+      *,
       profiles!loyalty_cards_customer_id_fkey (
         id, full_name, phone
       )
@@ -54,11 +70,26 @@ export async function getMerchantCustomers(merchantId: string): Promise<Customer
       card: {
         id: row.id,
         qr_token: row.qr_token,
-        points: row.points,
-        total_earned: row.total_earned,
+        points: row.points ?? 0,
+        total_earned: row.total_earned ?? 0,
         status: row.status,
         created_at: row.created_at,
         updated_at: row.updated_at,
+        card_type: (row.card_type as CardType) || "points",
+        card_name: row.card_name,
+        theme_id: row.theme_id || "aurora",
+        stamps_count: row.stamps_count ?? 0,
+        stamps_target: row.stamps_target ?? 10,
+        stamp_reward: row.stamp_reward ?? "1 produit offert au 10ème passage",
+        stamp_conditions: row.stamp_conditions,
+        vip_tier: (row.vip_tier as VipTier) || "bronze",
+        vip_spent: Number(row.vip_spent ?? 0),
+        vip_bronze_threshold: Number(row.vip_bronze_threshold ?? 0),
+        vip_silver_threshold: Number(row.vip_silver_threshold ?? 15000),
+        vip_gold_threshold: Number(row.vip_gold_threshold ?? 30000),
+        vip_bronze_benefits: row.vip_bronze_benefits ?? "-5% de réduction",
+        vip_silver_benefits: row.vip_silver_benefits ?? "-10% de réduction + Cadeau",
+        vip_gold_benefits: row.vip_gold_benefits ?? "-15% de réduction + Accès prioritaire",
       },
       status,
       joinedFormatted: new Date(row.created_at).toLocaleDateString("fr-FR", {
