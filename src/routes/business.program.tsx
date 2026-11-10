@@ -14,9 +14,9 @@ import type { Merchant } from "@/lib/auth";
 export const Route = createFileRoute("/business/program")({
   head: () => ({
     meta: [
-      { title: "Ma carte — M3ak Loyalty" },
+      { title: "Modifier ma carte — M3ak Loyalty" },
       { name: "description", content: "Personnalisez l'apparence de votre carte de fidélité virtuelle." },
-      { property: "og:title", content: "Ma carte — M3ak Loyalty" },
+      { property: "og:title", content: "Modifier ma carte — M3ak Loyalty" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -199,7 +199,7 @@ function MaCartePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Ma carte virtuelle"
+        title="Modifier ma carte"
         subtitle="Choisissez le thème Mesh Gradient de votre carte."
         actions={
           <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">

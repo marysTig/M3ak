@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useMatchRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Home, IdCard, LogOut, Settings, Share2, Users } from "lucide-react";
+import { ArrowLeft, Home, IdCard, LogOut, Settings, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/lib/supabase";
@@ -13,8 +13,7 @@ export const Route = createFileRoute("/business")({
 const navItems = [
   { to: "/business" as const, label: "Accueil", icon: Home, exact: true },
   { to: "/business/customers" as const, label: "Clients", icon: Users },
-  { to: "/business/program" as const, label: "Ma Carte", icon: IdCard },
-  { to: "/business/qr" as const, label: "Lien", icon: Share2 },
+  { to: "/business/program" as const, label: "Modifier ma carte", icon: IdCard },
   { to: "/business/settings" as const, label: "Paramètres", icon: Settings },
 ];
 

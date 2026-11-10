@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertCircle, CheckCircle2, IdCard, Settings, Share2, UserPlus, Users } from "lucide-react";
+import { AlertCircle, CheckCircle2, IdCard, Settings, UserPlus, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -13,10 +13,28 @@ export const Route = createFileRoute("/business/")({
 });
 
 const menuItems = [
-  { to: "/business/program", label: "Ma carte", icon: IdCard, color: "bg-blue-500/10 text-blue-500" },
-  { to: "/business/customers", label: "Mes clients", icon: Users, color: "bg-green-500/10 text-green-500" },
-  { to: "/business/qr", label: "Partager mon lien", icon: Share2, color: "bg-purple-500/10 text-purple-500" },
-  { to: "/business/settings", label: "Paramètres", icon: Settings, color: "bg-orange-500/10 text-orange-500" },
+  {
+    to: "/business/program",
+    label: "Modifier ma carte",
+    sub: "Personnaliser le thème de votre carte",
+    icon: IdCard,
+    color: "bg-blue-500/10 text-blue-500",
+    featured: true,
+  },
+  {
+    to: "/business/customers",
+    label: "Mes clients",
+    icon: Users,
+    color: "bg-green-500/10 text-green-500",
+    featured: false,
+  },
+  {
+    to: "/business/settings",
+    label: "Paramètres",
+    icon: Settings,
+    color: "bg-orange-500/10 text-orange-500",
+    featured: false,
+  },
 ];
 
 function Overview() {
@@ -114,18 +132,34 @@ function Overview() {
       </div>
 
       <div className="grid w-full max-w-md grid-cols-2 gap-3 sm:gap-4">
-        {menuItems.map((item) => (
-          <Link
-            key={item.to}
-            to={item.to}
-            className="flex flex-col items-center justify-center gap-2.5 sm:gap-3 rounded-2xl border border-border bg-surface p-4 sm:p-6 text-center transition-all hover:bg-accent hover:shadow-[var(--shadow-soft)] active:scale-95"
-          >
-            <span className={`flex size-12 sm:size-14 items-center justify-center rounded-full ${item.color}`}>
-              <item.icon className="size-5 sm:size-6" />
-            </span>
-            <span className="text-xs sm:text-sm font-medium">{item.label}</span>
-          </Link>
-        ))}
+        {menuItems.map((item) =>
+          item.featured ? (
+            <Link
+              key={item.to}
+              to={item.to}
+              className="col-span-2 flex items-center gap-3.5 sm:gap-4 rounded-2xl border border-border bg-surface p-4 sm:p-5 text-left transition-all hover:bg-accent hover:shadow-[var(--shadow-soft)] active:scale-95"
+            >
+              <span className={`flex size-12 sm:size-14 items-center justify-center rounded-full shrink-0 ${item.color}`}>
+                <item.icon className="size-6" />
+              </span>
+              <div className="min-w-0">
+                <span className="block text-sm sm:text-base font-semibold text-foreground">{item.label}</span>
+                <span className="block text-xs text-muted-foreground">{item.sub}</span>
+              </div>
+            </Link>
+          ) : (
+            <Link
+              key={item.to}
+              to={item.to}
+              className="flex flex-col items-center justify-center gap-2.5 sm:gap-3 rounded-2xl border border-border bg-surface p-4 sm:p-6 text-center transition-all hover:bg-accent hover:shadow-[var(--shadow-soft)] active:scale-95"
+            >
+              <span className={`flex size-12 sm:size-14 items-center justify-center rounded-full ${item.color}`}>
+                <item.icon className="size-5 sm:size-6" />
+              </span>
+              <span className="text-xs sm:text-sm font-medium">{item.label}</span>
+            </Link>
+          )
+        )}
       </div>
 
       {/* Statut du compte */}
