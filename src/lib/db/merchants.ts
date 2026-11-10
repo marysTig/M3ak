@@ -18,7 +18,7 @@ export async function activateMerchant(merchantId: string, duration: ActivationD
   if (duration === "1year") {
     expires.setFullYear(expires.getFullYear() + 1);
   } else {
-    expires.setMonth(expires.getMonth() + 1);
+    expires.setDate(now.getDate() + 30);
   }
 
   const { data, error } = await supabase
@@ -67,6 +67,19 @@ export async function getMyMerchant(): Promise<Merchant | null> {
     if (created) data = created;
   }
 
+  // Désactivation automatique si la date d'abonnement est expirée
+  if (data && data.subscription_expires_at) {
+    const isExpired = new Date(data.subscription_expires_at).getTime() <= Date.now();
+    if (isExpired && data.status === "active") {
+      data.status = "suspended";
+      supabase
+        .from("merchants")
+        .update({ status: "suspended", updated_at: new Date().toISOString() })
+        .eq("id", data.id)
+        .then();
+    }
+  }
+
   return data as Merchant | null;
 }
 
@@ -104,7 +117,22 @@ export async function getAllMerchants(status?: "active" | "pending" | "suspended
 
   const { data, error } = await q;
   if (error) throw new Error(error.message);
-  return data ?? [];
+
+  const now = Date.now();
+  const list = (data ?? []).map((m) => {
+    // Si l'abonnement a expiré et qu'il était actif, le passer en suspended automatiquement
+    if (m.subscription_expires_at && new Date(m.subscription_expires_at).getTime() <= now && m.status === "active") {
+      m.status = "suspended";
+      supabase
+        .from("merchants")
+        .update({ status: "suspended", updated_at: new Date().toISOString() })
+        .eq("id", m.id)
+        .then();
+    }
+    return m;
+  });
+
+  return list;
 }
 
 /** Changer le statut d'un commerce (admin) */

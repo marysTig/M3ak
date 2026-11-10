@@ -41,6 +41,8 @@ function Overview() {
   const [newCardOpen, setNewCardOpen] = useState(false);
   const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
+  const [totalDays, setTotalDays] = useState<number>(30);
+  const [expiryFormatted, setExpiryFormatted] = useState<string>("");
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -73,23 +75,49 @@ function Overview() {
       }
 
       if (data) {
-        setMerchant(data as Merchant);
-        // Calculer les jours restants depuis la création du compte
-        const created = new Date(data.created_at);
-        const subscriptionEnd = new Date(created.getTime() + 30 * 24 * 60 * 60 * 1000);
-        const remaining = Math.max(0, Math.ceil((subscriptionEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
-        setDaysRemaining(remaining);
+        const m = data as Merchant;
+        const now = Date.now();
+        const isExpiredByDate = m.subscription_expires_at
+          ? new Date(m.subscription_expires_at).getTime() <= now
+          : false;
+
+        const effectiveStatus = (isExpiredByDate || m.status === "suspended") ? "suspended" : m.status;
+        setMerchant({ ...m, status: effectiveStatus });
+
+        if (m.subscription_expires_at) {
+          const expDate = new Date(m.subscription_expires_at);
+          const diffMs = expDate.getTime() - now;
+          const remaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+          setDaysRemaining(remaining);
+          setExpiryFormatted(expDate.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }));
+
+          // Estimer la durée totale de l'activation (30 jours ou 365 jours)
+          const baseDate = new Date(m.updated_at || m.created_at).getTime();
+          const approxDays = Math.round((expDate.getTime() - baseDate) / (1000 * 60 * 60 * 24));
+          setTotalDays(approxDays > 60 ? 365 : 30);
+
+          // Si expiré mais statut encore actif en DB, désactiver automatiquement
+          if (isExpiredByDate && m.status === "active") {
+            supabase
+              .from("merchants")
+              .update({ status: "suspended", updated_at: new Date().toISOString() })
+              .eq("id", m.id)
+              .then();
+          }
+        } else {
+          setDaysRemaining(null);
+        }
       }
     });
   }, []);
 
   const name = merchant?.name ?? "Mon commerce";
-  const isSuspended = merchant?.status === "suspended";
+  const isSuspended = merchant?.status === "suspended" || (daysRemaining !== null && daysRemaining <= 0);
 
   function handleNewCardClick() {
     if (isSuspended) {
-      toast.error("Compte désactivé", {
-        description: "Votre compte est actuellement désactivé par l'administrateur. Veuillez contacter le support.",
+      toast.error("Compte désactivé ou expiré", {
+        description: "Votre période d'activation a expiré ou votre compte est désactivé. Veuillez contacter l'administrateur pour renouveler.",
       });
       return;
     }
@@ -106,9 +134,16 @@ function Overview() {
       {isSuspended && (
         <div className="mb-5 flex w-full max-w-md items-center gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 p-3.5 sm:p-4 text-destructive">
           <AlertCircle className="size-5 shrink-0" />
-          <p className="text-xs">
-            Votre compte est désactivé par l'administrateur. Certaines fonctionnalités sont temporairement restreintes.
-          </p>
+          <div className="text-xs">
+            <p className="font-semibold">
+              {daysRemaining !== null && daysRemaining <= 0 ? "Abonnement expiré" : "Compte désactivé"}
+            </p>
+            <p className="mt-0.5 opacity-90">
+              {daysRemaining !== null && daysRemaining <= 0
+                ? "Votre période d'activation a pris fin. Le compte a été désactivé automatiquement. Contactez l'administrateur pour renouveler."
+                : "Votre compte est désactivé par l'administrateur. Certaines fonctionnalités sont temporairement restreintes."}
+            </p>
+          </div>
         </div>
       )}
 
@@ -171,10 +206,10 @@ function Overview() {
             </div>
             <div>
               <h3 className="text-xs sm:text-sm font-semibold">
-                {merchant?.status === "active" ? "Compte Activé" : isSuspended ? "Compte Désactivé" : "En attente de validation"}
+                {isSuspended ? "Compte Expiré / Désactivé" : merchant?.status === "active" ? "Compte Activé" : "En attente de validation"}
               </h3>
               <p className="text-[11px] sm:text-xs text-muted-foreground">
-                {isSuspended ? "Désactivé par l'administrateur" : merchant?.plan ? `Plan ${merchant.plan}` : "Compte actif"}
+                {isSuspended ? "Activation terminée" : merchant?.plan ? `Plan ${merchant.plan}` : "Compte actif"}
               </p>
             </div>
           </div>
@@ -184,15 +219,25 @@ function Overview() {
           </div>
         </div>
 
-        {daysRemaining !== null && (
-          <div className="space-y-2">
+        {merchant?.subscription_expires_at && (
+          <div className="space-y-2 pt-2 border-t border-border/50">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-medium text-primary">{daysRemaining} jours restants</span>
-              <span className="text-muted-foreground">Sur 30 jours</span>
+              <span className={`font-semibold ${isSuspended ? "text-destructive" : (daysRemaining ?? 0) <= 7 ? "text-warning font-semibold" : "text-primary"}`}>
+                {isSuspended
+                  ? "Période d'activation expirée"
+                  : `${daysRemaining} jour${(daysRemaining ?? 0) > 1 ? "s" : ""} restant${(daysRemaining ?? 0) > 1 ? "s" : ""}`}
+              </span>
+              <span className="text-muted-foreground text-[11px]">
+                {totalDays >= 365 ? "Durée : 1 an" : "Durée : 1 mois (30j)"}
+              </span>
             </div>
-            <Progress value={(daysRemaining / 30) * 100} className="h-2 bg-secondary" />
+            {!isSuspended && daysRemaining !== null && daysRemaining > 0 && (
+              <Progress value={Math.min(100, Math.max(0, (daysRemaining / totalDays) * 100))} className="h-2 bg-secondary" />
+            )}
             <p className="mt-1 text-center text-[10px] text-muted-foreground">
-              Le décompte a commencé lors de l'activation
+              {isSuspended
+                ? `Expiré le ${expiryFormatted || "—"}`
+                : `Date de fin : ${expiryFormatted} (désactivation automatique)`}
             </p>
           </div>
         )}

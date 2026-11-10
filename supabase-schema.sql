@@ -645,6 +645,20 @@ begin
     raise exception 'Accès refusé : vous n''êtes pas le propriétaire de ce commerce.';
   end if;
 
+  -- Vérifier si le commerce est suspendu ou si son abonnement a expiré
+  if exists (
+    select 1 from public.merchants
+    where id = p_merchant_id
+      and (status = 'suspended' or (subscription_expires_at is not null and subscription_expires_at < now()))
+  ) and not public.is_admin() then
+    -- Mettre à jour automatiquement le statut en 'suspended' si expiré
+    update public.merchants
+    set status = 'suspended', updated_at = now()
+    where id = p_merchant_id and subscription_expires_at < now();
+
+    raise exception 'Votre compte est suspendu ou votre période d''activation a expiré. Veuillez contacter l''administrateur.';
+  end if;
+
   v_clean_phone := nullif(trim(p_phone), '');
 
   v_hash       := substr(md5(p_customer_name || coalesce(v_clean_phone, '') || p_merchant_id::text || now()::text || random()::text), 1, 8);
