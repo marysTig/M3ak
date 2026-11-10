@@ -197,7 +197,7 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
     if (!created) return;
     const waPhone = formatWhatsAppPhone(form.phone);
     const msg = encodeURIComponent(
-      `Bonjour ${created.customerName} 👋\n\nVoici votre carte de fidélité *${merchantName}* :\n${created.cardLink}\n\nOuvrez ce lien pour voir vos points et récompenses 🎁`
+      `Bonjour ${created.customerName} , Voici votre carte de fidélité *${merchantName}* : ${created.cardLink}\n Ouvrez ce lien pour voir vos points et récompenses`
     );
     const url = waPhone
       ? `https://wa.me/${waPhone}?text=${msg}`
@@ -209,7 +209,7 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
     if (!created) return;
     const smsPhone = formatSMSPhone(form.phone);
     const body = encodeURIComponent(
-      `Bonjour ${created.customerName}, voici votre carte de fidélité ${merchantName} : ${created.cardLink}`
+      `Bonjour ${created.customerName} , Voici votre carte de fidélité *${merchantName}* : ${created.cardLink}\n Ouvrez ce lien pour voir vos points et récompenses`
     );
     const url = smsPhone ? `sms:${smsPhone}?body=${body}` : `sms:?body=${body}`;
     window.open(url, "_self");
@@ -220,7 +220,7 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
     try {
       await navigator.share({
         title: `Carte de fidélité ${merchantName}`,
-        text: `Bonjour ${created.customerName}, voici votre carte de fidélité ${merchantName} !`,
+        text: `Bonjour ${created.customerName} , Voici votre carte de fidélité *${merchantName}* :\n Ouvrez ce lien pour voir vos points et récompenses`,
         url: created.cardLink,
       });
     } catch {

@@ -157,7 +157,7 @@ function CustomersPage() {
   function handleShareWhatsApp(c: CustomerWithCard) {
     const link = buildCardLink(c.card.qr_token);
     const msg = encodeURIComponent(
-      `Bonjour ${c.customer.full_name} 👋\n\nVoici votre carte de fidélité *${merchantName}* :\n${link}\n\nOuvrez ce lien pour voir vos points 🎁`
+      `Bonjour ${c.customer.full_name} , Voici votre carte de fidélité *${merchantName}* : ${link}\n Ouvrez ce lien pour voir vos points et récompenses`
     );
     let waPhone = "";
     if (c.customer.phone) {
@@ -174,7 +174,7 @@ function CustomersPage() {
   function handleShareSMS(c: CustomerWithCard) {
     const link = buildCardLink(c.card.qr_token);
     const body = encodeURIComponent(
-      `Bonjour ${c.customer.full_name}, voici votre carte de fidélité ${merchantName} : ${link}`
+      `Bonjour ${c.customer.full_name} , Voici votre carte de fidélité *${merchantName}* : ${link}\n Ouvrez ce lien pour voir vos points et récompenses`
     );
     const smsPhone = c.customer.phone?.trim().replace(/\s+/g, "") || "";
     const url = smsPhone ? `sms:${smsPhone}?body=${body}` : `sms:?body=${body}`;
@@ -496,7 +496,7 @@ function CustomersPage() {
                         try {
                           await navigator.share({
                             title: `Carte de fidélité ${merchantName}`,
-                            text: `Bonjour ${selected.customer.full_name}, voici votre carte de fidélité !`,
+                            text: `Bonjour ${selected.customer.full_name} , Voici votre carte de fidélité *${merchantName}* :\n Ouvrez ce lien pour voir vos points et récompenses`,
                             url: buildCardLink(selected.card.qr_token),
                           });
                         } catch { /* annulé */ }
