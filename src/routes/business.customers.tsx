@@ -614,15 +614,27 @@ function CustomersPage() {
                       )}
 
                       {/* Avantages du niveau */}
-                      <div className="pt-2 border-t border-amber-500/20 text-xs space-y-1">
+                      <div className="pt-2 border-t border-amber-500/20 text-xs space-y-1.5">
                         <p className="font-semibold text-foreground">Avantages accordés :</p>
-                        <p className="text-muted-foreground">
-                          {vipTier === "gold"
-                            ? selected.card.vip_gold_benefits || "-15% de réduction + Accès prioritaire"
-                            : vipTier === "silver"
-                            ? selected.card.vip_silver_benefits || "-10% de réduction + Cadeau"
-                            : selected.card.vip_bronze_benefits || "-5% de réduction"}
-                        </p>
+                        {(() => {
+                          const raw =
+                            vipTier === "gold"
+                              ? selected.card.vip_gold_benefits || "-15% de réduction"
+                              : vipTier === "silver"
+                              ? selected.card.vip_silver_benefits || "-10% de réduction"
+                              : selected.card.vip_bronze_benefits || "-5% de réduction";
+                          const list = raw.split("|").map((s) => s.trim()).filter(Boolean);
+                          return (
+                            <div className="space-y-1">
+                              {list.map((item, idx) => (
+                                <div key={idx} className="flex items-center gap-1.5 text-muted-foreground text-[11px]">
+                                  <Sparkles className="size-3 text-amber-500 shrink-0" />
+                                  <span>{item}</span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   )}

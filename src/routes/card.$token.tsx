@@ -315,49 +315,82 @@ function PublicCardPage() {
               <div className="space-y-2 text-xs">
                 {/* Bronze */}
                 <div className={cn(
-                  "p-2.5 rounded-lg border flex items-center justify-between",
+                  "p-2.5 rounded-lg border flex items-start justify-between gap-2",
                   card.vip_spent >= card.vip_bronze_threshold
                     ? "bg-amber-500/10 border-amber-500/30 text-foreground"
                     : "bg-surface-muted opacity-60"
                 )}>
-                  <div>
+                  <div className="flex-1">
                     <span className="font-bold">🥉 Niveau Bronze</span>
-                    <p className="text-[11px] text-muted-foreground">{card.vip_bronze_benefits}</p>
+                    <div className="space-y-0.5 mt-0.5">
+                      {(card.vip_bronze_benefits || "-5% de réduction")
+                        .split("|")
+                        .map((s) => s.trim())
+                        .filter(Boolean)
+                        .map((b, i) => (
+                          <div key={i} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                            <span className="text-[10px] text-amber-500">•</span>
+                            <span>{b}</span>
+                          </div>
+                        ))}
+                    </div>
                   </div>
                   {card.vip_spent >= card.vip_bronze_threshold && (
-                    <CheckCircle2 className="size-4 text-amber-600 shrink-0" />
+                    <CheckCircle2 className="size-4 text-amber-600 shrink-0 mt-0.5" />
                   )}
                 </div>
 
                 {/* Silver */}
                 <div className={cn(
-                  "p-2.5 rounded-lg border flex items-center justify-between",
+                  "p-2.5 rounded-lg border flex items-start justify-between gap-2",
                   card.vip_spent >= card.vip_silver_threshold
                     ? "bg-slate-500/10 border-slate-500/30 text-foreground"
                     : "bg-surface-muted opacity-60"
                 )}>
-                  <div>
+                  <div className="flex-1">
                     <span className="font-bold">🥈 Niveau Silver (dès {card.vip_silver_threshold.toLocaleString()} DA)</span>
-                    <p className="text-[11px] text-muted-foreground">{card.vip_silver_benefits}</p>
+                    <div className="space-y-0.5 mt-0.5">
+                      {(card.vip_silver_benefits || "-10% de réduction")
+                        .split("|")
+                        .map((s) => s.trim())
+                        .filter(Boolean)
+                        .map((b, i) => (
+                          <div key={i} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                            <span className="text-[10px] text-slate-500">•</span>
+                            <span>{b}</span>
+                          </div>
+                        ))}
+                    </div>
                   </div>
                   {card.vip_spent >= card.vip_silver_threshold && (
-                    <CheckCircle2 className="size-4 text-slate-600 shrink-0" />
+                    <CheckCircle2 className="size-4 text-slate-600 shrink-0 mt-0.5" />
                   )}
                 </div>
 
                 {/* Gold */}
                 <div className={cn(
-                  "p-2.5 rounded-lg border flex items-center justify-between",
+                  "p-2.5 rounded-lg border flex items-start justify-between gap-2",
                   card.vip_spent >= card.vip_gold_threshold
                     ? "bg-yellow-500/10 border-yellow-500/30 text-foreground"
                     : "bg-surface-muted opacity-60"
                 )}>
-                  <div>
+                  <div className="flex-1">
                     <span className="font-bold">🥇 Niveau Gold (dès {card.vip_gold_threshold.toLocaleString()} DA)</span>
-                    <p className="text-[11px] text-muted-foreground">{card.vip_gold_benefits}</p>
+                    <div className="space-y-0.5 mt-0.5">
+                      {(card.vip_gold_benefits || "-15% de réduction")
+                        .split("|")
+                        .map((s) => s.trim())
+                        .filter(Boolean)
+                        .map((b, i) => (
+                          <div key={i} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                            <span className="text-[10px] text-yellow-500">•</span>
+                            <span>{b}</span>
+                          </div>
+                        ))}
+                    </div>
                   </div>
                   {card.vip_spent >= card.vip_gold_threshold && (
-                    <CheckCircle2 className="size-4 text-yellow-600 shrink-0" />
+                    <CheckCircle2 className="size-4 text-yellow-600 shrink-0 mt-0.5" />
                   )}
                 </div>
               </div>
