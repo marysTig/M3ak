@@ -191,6 +191,11 @@ create policy "rewards_admin"               on public.rewards for all using (pub
 drop policy if exists "cards_admin"          on public.loyalty_cards;
 create policy "cards_admin"                 on public.loyalty_cards for all using (public.is_admin());
 
+drop policy if exists "cards_merchant_update" on public.loyalty_cards;
+create policy "cards_merchant_update"       on public.loyalty_cards for update
+  using ((select owner_id from public.merchants where id = merchant_id) = auth.uid())
+  with check ((select owner_id from public.merchants where id = merchant_id) = auth.uid());
+
 drop policy if exists "tx_admin"             on public.transactions;
 create policy "tx_admin"                    on public.transactions for all using (public.is_admin());
 
@@ -520,6 +525,29 @@ begin
       coalesce(p_config->>'gold_benefits', '-15% de réduction + Accès prioritaire')
     )
     returning * into v_card;
+
+    -- Si des points de bienvenue sont attribués lors de la création, créer la transaction
+    if coalesce((p_config->>'initial_points')::integer, 0) > 0 then
+      insert into public.transactions (
+        card_id,
+        merchant_id,
+        created_by,
+        points_delta,
+        tx_type,
+        description,
+        previous_balance,
+        new_balance
+      ) values (
+        v_card.id,
+        p_merchant_id,
+        v_caller_id,
+        (p_config->>'initial_points')::integer,
+        'welcome',
+        'Points de bienvenue',
+        0,
+        (p_config->>'initial_points')::integer
+      );
+    end if;
   end if;
 
   return json_build_object(

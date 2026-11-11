@@ -43,7 +43,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 import { getLoyaltyProgram } from "@/lib/db/program";
-import type { CardType } from "@/lib/db/cards";
+import { addPoints, type CardType } from "@/lib/db/cards";
 import { cn } from "@/lib/utils";
 
 interface NewCardDialogProps {
@@ -358,7 +358,6 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
             card_type: cardType,
             card_name: resolvedCardName,
             theme_id: themeId,
-            points: Number(initialPoints) || 0,
             stamps_count: 0,
             stamps_target: Number(stampsTarget) || 10,
             stamp_reward: configPayload.stamp_reward,
@@ -370,8 +369,27 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
             vip_gold_threshold: configPayload.gold_threshold,
             vip_bronze_benefits: configPayload.bronze_benefits,
             vip_silver_benefits: configPayload.silver_benefits,
-            vip_gold_benefits: configPayload.gold_benefits,          })
+            vip_gold_benefits: configPayload.gold_benefits,
+          })
           .eq("id", cardResult.card_id);
+      }
+
+      // 3. Attribution garantie des points initiaux (Système de points)
+      const initPoints = cardType === "points" ? Math.max(0, Number(initialPoints) || 0) : 0;
+      if (initPoints > 0) {
+        const currentPoints = Number(cardResult.points ?? 0);
+        if (currentPoints < initPoints) {
+          try {
+            const added = await addPoints({
+              qrToken: cardResult.qr_token,
+              points: initPoints - currentPoints,
+              description: "Points de bienvenue",
+            });
+            cardResult.points = added.new_balance;
+          } catch (ptsErr) {
+            console.error("Erreur lors de l'ajout des points initiaux:", ptsErr);
+          }
+        }
       }
 
       const cardLink = buildCardLink(cardResult.qr_token);
@@ -382,7 +400,7 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
         qrToken: cardResult.qr_token,
         cardType,
         cardName: resolvedCardName || undefined,
-        points: Number(initialPoints) || 0,
+        points: cardResult.points ?? initPoints,
         stampsCount: 0,
         stampsTarget: Number(stampsTarget) || 10,
         stampReward: configPayload.stamp_reward,

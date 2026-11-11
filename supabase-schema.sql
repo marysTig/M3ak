@@ -523,6 +523,9 @@ create policy "cards_customer" on public.loyalty_cards for select
   using (customer_id = auth.uid());
 create policy "cards_merchant" on public.loyalty_cards for select
   using ((select owner_id from public.merchants where id = merchant_id) = auth.uid());
+create policy "cards_merchant_update" on public.loyalty_cards for update
+  using ((select owner_id from public.merchants where id = merchant_id) = auth.uid())
+  with check ((select owner_id from public.merchants where id = merchant_id) = auth.uid());
 create policy "cards_admin" on public.loyalty_cards for all
   using ((select role from public.profiles where id = auth.uid()) = 'admin');
 -- INTERDIT : pas d'update direct des points côté client — passe par RPC add_points
@@ -767,6 +770,29 @@ begin
       coalesce(p_config->>'gold_benefits', '-15% de réduction + Accès prioritaire')
     )
     returning * into v_card;
+
+    -- Si des points de bienvenue sont attribués lors de la création, créer la transaction
+    if coalesce((p_config->>'initial_points')::integer, 0) > 0 then
+      insert into public.transactions (
+        card_id,
+        merchant_id,
+        created_by,
+        points_delta,
+        tx_type,
+        description,
+        previous_balance,
+        new_balance
+      ) values (
+        v_card.id,
+        p_merchant_id,
+        v_caller_id,
+        (p_config->>'initial_points')::integer,
+        'welcome',
+        'Points de bienvenue',
+        0,
+        (p_config->>'initial_points')::integer
+      );
+    end if;
   end if;
 
   return json_build_object(
