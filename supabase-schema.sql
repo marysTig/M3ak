@@ -570,7 +570,8 @@ drop policy if exists "tx_merchant" on public.transactions;
 create policy "tx_merchant" on public.transactions for select
   using ((select owner_id from public.merchants where id = merchant_id) = auth.uid());
 
-drop policy if exists "tx_admin" on public.transactions for all
+drop policy if exists "tx_admin" on public.transactions;
+create policy "tx_admin" on public.transactions for all
   using ((select role from public.profiles where id = auth.uid()) = 'admin');
 
 -- reward_redemptions
