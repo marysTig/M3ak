@@ -50,21 +50,64 @@ export async function getMyMerchant(): Promise<Merchant | null> {
   if (!data && user.user_metadata?.role === "merchant") {
     const rawUser = (user.email ?? "").replace("@m3ak.app", "") || "moncommerce";
     const name = user.user_metadata?.full_name || rawUser;
-    const slug = rawUser.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    const baseSlug = rawUser.toLowerCase().replace(/[^a-z0-9]/g, "-") || "commerce";
 
-    const { data: created } = await supabase
+    // 1. S'assurer que le profil existe dans public.profiles (évite l'erreur de clé étrangère 409)
+    await supabase.from("profiles").upsert({
+      id: user.id,
+      full_name: name,
+      role: "merchant",
+    }, { onConflict: "id" });
+
+    // 2. Vérifier si un commerce existe déjà pour cet owner_id
+    const { data: existingByOwner } = await supabase
       .from("merchants")
-      .upsert({
-        owner_id: user.id,
-        name,
-        slug,
-        status: "active",
-        plan: "starter",
-      }, { onConflict: "slug" })
-      .select()
+      .select("*")
+      .eq("owner_id", user.id)
       .maybeSingle();
 
-    if (created) data = created;
+    if (existingByOwner) {
+      data = existingByOwner;
+    } else {
+      // 3. Tenter d'insérer avec un slug unique sans écraser d'autre commerce
+      let slug = baseSlug;
+      let inserted = null;
+
+      const res1 = await supabase
+        .from("merchants")
+        .insert({
+          owner_id: user.id,
+          name,
+          slug,
+          status: "active",
+          plan: "starter",
+        })
+        .select()
+        .maybeSingle();
+
+      if (!res1.error && res1.data) {
+        inserted = res1.data;
+      } else {
+        // En cas de conflit sur le slug, ajouter un suffixe unique
+        slug = `${baseSlug}-${user.id.slice(0, 5)}`;
+        const res2 = await supabase
+          .from("merchants")
+          .insert({
+            owner_id: user.id,
+            name,
+            slug,
+            status: "active",
+            plan: "starter",
+          })
+          .select()
+          .maybeSingle();
+        if (!res2.error && res2.data) {
+          inserted = res2.data;
+        }
+      }
+
+      if (inserted) data = inserted;
+    }
   }
 
   // Désactivation automatique si la date d'abonnement est expirée

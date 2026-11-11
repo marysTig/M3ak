@@ -147,6 +147,31 @@ update auth.users
 set email_confirmed_at = now()
 where email_confirmed_at is null;
 
+-- ─── 4b. Synchronisation rétroactive des profils et commerces existants ──────
+insert into public.profiles (id, full_name, phone, role)
+select
+  id,
+  coalesce(nullif(trim(raw_user_meta_data->>'full_name'), ''), split_part(email, '@', 1), 'Utilisateur'),
+  nullif(trim(raw_user_meta_data->>'phone'), ''),
+  coalesce(nullif(trim(raw_user_meta_data->>'role'), ''), 'merchant')
+from auth.users
+on conflict (id) do update set
+  full_name = excluded.full_name,
+  phone     = coalesce(excluded.phone, public.profiles.phone),
+  role      = excluded.role;
+
+insert into public.merchants (owner_id, name, slug, status, plan)
+select
+  u.id,
+  coalesce(nullif(trim(u.raw_user_meta_data->>'full_name'), ''), split_part(u.email, '@', 1), 'Mon Commerce'),
+  lower(regexp_replace(split_part(u.email, '@', 1), '[^a-zA-Z0-9]', '-', 'g')),
+  'active',
+  'starter'
+from auth.users u
+where coalesce(u.raw_user_meta_data->>'role', '') = 'merchant'
+   or u.email like '%@m3ak.app'
+on conflict (slug) do nothing;
+
 
 -- ─── 5. Table platform_settings ───────────────────────────────────────────────
 

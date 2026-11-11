@@ -127,14 +127,31 @@ function AuthPage() {
 
         if (!existingM) {
           const mName = data.user?.user_metadata?.full_name || cleanUser;
-          const slug = cleanUser.replace(/[^a-z0-9]/g, "-") || "commerce";
-          await supabase.from("merchants").upsert({
+          const baseSlug = cleanUser.replace(/[^a-z0-9]/g, "-") || "commerce";
+
+          // S'assurer que le profil existe d'abord
+          await supabase.from("profiles").upsert({
+            id: userId,
+            full_name: mName,
+            role: "merchant",
+          }, { onConflict: "id" });
+
+          const res = await supabase.from("merchants").insert({
             owner_id: userId,
             name: mName,
-            slug,
+            slug: baseSlug,
             status: "active",
             plan: "starter",
-          }, { onConflict: "slug" });
+          });
+          if (res.error) {
+            await supabase.from("merchants").insert({
+              owner_id: userId,
+              name: mName,
+              slug: `${baseSlug}-${userId.slice(0, 5)}`,
+              status: "active",
+              plan: "starter",
+            });
+          }
         }
 
         navigate({ to: "/business" });
@@ -199,15 +216,35 @@ function AuthPage() {
         password: form.password,
       });
 
-      // 3. Assurer que la fiche commerce est créée avec statut actif
-      const slug = cleanUser.replace(/[^a-z0-9]/g, "-") || "commerce";
-      const { data: mRow } = await supabase.from("merchants").upsert({
+      // 3. Assurer que le profil et la fiche commerce sont créés
+      const baseSlug = cleanUser.replace(/[^a-z0-9]/g, "-") || "commerce";
+      await supabase.from("profiles").upsert({
+        id: userId,
+        full_name: form.businessName.trim(),
+        role: "merchant",
+      }, { onConflict: "id" });
+
+      let mRow = null;
+      const res = await supabase.from("merchants").insert({
         owner_id: userId,
         name: form.businessName.trim(),
-        slug,
+        slug: baseSlug,
         status: "active",
         plan: "starter",
-      }, { onConflict: "slug" }).select().maybeSingle();
+      }).select().maybeSingle();
+
+      if (!res.error && res.data) {
+        mRow = res.data;
+      } else {
+        const res2 = await supabase.from("merchants").insert({
+          owner_id: userId,
+          name: form.businessName.trim(),
+          slug: `${baseSlug}-${userId.slice(0, 5)}`,
+          status: "active",
+          plan: "starter",
+        }).select().maybeSingle();
+        if (res2.data) mRow = res2.data;
+      }
 
       if (mRow) {
         await supabase.from("loyalty_programs").upsert({

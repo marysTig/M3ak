@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { NewCardDialog } from "@/components/app/new-card-dialog";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/lib/supabase";
+import { getMyMerchant } from "@/lib/db/merchants";
 import type { Merchant } from "@/lib/auth";
 
 export const Route = createFileRoute("/business/")({
@@ -45,37 +46,8 @@ function Overview() {
   const [expiryFormatted, setExpiryFormatted] = useState<string>("");
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return;
-      let { data } = await supabase
-        .from("merchants")
-        .select("*")
-        .eq("owner_id", user.id)
-        .maybeSingle();
-
-      // Si le commerce n'existe pas encore pour ce compte, on le crée automatiquement
-      if (!data) {
-        const rawUser = (user.email ?? "").replace("@m3ak.app", "") || "moncommerce";
-        const mName = user.user_metadata?.full_name || rawUser;
-        const slug = rawUser.toLowerCase().replace(/[^a-z0-9]/g, "-");
-
-        const { data: created } = await supabase
-          .from("merchants")
-          .upsert({
-            owner_id: user.id,
-            name: mName,
-            slug,
-            status: "active",
-            plan: "starter",
-          }, { onConflict: "slug" })
-          .select()
-          .maybeSingle();
-
-        if (created) data = created;
-      }
-
-      if (data) {
-        const m = data as Merchant;
+    getMyMerchant().then(async (m) => {
+      if (m) {
         const now = Date.now();
         const isExpiredByDate = m.subscription_expires_at
           ? new Date(m.subscription_expires_at).getTime() <= now

@@ -237,6 +237,32 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- ─── Synchronisation rétroactive des utilisateurs auth.users existants ─────────
+insert into public.profiles (id, full_name, phone, role)
+select
+  id,
+  coalesce(nullif(trim(raw_user_meta_data->>'full_name'), ''), split_part(email, '@', 1), 'Utilisateur'),
+  nullif(trim(raw_user_meta_data->>'phone'), ''),
+  coalesce(nullif(trim(raw_user_meta_data->>'role'), ''), 'merchant')
+from auth.users
+on conflict (id) do update set
+  full_name = excluded.full_name,
+  phone     = coalesce(excluded.phone, public.profiles.phone),
+  role      = excluded.role;
+
+-- Synchroniser les fiches commerce pour les comptes marchands existants
+insert into public.merchants (owner_id, name, slug, status, plan)
+select
+  u.id,
+  coalesce(nullif(trim(u.raw_user_meta_data->>'full_name'), ''), split_part(u.email, '@', 1), 'Mon Commerce'),
+  lower(regexp_replace(split_part(u.email, '@', 1), '[^a-zA-Z0-9]', '-', 'g')),
+  'active',
+  'starter'
+from auth.users u
+where coalesce(u.raw_user_meta_data->>'role', '') = 'merchant'
+   or u.email like '%@m3ak.app'
+on conflict (slug) do nothing;
+
 -- ─── RPC : add_points (atomique, SECURITY DEFINER) ───────────────────────────
 -- Le frontend appelle supabase.rpc('add_points', {...})
 -- La vérification du marchand se fait CÔTÉ SERVEUR via auth.uid()
