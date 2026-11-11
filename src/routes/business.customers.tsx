@@ -16,6 +16,7 @@ import {
   Sparkles,
   Ticket,
   Users,
+  RotateCcw,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -34,7 +35,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/lib/supabase";
 import { getMerchantCustomers, type CustomerWithCard } from "@/lib/db/customers";
-import { addPoints, addStamps, redeemStamps, addVipSpending } from "@/lib/db/cards";
+import { addPoints, addStamps, redeemStamps, addVipSpending, resetCardPoints } from "@/lib/db/cards";
 import { getCardTransactions } from "@/lib/db/transactions";
 import type { Transaction } from "@/lib/db/transactions";
 import { getLoyaltyProgram } from "@/lib/db/program";
@@ -119,6 +120,7 @@ function CustomersPage() {
   const [pointsInput, setPointsInput] = useState("");
   const [pointsError, setPointsError] = useState("");
   const [addingPoints, setAddingPoints] = useState(false);
+  const [resettingPoints, setResettingPoints] = useState(false);
 
   // Actions VIP
   const [vipSpendInput, setVipSpendInput] = useState("");
@@ -266,6 +268,35 @@ function CustomersPage() {
       toast.error(err instanceof Error ? err.message : "Erreur lors de l'ajout.");
     } finally {
       setAddingPoints(false);
+    }
+  }
+
+  async function handleResetPoints() {
+    if (!selected || !merchantId) return;
+    if (selected.card.points === 0) {
+      toast.info("Le solde est déjà à 0 point.");
+      return;
+    }
+    const currentPoints = selected.card.points;
+    const confirmed = window.confirm(
+      `Confirmez-vous la remise à zéro des points de ${selected.customer.full_name} (${currentPoints} pts actuellement) ?`
+    );
+    if (!confirmed) return;
+
+    setResettingPoints(true);
+    try {
+      await resetCardPoints(selected.card.id);
+      toast.success(`Points remis à 0 pour ${selected.customer.full_name} !`, {
+        description: `L'ancien solde de ${currentPoints} pts a été réinitialisé.`,
+      });
+      if (merchantId) await reload(merchantId);
+      setSelected((prev) => (prev ? { ...prev, card: { ...prev.card, points: 0 } } : null));
+      const tx = await getCardTransactions(selected.card.id);
+      setCardTx(tx.slice(0, 10));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la remise à zéro.");
+    } finally {
+      setResettingPoints(false);
     }
   }
 
@@ -802,30 +833,54 @@ function CustomersPage() {
                     </div>
                   )}
 
-                  {/* Action Points : Ajouter des points */}
+                  {/* Action Points : Ajouter des points & Remise à 0 */}
                   {cardType === "points" && (
-                    <form onSubmit={handleAddPoints} className="space-y-2.5 rounded-xl border p-3.5">
-                      <Label htmlFor="pts" className="text-xs font-bold">
-                        Ajouter des points
-                      </Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="pts"
-                          inputMode="numeric"
-                          placeholder="ex: 20"
-                          value={pointsInput}
-                          onChange={(e) => {
-                            setPointsInput(e.target.value);
-                            setPointsError("");
-                          }}
-                          className="h-9 text-xs"
-                        />
-                        <Button type="submit" disabled={addingPoints || !pointsInput} className="h-9 px-3 text-xs">
-                          {addingPoints ? "…" : "+ Ajouter"}
+                    <div className="space-y-3 rounded-xl border p-3.5 bg-surface-muted/30">
+                      <form onSubmit={handleAddPoints} className="space-y-2.5">
+                        <Label htmlFor="pts" className="text-xs font-bold">
+                          Ajouter des points
+                        </Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="pts"
+                            inputMode="numeric"
+                            placeholder="ex: 20"
+                            value={pointsInput}
+                            onChange={(e) => {
+                              setPointsInput(e.target.value);
+                              setPointsError("");
+                            }}
+                            className="h-9 text-xs bg-background"
+                          />
+                          <Button type="submit" disabled={addingPoints || !pointsInput} className="h-9 px-3 text-xs">
+                            {addingPoints ? "…" : "+ Ajouter"}
+                          </Button>
+                        </div>
+                        {pointsError && <p className="text-xs text-destructive">{pointsError}</p>}
+                      </form>
+
+                      {/* Remettre les points à zéro */}
+                      <div className="pt-2.5 border-t border-border flex items-center justify-between">
+                        <div className="text-left">
+                          <p className="text-xs font-semibold text-foreground">Remise à zéro</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Remet le solde actuel à 0 pt
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={resettingPoints || selected.card.points === 0}
+                          onClick={handleResetPoints}
+                          className="h-8 px-2.5 text-xs font-medium text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 shrink-0"
+                          title={selected.card.points === 0 ? "Le solde est déjà à 0" : "Remettre les points à zéro"}
+                        >
+                          <RotateCcw className={cn("size-3.5 mr-1.5", resettingPoints && "animate-spin")} />
+                          {resettingPoints ? "En cours…" : "Mettre à 0"}
                         </Button>
                       </div>
-                      {pointsError && <p className="text-xs text-destructive">{pointsError}</p>}
-                    </form>
+                    </div>
                   )}
 
                   {/* ───────────────────────────────────────────────────────────── */}

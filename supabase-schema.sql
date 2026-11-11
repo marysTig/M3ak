@@ -857,5 +857,62 @@ $$;
 
 grant execute on function public.merchant_create_card(text, uuid, text, text, text, text, jsonb) to authenticated;
 
+-- ─── RPC : reset_points — Remise à zéro des points d'une carte ───────────
+drop function if exists public.reset_points(uuid);
+
+create or replace function public.reset_points(p_card_id uuid)
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_caller_id   uuid := auth.uid();
+  v_card        public.loyalty_cards%rowtype;
+  v_merchant    public.merchants%rowtype;
+  v_prev_bal    integer;
+begin
+  if v_caller_id is null then
+    raise exception 'Non authentifié';
+  end if;
+
+  select * into v_card from public.loyalty_cards where id = p_card_id;
+  if not found then
+    raise exception 'Carte introuvable';
+  end if;
+
+  select * into v_merchant from public.merchants where id = v_card.merchant_id;
+  if not found or (v_merchant.owner_id <> v_caller_id and not public.is_admin()) then
+    raise exception 'Accès refusé : vous n''êtes pas le propriétaire de ce commerce';
+  end if;
+
+  v_prev_bal := coalesce(v_card.points, 0);
+
+  -- Mettre les points à 0
+  update public.loyalty_cards
+  set points = 0, updated_at = now()
+  where id = p_card_id;
+
+  -- Si la carte avait des points, créer une transaction d'ajustement
+  if v_prev_bal > 0 then
+    insert into public.transactions (
+      card_id, merchant_id, store_id, created_by,
+      points_delta, tx_type, description, previous_balance, new_balance
+    ) values (
+      v_card.id, v_card.merchant_id, v_card.store_id, v_caller_id,
+      -v_prev_bal, 'adjustment', 'Remise à zéro des points', v_prev_bal, 0
+    );
+  end if;
+
+  return json_build_object(
+    'card_id', p_card_id,
+    'previous_balance', v_prev_bal,
+    'new_balance', 0
+  );
+end;
+$$;
+
+grant execute on function public.reset_points(uuid) to authenticated;
+
 
 

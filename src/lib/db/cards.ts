@@ -305,3 +305,26 @@ export async function addVipSpending(params: {
     tierUpgraded: newTier !== previousTier,
   };
 }
+
+/** Remet les points d'une carte à zéro */
+export async function resetCardPoints(cardId: string): Promise<{ new_balance: number }> {
+  // 1. Tenter via RPC sécurisée
+  try {
+    const { data, error } = await supabase.rpc("reset_points", { p_card_id: cardId });
+    if (!error && data) {
+      return data as { new_balance: number };
+    }
+  } catch {
+    // Fallback ci-dessous
+  }
+
+  // 2. Fallback direct sur loyalty_cards
+  const { error: updateErr } = await supabase
+    .from("loyalty_cards")
+    .update({ points: 0, updated_at: new Date().toISOString() })
+    .eq("id", cardId);
+
+  if (updateErr) throw new Error(updateErr.message);
+
+  return { new_balance: 0 };
+}
