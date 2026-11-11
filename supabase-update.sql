@@ -158,9 +158,8 @@ create table if not exists public.platform_settings (
 
 alter table public.platform_settings enable row level security;
 
-do $$ begin
-  create policy "settings_read_all" on public.platform_settings for select using (true);
-exception when duplicate_object then null; end $$;
+drop policy if exists "settings_read_all" on public.platform_settings;
+create policy "settings_read_all" on public.platform_settings for select using (true);
 
 
 -- ─── 6. Résolution de la récursion infinie RLS (is_admin) ────────────────────

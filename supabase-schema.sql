@@ -9,6 +9,7 @@
 create extension if not exists "pgcrypto";
 
 -- ─── Nettoyer v1 si elle existe ───────────────────────────────────────────────
+drop table if exists public.platform_settings cascade;
 drop table if exists public.transactions cascade;
 drop table if exists public.reward_redemptions cascade;
 drop table if exists public.loyalty_cards cascade;
@@ -485,66 +486,105 @@ alter table public.transactions      enable row level security;
 alter table public.reward_redemptions enable row level security;
 
 -- profiles : chacun lit/modifie le sien ; admin lit tout
+drop policy if exists "profiles_self" on public.profiles;
 create policy "profiles_self"    on public.profiles for all using (id = auth.uid());
+
+drop policy if exists "profiles_admin" on public.profiles;
 create policy "profiles_admin"   on public.profiles for select
   using ((select role from public.profiles where id = auth.uid()) = 'admin');
 
 -- merchants : owner lit/modifie le sien ; admin lit tout ; client voit les actifs
+drop policy if exists "merchants_owner" on public.merchants;
 create policy "merchants_owner"  on public.merchants for all
   using (owner_id = auth.uid());
+
+drop policy if exists "merchants_admin" on public.merchants;
 create policy "merchants_admin"  on public.merchants for all
   using ((select role from public.profiles where id = auth.uid()) = 'admin');
+
+drop policy if exists "merchants_customer_read" on public.merchants;
 create policy "merchants_customer_read" on public.merchants for select
   using (status = 'active');
 
 -- stores : même logique que merchants
+drop policy if exists "stores_owner" on public.stores;
 create policy "stores_owner" on public.stores for all
   using ((select owner_id from public.merchants where id = merchant_id) = auth.uid());
+
+drop policy if exists "stores_admin" on public.stores;
 create policy "stores_admin"  on public.stores for all
   using ((select role from public.profiles where id = auth.uid()) = 'admin');
+
+drop policy if exists "stores_read" on public.stores;
 create policy "stores_read" on public.stores for select using (true);
 
 -- loyalty_programs
+drop policy if exists "lp_owner" on public.loyalty_programs;
 create policy "lp_owner" on public.loyalty_programs for all
   using ((select owner_id from public.merchants where id = merchant_id) = auth.uid());
+
+drop policy if exists "lp_admin" on public.loyalty_programs;
 create policy "lp_admin" on public.loyalty_programs for all
   using ((select role from public.profiles where id = auth.uid()) = 'admin');
+
+drop policy if exists "lp_read" on public.loyalty_programs;
 create policy "lp_read" on public.loyalty_programs for select using (true);
 
 -- rewards : commerçant gère les siennes ; tout le monde lit les actives
+drop policy if exists "rewards_owner" on public.rewards;
 create policy "rewards_owner" on public.rewards for all
   using ((select owner_id from public.merchants where id = merchant_id) = auth.uid());
+
+drop policy if exists "rewards_admin" on public.rewards;
 create policy "rewards_admin"  on public.rewards for all
   using ((select role from public.profiles where id = auth.uid()) = 'admin');
+
+drop policy if exists "rewards_read" on public.rewards;
 create policy "rewards_read"   on public.rewards for select using (active = true);
 
 -- loyalty_cards : client voit les siennes ; commerçant voit celles de son commerce ; admin voit tout
+drop policy if exists "cards_customer" on public.loyalty_cards;
 create policy "cards_customer" on public.loyalty_cards for select
   using (customer_id = auth.uid());
+
+drop policy if exists "cards_merchant" on public.loyalty_cards;
 create policy "cards_merchant" on public.loyalty_cards for select
   using ((select owner_id from public.merchants where id = merchant_id) = auth.uid());
+
+drop policy if exists "cards_merchant_update" on public.loyalty_cards;
 create policy "cards_merchant_update" on public.loyalty_cards for update
   using ((select owner_id from public.merchants where id = merchant_id) = auth.uid())
   with check ((select owner_id from public.merchants where id = merchant_id) = auth.uid());
+
+drop policy if exists "cards_admin" on public.loyalty_cards;
 create policy "cards_admin" on public.loyalty_cards for all
   using ((select role from public.profiles where id = auth.uid()) = 'admin');
 -- INTERDIT : pas d'update direct des points côté client — passe par RPC add_points
 
 -- transactions : client lit les siennes ; commerçant lit celles de son commerce ; admin lit tout
+drop policy if exists "tx_customer" on public.transactions;
 create policy "tx_customer" on public.transactions for select
   using ((select customer_id from public.loyalty_cards where id = card_id) = auth.uid());
+
+drop policy if exists "tx_merchant" on public.transactions;
 create policy "tx_merchant" on public.transactions for select
   using ((select owner_id from public.merchants where id = merchant_id) = auth.uid());
-create policy "tx_admin" on public.transactions for all
+
+drop policy if exists "tx_admin" on public.transactions for all
   using ((select role from public.profiles where id = auth.uid()) = 'admin');
 
 -- reward_redemptions
+drop policy if exists "redemptions_customer" on public.reward_redemptions;
 create policy "redemptions_customer" on public.reward_redemptions for select
   using ((select customer_id from public.loyalty_cards where id = card_id) = auth.uid());
+
+drop policy if exists "redemptions_merchant" on public.reward_redemptions;
 create policy "redemptions_merchant" on public.reward_redemptions for all
   using ((select owner_id from public.merchants m
           join public.loyalty_cards c on c.merchant_id = m.id
           where c.id = card_id limit 1) = auth.uid());
+
+drop policy if exists "redemptions_admin" on public.reward_redemptions;
 create policy "redemptions_admin" on public.reward_redemptions for all
   using ((select role from public.profiles where id = auth.uid()) = 'admin');
 
@@ -557,8 +597,11 @@ create table if not exists public.platform_settings (
 
 alter table public.platform_settings enable row level security;
 
+drop policy if exists "settings_read_all" on public.platform_settings;
 create policy "settings_read_all" on public.platform_settings for select
   using (true);
+
+drop policy if exists "settings_admin_write" on public.platform_settings;
 create policy "settings_admin_write" on public.platform_settings for all
   using ((select role from public.profiles where id = auth.uid()) = 'admin');
 
