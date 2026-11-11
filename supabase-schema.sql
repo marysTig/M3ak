@@ -485,13 +485,22 @@ alter table public.loyalty_cards     enable row level security;
 alter table public.transactions      enable row level security;
 alter table public.reward_redemptions enable row level security;
 
+-- ─── Fonction is_admin (security definer pour éviter la récursion infinie RLS) ─
+create or replace function public.is_admin()
+returns boolean language sql security definer set search_path = public stable as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role = 'admin'
+  );
+$$;
+
 -- profiles : chacun lit/modifie le sien ; admin lit tout
 drop policy if exists "profiles_self" on public.profiles;
 create policy "profiles_self"    on public.profiles for all using (id = auth.uid());
 
 drop policy if exists "profiles_admin" on public.profiles;
 create policy "profiles_admin"   on public.profiles for select
-  using ((select role from public.profiles where id = auth.uid()) = 'admin');
+  using (public.is_admin());
 
 -- merchants : owner lit/modifie le sien ; admin lit tout ; client voit les actifs
 drop policy if exists "merchants_owner" on public.merchants;
@@ -500,7 +509,7 @@ create policy "merchants_owner"  on public.merchants for all
 
 drop policy if exists "merchants_admin" on public.merchants;
 create policy "merchants_admin"  on public.merchants for all
-  using ((select role from public.profiles where id = auth.uid()) = 'admin');
+  using (public.is_admin());
 
 drop policy if exists "merchants_customer_read" on public.merchants;
 create policy "merchants_customer_read" on public.merchants for select
@@ -513,7 +522,7 @@ create policy "stores_owner" on public.stores for all
 
 drop policy if exists "stores_admin" on public.stores;
 create policy "stores_admin"  on public.stores for all
-  using ((select role from public.profiles where id = auth.uid()) = 'admin');
+  using (public.is_admin());
 
 drop policy if exists "stores_read" on public.stores;
 create policy "stores_read" on public.stores for select using (true);
@@ -525,7 +534,7 @@ create policy "lp_owner" on public.loyalty_programs for all
 
 drop policy if exists "lp_admin" on public.loyalty_programs;
 create policy "lp_admin" on public.loyalty_programs for all
-  using ((select role from public.profiles where id = auth.uid()) = 'admin');
+  using (public.is_admin());
 
 drop policy if exists "lp_read" on public.loyalty_programs;
 create policy "lp_read" on public.loyalty_programs for select using (true);
@@ -537,7 +546,7 @@ create policy "rewards_owner" on public.rewards for all
 
 drop policy if exists "rewards_admin" on public.rewards;
 create policy "rewards_admin"  on public.rewards for all
-  using ((select role from public.profiles where id = auth.uid()) = 'admin');
+  using (public.is_admin());
 
 drop policy if exists "rewards_read" on public.rewards;
 create policy "rewards_read"   on public.rewards for select using (active = true);
@@ -558,7 +567,7 @@ create policy "cards_merchant_update" on public.loyalty_cards for update
 
 drop policy if exists "cards_admin" on public.loyalty_cards;
 create policy "cards_admin" on public.loyalty_cards for all
-  using ((select role from public.profiles where id = auth.uid()) = 'admin');
+  using (public.is_admin());
 -- INTERDIT : pas d'update direct des points côté client — passe par RPC add_points
 
 -- transactions : client lit les siennes ; commerçant lit celles de son commerce ; admin lit tout
@@ -572,7 +581,7 @@ create policy "tx_merchant" on public.transactions for select
 
 drop policy if exists "tx_admin" on public.transactions;
 create policy "tx_admin" on public.transactions for all
-  using ((select role from public.profiles where id = auth.uid()) = 'admin');
+  using (public.is_admin());
 
 -- reward_redemptions
 drop policy if exists "redemptions_customer" on public.reward_redemptions;
@@ -587,7 +596,7 @@ create policy "redemptions_merchant" on public.reward_redemptions for all
 
 drop policy if exists "redemptions_admin" on public.reward_redemptions;
 create policy "redemptions_admin" on public.reward_redemptions for all
-  using ((select role from public.profiles where id = auth.uid()) = 'admin');
+  using (public.is_admin());
 
 -- ─── platform_settings — Paramètres admin globaux ─────────────────────────────
 create table if not exists public.platform_settings (
@@ -604,7 +613,7 @@ create policy "settings_read_all" on public.platform_settings for select
 
 drop policy if exists "settings_admin_write" on public.platform_settings;
 create policy "settings_admin_write" on public.platform_settings for all
-  using ((select role from public.profiles where id = auth.uid()) = 'admin');
+  using (public.is_admin());
 
 -- ─── Suppression définitive d'un commerce par l'admin ────────────────────────
 create or replace function public.delete_merchant_account(p_merchant_id uuid)
