@@ -116,8 +116,8 @@ function PublicCardPage() {
           : merchant?.loyalty_programs;
         const rewards = Array.isArray(merchant?.rewards) ? merchant.rewards : [];
 
-        const { data: authData } = await supabase.auth.getUser();
-        if (authData.user && merchant?.owner_id === authData.user.id) {
+        const { data: authData } = await supabase.auth.getSession();
+        if (authData.session?.user && merchant?.owner_id === authData.session.user.id) {
           setIsMerchant(true);
         }
 

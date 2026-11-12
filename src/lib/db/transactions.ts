@@ -41,7 +41,8 @@ export async function getMerchantTransactions(merchantId: string, limit = 50): P
 
 /** Transactions du client connecté (toutes cartes confondues) */
 export async function getMyTransactions(limit = 50): Promise<Transaction[]> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) return [];
 
   // Récupérer les card IDs du client

@@ -225,7 +225,8 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
 
   useEffect(() => {
     if (!open) return;
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const user = session?.user;
       if (!user) return;
       const { data: m } = await supabase
         .from("merchants")

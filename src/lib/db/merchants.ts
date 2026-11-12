@@ -37,7 +37,8 @@ export async function activateMerchant(merchantId: string, duration: ActivationD
 
 /** Récupère le commerce du commerçant connecté */
 export async function getMyMerchant(): Promise<Merchant | null> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) return null;
 
   let { data } = await supabase

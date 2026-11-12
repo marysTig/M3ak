@@ -49,7 +49,8 @@ function TransactionsPage() {
   const [newCardOpen, setNewCardOpen] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const user = session?.user;
       if (!user) return;
       const { data: m } = await supabase.from("merchants").select("id").eq("owner_id", user.id).maybeSingle();
       if (m) {

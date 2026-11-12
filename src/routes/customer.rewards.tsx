@@ -48,7 +48,8 @@ function CustomerRewards() {
   const [saving, setSaving] = useState(false);
 
   async function loadRewards() {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     if (!user) return;
 
     // Charger toutes les cartes du client
