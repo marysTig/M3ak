@@ -271,33 +271,40 @@ function CustomersPage() {
     }
   }
 
-  async function handleResetPoints() {
-    if (!selected || !merchantId) return;
-    if (selected.card.points === 0) {
+  async function handleResetCustomerPoints(c: CustomerRow) {
+    if (!merchantId) return;
+    if (c.card.points === 0) {
       toast.info("Le solde est déjà à 0 point.");
       return;
     }
-    const currentPoints = selected.card.points;
+    const currentPoints = c.card.points;
     const confirmed = window.confirm(
-      `Confirmez-vous la remise à zéro des points de ${selected.customer.full_name} (${currentPoints} pts actuellement) ?`
+      `Confirmez-vous la remise à zéro des points de ${c.customer.full_name} (${currentPoints} pts actuellement) ?`
     );
     if (!confirmed) return;
 
     setResettingPoints(true);
     try {
-      await resetCardPoints(selected.card.id);
-      toast.success(`Points remis à 0 pour ${selected.customer.full_name} !`, {
+      await resetCardPoints(c.card.id);
+      toast.success(`Points remis à 0 pour ${c.customer.full_name} !`, {
         description: `L'ancien solde de ${currentPoints} pts a été réinitialisé.`,
       });
       if (merchantId) await reload(merchantId);
-      setSelected((prev) => (prev ? { ...prev, card: { ...prev.card, points: 0 } } : null));
-      const tx = await getCardTransactions(selected.card.id);
-      setCardTx(tx.slice(0, 10));
+      if (selected && selected.card.id === c.card.id) {
+        setSelected((prev) => (prev ? { ...prev, card: { ...prev.card, points: 0 } } : null));
+        const tx = await getCardTransactions(c.card.id);
+        setCardTx(tx.slice(0, 10));
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur lors de la remise à zéro.");
     } finally {
       setResettingPoints(false);
     }
+  }
+
+  async function handleResetPoints() {
+    if (!selected) return;
+    await handleResetCustomerPoints(selected);
   }
 
   async function handleAddVipSpend(e?: React.FormEvent, directAmount?: number) {
@@ -455,6 +462,7 @@ function CustomersPage() {
                   <TableHead className="hidden sm:table-cell text-right">Activité cumulée</TableHead>
                   <TableHead className="hidden md:table-cell">Inscrit</TableHead>
                   <TableHead className="hidden sm:table-cell">Statut</TableHead>
+                  <TableHead className="text-right px-3 sm:px-4">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -532,6 +540,38 @@ function CustomersPage() {
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
                         <StatusBadge status={c.status} />
+                      </TableCell>
+                      <TableCell className="text-right px-3 sm:px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        {cardType === "points" ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={resettingPoints || c.card.points === 0}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleResetCustomerPoints(c);
+                            }}
+                            className="h-7 px-2 sm:px-2.5 text-xs font-medium text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                            title={c.card.points === 0 ? "Le solde est déjà à 0" : "Remettre les points à zéro"}
+                          >
+                            <RotateCcw className="size-3 sm:mr-1" />
+                            <span className="hidden sm:inline">Mettre à 0</span>
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openSheet(c);
+                            }}
+                            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            Détails
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
@@ -735,13 +775,33 @@ function CustomersPage() {
                   {/* BLOC ÉTAT : POINTS                                            */}
                   {/* ───────────────────────────────────────────────────────────── */}
                   {cardType === "points" && (
-                    <div className="rounded-xl bg-surface-muted p-4 text-center space-y-1">
-                      <p className="font-display text-4xl font-bold text-primary">
-                        {selected.card.points} pts
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Total cumulé : {selected.card.total_earned} pts
-                      </p>
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                          <Sparkles className="size-3.5 text-primary" />
+                          Solde de points
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={resettingPoints || selected.card.points === 0}
+                          onClick={handleResetPoints}
+                          className="h-7 px-2.5 text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 shadow-sm"
+                          title={selected.card.points === 0 ? "Le solde est déjà à 0" : "Remettre les points à zéro"}
+                        >
+                          <RotateCcw className={cn("size-3 mr-1.5", resettingPoints && "animate-spin")} />
+                          {resettingPoints ? "En cours…" : "Remettre à 0"}
+                        </Button>
+                      </div>
+                      <div className="text-center py-1">
+                        <p className="font-display text-4xl sm:text-5xl font-extrabold text-primary">
+                          {selected.card.points} <span className="text-base font-semibold text-primary/80">pts</span>
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Total cumulé depuis inscription : <strong className="text-foreground">{selected.card.total_earned} pts</strong>
+                        </p>
+                      </div>
                     </div>
                   )}
 

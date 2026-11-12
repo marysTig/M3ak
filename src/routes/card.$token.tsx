@@ -18,6 +18,7 @@ import {
   Crown,
   Gift,
   Loader2,
+  RotateCcw,
   Share2,
   Sparkles,
   Star,
@@ -29,7 +30,7 @@ import { toast } from "sonner";
 import { VirtualCard, themes } from "@/routes/business.program";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
-import type { CardType, VipTier } from "@/lib/db/cards";
+import { type CardType, type VipTier, resetCardPoints } from "@/lib/db/cards";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/card/$token")({
@@ -83,6 +84,8 @@ function PublicCardPage() {
   const [card, setCard] = useState<CardInfo | null>(null);
   const [step, setStep] = useState<"loading" | "found" | "error">("loading");
   const [copied, setCopied] = useState(false);
+  const [isMerchant, setIsMerchant] = useState(false);
+  const [resettingPoints, setResettingPoints] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -93,7 +96,7 @@ function PublicCardPage() {
             *,
             profiles!loyalty_cards_customer_id_fkey (full_name),
             merchants!loyalty_cards_merchant_id_fkey (
-              id, name, category, logo_url,
+              id, owner_id, name, category, logo_url,
               loyalty_programs (theme_id),
               rewards (id, name, points_cost, active)
             )
@@ -112,6 +115,11 @@ function PublicCardPage() {
           ? merchant?.loyalty_programs[0]
           : merchant?.loyalty_programs;
         const rewards = Array.isArray(merchant?.rewards) ? merchant.rewards : [];
+
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData.user && merchant?.owner_id === authData.user.id) {
+          setIsMerchant(true);
+        }
 
         setCard({
           id: data.id,
@@ -180,6 +188,29 @@ function PublicCardPage() {
     }
   }
 
+  async function handleResetPoints() {
+    if (!card) return;
+    if (card.points === 0) {
+      toast.info("Le solde est déjà à 0 point.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Confirmez-vous la remise à zéro des points de ${card.customer_name} (${card.points} pts actuellement) ?`
+    );
+    if (!confirmed) return;
+
+    setResettingPoints(true);
+    try {
+      await resetCardPoints(card.id);
+      setCard((prev) => (prev ? { ...prev, points: 0 } : null));
+      toast.success(`Points remis à 0 pour ${card.customer_name} !`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la remise à zéro.");
+    } finally {
+      setResettingPoints(false);
+    }
+  }
+
   if (step === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -243,6 +274,29 @@ function PublicCardPage() {
       </div>
 
       <div className="mx-auto max-w-sm space-y-5 px-3.5 sm:px-4 pt-4 sm:pt-6">
+        {/* Bandeau Mode Commerçant */}
+        {isMerchant && (
+          <div className="flex items-center justify-between rounded-xl bg-primary/10 border border-primary/20 px-3.5 py-2.5 text-xs text-primary font-medium">
+            <span className="flex items-center gap-1.5 font-bold">
+              <Sparkles className="size-3.5" />
+              Commerçant connecté
+            </span>
+            {card.card_type === "points" && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 px-2.5 text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                disabled={resettingPoints || card.points === 0}
+                onClick={handleResetPoints}
+              >
+                <RotateCcw className={cn("size-3 mr-1", resettingPoints && "animate-spin")} />
+                {resettingPoints ? "En cours…" : "Mettre à 0"}
+              </Button>
+            )}
+          </div>
+        )}
+
         {/* Carte virtuelle interactive */}
         <div className="w-full">
           <VirtualCard
@@ -479,9 +533,25 @@ function PublicCardPage() {
           <div className="space-y-4">
             {/* Solde de points */}
             <div className="card-surface space-y-2.5 p-4 sm:p-6 text-center">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Solde de points
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Solde de points
+                </p>
+                {isMerchant && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={resettingPoints || card.points === 0}
+                    onClick={handleResetPoints}
+                    className="h-7 px-2.5 text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 shadow-sm"
+                    title={card.points === 0 ? "Le solde est déjà à 0" : "Remettre les points à zéro"}
+                  >
+                    <RotateCcw className={cn("size-3 mr-1", resettingPoints && "animate-spin")} />
+                    {resettingPoints ? "En cours…" : "Mettre à 0 pt"}
+                  </Button>
+                )}
+              </div>
               <p className="font-display text-5xl sm:text-6xl font-extrabold text-primary">{card.points}</p>
               <p className="text-xs sm:text-sm font-medium text-muted-foreground">points disponibles</p>
               <div className="pt-3 text-xs text-muted-foreground border-t border-border flex flex-col xs:flex-row gap-1.5 items-center justify-between text-center xs:text-left">
