@@ -110,29 +110,48 @@ interface VipTierEditorProps {
   labelColor: string;
   threshold: string;
   onThresholdChange: (v: string) => void;
+  info: string;
+  onInfoChange: (v: string) => void;
+  infoPlaceholder?: string;
 }
 
 function VipTierEditor({
   emoji, label, sublabel, labelColor,
   threshold, onThresholdChange,
+  info, onInfoChange,
+  infoPlaceholder = "ex: -5% de réduction, boisson offerte...",
 }: VipTierEditorProps) {
   return (
-    <div className="rounded-lg border bg-background p-3 space-y-2">
+    <div className="rounded-lg border bg-background p-3 space-y-2.5">
       <div className="flex items-center justify-between">
         <span className={cn("text-xs font-bold", labelColor)}>{emoji} {label}</span>
         <span className="text-[10px] text-muted-foreground">{sublabel}</span>
       </div>
 
-      {/* Seuil */}
-      <div>
-        <Label className="text-[10px] text-muted-foreground">Seuil d'accès (DA)</Label>
-        <Input
-          type="number"
-          value={threshold}
-          onChange={(e) => onThresholdChange(e.target.value)}
-          className="h-8 text-xs font-mono mt-1"
-          placeholder="ex: 15000"
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        {/* Seuil d'accès (DA) */}
+        <div>
+          <Label className="text-[10px] text-muted-foreground">Seuil d'accès (DA)</Label>
+          <Input
+            type="number"
+            value={threshold}
+            onChange={(e) => onThresholdChange(e.target.value)}
+            className="h-8 text-xs font-mono mt-1"
+            placeholder="ex: 15000"
+          />
+        </div>
+
+        {/* Information personnalisée */}
+        <div>
+          <Label className="text-[10px] text-muted-foreground">Information personnalisée</Label>
+          <Input
+            type="text"
+            value={info}
+            onChange={(e) => onInfoChange(e.target.value)}
+            className="h-8 text-xs mt-1"
+            placeholder={infoPlaceholder}
+          />
+        </div>
       </div>
     </div>
   );
@@ -150,8 +169,11 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
   // Configuration VIP
   const [vipCardName, setVipCardName] = useState("Club VIP");
   const [bronzeThreshold, setBronzeThreshold] = useState("0");
+  const [bronzeInfo, setBronzeInfo] = useState("-5% de réduction");
   const [silverThreshold, setSilverThreshold] = useState("15000");
+  const [silverInfo, setSilverInfo] = useState("-10% de réduction");
   const [goldThreshold, setGoldThreshold] = useState("30000");
+  const [goldInfo, setGoldInfo] = useState("-15% de réduction");
 
   // Configuration POINTS
   const [initialPoints, setInitialPoints] = useState("0");
@@ -197,8 +219,11 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
     setNameError("");
     setVipCardName("Club VIP");
     setBronzeThreshold("0");
+    setBronzeInfo("-5% de réduction");
     setSilverThreshold("15000");
+    setSilverInfo("-10% de réduction");
     setGoldThreshold("30000");
+    setGoldInfo("-15% de réduction");
     setInitialPoints("0");
     setStampCardName("Carte à Tampons");
     setStampsTarget(10);
@@ -250,9 +275,9 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
         bronze_threshold: Number(bronzeThreshold) || 0,
         silver_threshold: Number(silverThreshold) || 15000,
         gold_threshold: Number(goldThreshold) || 30000,
-        bronze_benefits: null,
-        silver_benefits: null,
-        gold_benefits: null,
+        bronze_benefits: bronzeInfo.trim() || null,
+        silver_benefits: silverInfo.trim() || null,
+        gold_benefits: goldInfo.trim() || null,
       };
 
       const resolvedCardName =
@@ -650,7 +675,7 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
                   <div className="flex items-center gap-2">
                     <Crown className="size-4 text-amber-500" />
                     <p className="text-xs font-bold uppercase tracking-wider text-foreground">
-                      Paliers VIP (DA)
+                      Paliers & Avantages VIP
                     </p>
                   </div>
 
@@ -675,6 +700,9 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
                     labelColor="text-amber-700 dark:text-amber-400"
                     threshold={bronzeThreshold}
                     onThresholdChange={setBronzeThreshold}
+                    info={bronzeInfo}
+                    onInfoChange={setBronzeInfo}
+                    infoPlaceholder="ex: -5% de réduction"
                   />
 
                   {/* Silver */}
@@ -685,6 +713,9 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
                     labelColor="text-slate-700 dark:text-slate-300"
                     threshold={silverThreshold}
                     onThresholdChange={setSilverThreshold}
+                    info={silverInfo}
+                    onInfoChange={setSilverInfo}
+                    infoPlaceholder="ex: -10% de réduction"
                   />
 
                   {/* Gold */}
@@ -695,6 +726,9 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
                     labelColor="text-yellow-600 dark:text-yellow-400"
                     threshold={goldThreshold}
                     onThresholdChange={setGoldThreshold}
+                    info={goldInfo}
+                    onInfoChange={setGoldInfo}
+                    infoPlaceholder="ex: -15% de réduction"
                   />
                 </div>
               )}
@@ -930,19 +964,22 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
 
               {cardType === "vip" && (
                 <div className="pt-2 border-t space-y-2 text-xs">
-                  <p className="font-semibold text-foreground text-[11px]">Paliers d'achats :</p>
+                  <p className="font-semibold text-foreground text-[11px]">Paliers & Avantages VIP :</p>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="rounded-lg bg-background p-2 border">
                       <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 block">🥉 Bronze</span>
-                      <span className="text-[10px] text-muted-foreground font-mono">{Number(bronzeThreshold).toLocaleString()} DA</span>
+                      <span className="text-[10px] text-muted-foreground font-mono block">{Number(bronzeThreshold).toLocaleString()} DA</span>
+                      {bronzeInfo && <span className="text-[10px] text-foreground font-medium truncate block mt-0.5">{bronzeInfo}</span>}
                     </div>
                     <div className="rounded-lg bg-background p-2 border">
                       <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block">🥈 Silver</span>
-                      <span className="text-[10px] text-muted-foreground font-mono">{Number(silverThreshold).toLocaleString()} DA</span>
+                      <span className="text-[10px] text-muted-foreground font-mono block">{Number(silverThreshold).toLocaleString()} DA</span>
+                      {silverInfo && <span className="text-[10px] text-foreground font-medium truncate block mt-0.5">{silverInfo}</span>}
                     </div>
                     <div className="rounded-lg bg-background p-2 border">
                       <span className="text-[11px] font-bold text-yellow-600 dark:text-yellow-400 block">🥇 Gold</span>
-                      <span className="text-[10px] text-muted-foreground font-mono">{Number(goldThreshold).toLocaleString()} DA</span>
+                      <span className="text-[10px] text-muted-foreground font-mono block">{Number(goldThreshold).toLocaleString()} DA</span>
+                      {goldInfo && <span className="text-[10px] text-foreground font-medium truncate block mt-0.5">{goldInfo}</span>}
                     </div>
                   </div>
                 </div>

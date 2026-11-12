@@ -130,9 +130,6 @@ export function VirtualCard({
       )}
       style={{ background: theme.mesh, color: theme.textColor }}
     >
-      <div className="pointer-events-none absolute inset-0"
-        style={{ background: "linear-gradient(120deg, rgba(255,255,255,0.04) 30%, rgba(255,255,255,0.18) 40%, rgba(255,255,255,0.06) 40%), linear-gradient(0deg, rgba(255,255,255,0.08), rgba(255,255,255,0.16))" }}
-      />
       <div className="pointer-events-none absolute inset-0 rounded-2xl"
         style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -1px 0 rgba(0,0,0,0.15)" }}
       />
@@ -239,9 +236,9 @@ export function VirtualCard({
           )}
         </div>
 
-        <div className="text-right shrink-0">
-          {cardType === "stamps" && stampReward ? (
-            <div className="max-w-[140px] text-right">
+        <div className="text-right shrink-0 flex flex-col items-end justify-end">
+          {cardType === "stamps" && stampReward && (
+            <div className="max-w-[140px] text-right mb-0.5">
               <span
                 className="inline-block text-[9px] px-2 py-0.5 rounded-md truncate max-w-full font-medium"
                 style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(4px)" }}
@@ -250,11 +247,10 @@ export function VirtualCard({
                 🎁 {stampReward}
               </span>
             </div>
-          ) : (
-            <p className="text-[9px] font-medium uppercase tracking-widest" style={{ color: theme.textColor, opacity: 0.55 }}>
-              {theme.label}
-            </p>
           )}
+          <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: theme.textColor, opacity: 0.6 }}>
+            M3AK
+          </p>
         </div>
       </div>
     </button>
@@ -325,14 +321,18 @@ function MaCartePage() {
           <h2 className="font-semibold text-sm sm:text-base">Choisir un thème</h2>
           <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             {themes.map((theme) => (
-              <VirtualCard
-                key={theme.id}
-                theme={theme}
-                businessName={merchant?.name ?? "Mon commerce"}
-                selected={selectedId === theme.id}
-                onClick={() => setSelectedId(theme.id)}
-                compact
-              />
+              <div key={theme.id} className="flex flex-col gap-1.5">
+                <VirtualCard
+                  theme={theme}
+                  businessName={merchant?.name ?? "Mon commerce"}
+                  selected={selectedId === theme.id}
+                  onClick={() => setSelectedId(theme.id)}
+                  compact
+                />
+                <p className="text-center text-xs font-medium text-muted-foreground">
+                  {theme.label}
+                </p>
+              </div>
             ))}
           </div>
         </section>
