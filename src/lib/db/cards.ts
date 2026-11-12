@@ -217,7 +217,7 @@ export async function addStamps(params: {
 
   const currentCount = Number(current.stamps_count ?? 0);
   const target = Number(current.stamps_target ?? 10);
-  const newCount = currentCount + params.count;
+  const newCount = Math.max(0, currentCount + params.count);
 
   const { error: updateErr } = await supabase
     .from("loyalty_cards")
@@ -231,6 +231,16 @@ export async function addStamps(params: {
     target,
     completed: newCount >= target,
   };
+}
+
+/** Remet les tampons d'une carte à zéro manuellement */
+export async function resetCardStamps(cardId: string): Promise<void> {
+  const { error } = await supabase
+    .from("loyalty_cards")
+    .update({ stamps_count: 0, updated_at: new Date().toISOString() })
+    .eq("id", cardId);
+
+  if (error) throw new Error(error.message);
 }
 
 /** Réinitialise ou déduit les tampons après récompense */

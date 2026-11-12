@@ -8,15 +8,19 @@ export type MerchantUpdate = Partial<Pick<Merchant,
   "name" | "category" | "email" | "phone" | "address" | "logo_url" | "slug"
 >>;
 
-/** Durée d'activation : 1 mois ou 1 an */
-export type ActivationDuration = "1month" | "1year";
+/** Durée d'activation : 1 mois, 3 mois, 6 mois ou 1 an */
+export type ActivationDuration = "1month" | "3months" | "6months" | "1year";
 
-/** Active un commerce pour 1 mois ou 1 an */
+/** Active un commerce pour la durée sélectionnée */
 export async function activateMerchant(merchantId: string, duration: ActivationDuration) {
   const now = new Date();
   const expires = new Date(now);
   if (duration === "1year") {
     expires.setFullYear(expires.getFullYear() + 1);
+  } else if (duration === "6months") {
+    expires.setMonth(expires.getMonth() + 6);
+  } else if (duration === "3months") {
+    expires.setMonth(expires.getMonth() + 3);
   } else {
     expires.setDate(now.getDate() + 30);
   }

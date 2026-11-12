@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight } from "lucide-react";
+import { AlertTriangle, ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   Area, AreaChart, CartesianGrid,
@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/lib/supabase";
 import { getAllMerchants } from "@/lib/db/merchants";
 import { getAdminStats } from "@/lib/db/transactions";
+import { getSubscriptionPayments } from "@/lib/db/payments";
 
 export const Route = createFileRoute("/admin/")({
   head: () => ({
@@ -48,16 +49,31 @@ function AdminOverview() {
   const [merchants, setMerchants] = useState<MerchantRow[]>([]);
   const [growth, setGrowth] = useState<{ month: string; customers: number }[]>([]);
   const [activity, setActivity] = useState<{ id: string; title: string; detail: string; time: string }[]>([]);
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [expiringCount, setExpiringCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const [s, allMerchants] = await Promise.all([
+        const [s, allMerchants, allPayments] = await Promise.all([
           getAdminStats(),
           getAllMerchants(),
+          getSubscriptionPayments(),
         ]);
         setStats(s);
+
+        const rev = allPayments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+        setTotalRevenue(rev);
+
+        const now = Date.now();
+        const expCount = (allMerchants as any[]).filter((m) => {
+          if (!m.subscription_expires_at) return false;
+          const diff = new Date(m.subscription_expires_at).getTime() - now;
+          const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+          return days <= 7;
+        }).length;
+        setExpiringCount(expCount);
 
         // Construire les lignes marchands
         const rows: MerchantRow[] = (allMerchants as (typeof allMerchants[0] & { loyalty_cards: { count: number }[] })[]).map((m) => ({
@@ -72,10 +88,10 @@ function AdminOverview() {
 
         // Croissance réseau (6 derniers mois) — depuis loyalty_cards
         const growthData: { month: string; customers: number }[] = [];
-        const now = new Date();
+        const nowDate = new Date();
         for (let i = 5; i >= 0; i--) {
-          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-          const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59).toISOString();
+          const d = new Date(nowDate.getFullYear(), nowDate.getMonth() - i, 1);
+          const end = new Date(nowDate.getFullYear(), nowDate.getMonth() - i + 1, 0, 23, 59, 59).toISOString();
           const label = d.toLocaleDateString("fr-FR", { month: "short" });
           const { count } = await supabase
             .from("loyalty_cards")
@@ -120,15 +136,32 @@ function AdminOverview() {
     { label: "Businesses", value: stats.businesses.toLocaleString(), delta: "", hint: "Actifs et en attente" },
     { label: "Customers", value: stats.customers.toLocaleString(), delta: "", hint: "Comptes clients" },
     { label: "Points émis", value: stats.pointsIssued.toLocaleString(), delta: "", hint: "Total historique" },
-    { label: "Revenu MRR", value: "—", delta: "", hint: "À configurer" },
+    { label: "Encaissements", value: `${totalRevenue.toLocaleString("fr-FR")} DA`, delta: "", hint: "Abonnements réglés" },
   ];
 
   return (
-    <>
+    <div className="space-y-5">
       <PageHeader
         title="Platform overview"
-        subtitle="How the loyalty network is performing this month."
+        subtitle="Vue d'ensemble des performances du réseau et des abonnements."
       />
+
+      {expiringCount > 0 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 sm:p-4 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-semibold text-xs sm:text-sm">
+            <AlertTriangle className="size-4 shrink-0" />
+            <span>
+              {expiringCount} commerce{expiringCount > 1 ? "s" : ""} expirent dans moins de 7 jours ou sont expirés.
+            </span>
+          </div>
+          <Link
+            to="/admin/businesses"
+            className="text-xs font-bold text-amber-700 dark:text-amber-400 underline hover:opacity-80"
+          >
+            Voir les alertes & relancer →
+          </Link>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {statCards.map((s) => (
@@ -213,6 +246,6 @@ function AdminOverview() {
           </Table>
         </div>
       </div>
-    </>
+    </div>
   );
 }

@@ -36,7 +36,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/lib/supabase";
 import { getMerchantCustomers, type CustomerWithCard } from "@/lib/db/customers";
-import { addPoints, addStamps, redeemStamps, addVipSpending, resetCardPoints, deleteCustomerCard } from "@/lib/db/cards";
+import { addPoints, addStamps, redeemStamps, addVipSpending, resetCardPoints, resetCardStamps, deleteCustomerCard } from "@/lib/db/cards";
 import { getCardTransactions } from "@/lib/db/transactions";
 import type { Transaction } from "@/lib/db/transactions";
 import { getLoyaltyProgram } from "@/lib/db/program";
@@ -403,6 +403,41 @@ function CustomersPage() {
     }
   }
 
+  async function handleResetStamps() {
+    if (!selected || !merchantId) return;
+    const count = selected.card.stamps_count ?? 0;
+    if (count === 0) {
+      toast.info("Le compteur est déjà à 0 tampon.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Confirmez-vous la remise à zéro des tampons de ${selected.customer.full_name} (${count} tampon${count > 1 ? "s" : ""} actuellement) ?`
+    );
+    if (!confirmed) return;
+
+    setStampsAdding(true);
+    try {
+      await resetCardStamps(selected.card.id);
+      toast.success(`Tampons remis à 0 pour ${selected.customer.full_name} !`);
+      setSelected((prev) =>
+        prev
+          ? {
+              ...prev,
+              card: {
+                ...prev.card,
+                stamps_count: 0,
+              },
+            }
+          : null
+      );
+      if (merchantId) await reload(merchantId);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la remise à zéro des tampons.");
+    } finally {
+      setStampsAdding(false);
+    }
+  }
+
   async function handleRedeemStampReward() {
     if (!selected || !merchantId) return;
     setRedeemingReward(true);
@@ -754,16 +789,30 @@ function CustomersPage() {
                   {/* ───────────────────────────────────────────────────────────── */}
                   {cardType === "stamps" && (
                     <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <Ticket className="size-4 text-emerald-600 dark:text-emerald-400" />
                           <span className="text-xs font-bold uppercase tracking-wider text-foreground">
                             Carte à Tampons
                           </span>
                         </div>
-                        <span className="font-bold text-emerald-600 dark:text-emerald-400 text-xs">
-                          {stampsCount} / {stampsTarget} tampons
-                        </span>
+                        <div className="flex items-center gap-2 self-end sm:self-auto">
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400 text-xs">
+                            {stampsCount} / {stampsTarget} tampons
+                          </span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={stampsAdding || stampsCount === 0}
+                            onClick={handleResetStamps}
+                            className="h-6 px-2 text-[10px] font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 shrink-0"
+                            title="Remettre les tampons à zéro"
+                          >
+                            <RotateCcw className="size-2.5 mr-1" />
+                            Mettre à 0
+                          </Button>
+                        </div>
                       </div>
 
                       {/* Grille visuelle de tampons */}
@@ -904,27 +953,52 @@ function CustomersPage() {
                           </Button>
                         </div>
                       ) : (
-                        <div>
-                          <Label className="text-xs font-bold block mb-2">
-                            Valider des tampons
-                          </Label>
-                          <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-xs font-bold">
+                              Valider des tampons
+                            </Label>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              disabled={stampsAdding || stampsCount === 0}
+                              onClick={handleResetStamps}
+                              className="h-6 px-2 text-[11px] font-medium text-destructive hover:text-destructive hover:bg-destructive/10"
+                              title="Remettre les tampons à zéro"
+                            >
+                              <RotateCcw className="size-3 mr-1" />
+                              Mettre à 0
+                            </Button>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => handleAddStamps(-1)}
+                              disabled={stampsAdding || stampsCount === 0}
+                              className="h-10 text-xs font-semibold text-amber-700 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
+                              title="Corriger une erreur de saisie (-1 tampon)"
+                            >
+                              -1 Tampon
+                            </Button>
                             <Button
                               type="button"
                               onClick={() => handleAddStamps(1)}
                               disabled={stampsAdding}
-                              className="h-10 text-xs font-semibold"
+                              className="h-10 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
                             >
-                              <Plus className="size-3.5 mr-1" /> 1 Tampon
+                              <Plus className="size-3.5 mr-0.5 sm:mr-1" /> +1
                             </Button>
                             <Button
                               type="button"
                               variant="outline"
                               onClick={() => handleAddStamps(2)}
                               disabled={stampsAdding}
-                              className="h-10 text-xs font-semibold"
+                              className="h-10 text-xs font-semibold border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10"
                             >
-                              <Plus className="size-3.5 mr-1" /> 2 Tampons
+                              <Plus className="size-3.5 mr-0.5 sm:mr-1" /> +2
                             </Button>
                           </div>
                         </div>

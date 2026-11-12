@@ -694,6 +694,24 @@ $$;
 
 grant execute on function public.merchant_delete_card(uuid) to authenticated;
 
+-- ─── 8. Table des encaissements d'abonnements plateforme (Suivi financier) ──
+create table if not exists public.subscription_payments (
+  id uuid primary key default gen_random_uuid(),
+  merchant_id uuid not null references public.merchants(id) on delete cascade,
+  merchant_name text not null,
+  merchant_phone text,
+  amount numeric not null default 0,
+  duration text not null default '1year',
+  payment_method text not null default 'cash',
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.subscription_payments enable row level security;
+
+create policy "Admins can manage subscription payments"
+  on public.subscription_payments for all
+  using (public.is_admin());
 
 -- =============================================================================
 -- FIN DU SCRIPT
