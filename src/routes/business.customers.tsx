@@ -722,18 +722,19 @@ function CustomersPage() {
                         </p>
                       )}
 
-                      {/* Avantages du niveau */}
-                      <div className="pt-2 border-t border-amber-500/20 text-xs space-y-1.5">
-                        <p className="font-semibold text-foreground">Avantages accordés :</p>
-                        {(() => {
-                          const raw =
-                            vipTier === "gold"
-                              ? selected.card.vip_gold_benefits || "-15% de réduction"
-                              : vipTier === "silver"
-                              ? selected.card.vip_silver_benefits || "-10% de réduction"
-                              : selected.card.vip_bronze_benefits || "-5% de réduction";
-                          const list = raw.split("|").map((s) => s.trim()).filter(Boolean);
-                          return (
+                      {/* Avantages du niveau si configurés */}
+                      {(() => {
+                        const raw =
+                          vipTier === "gold"
+                            ? selected.card.vip_gold_benefits
+                            : vipTier === "silver"
+                            ? selected.card.vip_silver_benefits
+                            : selected.card.vip_bronze_benefits;
+                        const list = (raw || "").split("|").map((s) => s.trim()).filter(Boolean);
+                        if (list.length === 0) return null;
+                        return (
+                          <div className="pt-2 border-t border-amber-500/20 text-xs space-y-1.5">
+                            <p className="font-semibold text-foreground">Avantages accordés :</p>
                             <div className="space-y-1">
                               {list.map((item, idx) => (
                                 <div key={idx} className="flex items-center gap-1.5 text-muted-foreground text-[11px]">
@@ -742,9 +743,9 @@ function CustomersPage() {
                                 </div>
                               ))}
                             </div>
-                          );
-                        })()}
-                      </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
 

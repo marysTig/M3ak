@@ -102,7 +102,7 @@ function formatSMSPhone(raw: string): string {
   return normalizeLocalPhone(raw);
 }
 
-// ─── Composant éditeur d'avantages par niveau VIP ─────────────────────────────
+// ─── Composant éditeur de palier VIP ─────────────────────────────
 interface VipTierEditorProps {
   emoji: string;
   label: string;
@@ -110,29 +110,14 @@ interface VipTierEditorProps {
   labelColor: string;
   threshold: string;
   onThresholdChange: (v: string) => void;
-  benefits: string[];
-  onBenefitsChange: (v: string[]) => void;
 }
 
 function VipTierEditor({
   emoji, label, sublabel, labelColor,
   threshold, onThresholdChange,
-  benefits, onBenefitsChange,
 }: VipTierEditorProps) {
-  function addBenefit() {
-    onBenefitsChange([...benefits, ""]);
-  }
-  function updateBenefit(index: number, value: string) {
-    const updated = [...benefits];
-    updated[index] = value;
-    onBenefitsChange(updated);
-  }
-  function removeBenefit(index: number) {
-    onBenefitsChange(benefits.filter((_, i) => i !== index));
-  }
-
   return (
-    <div className="rounded-lg border bg-background p-2.5 space-y-2.5">
+    <div className="rounded-lg border bg-background p-3 space-y-2">
       <div className="flex items-center justify-between">
         <span className={cn("text-xs font-bold", labelColor)}>{emoji} {label}</span>
         <span className="text-[10px] text-muted-foreground">{sublabel}</span>
@@ -146,40 +131,8 @@ function VipTierEditor({
           value={threshold}
           onChange={(e) => onThresholdChange(e.target.value)}
           className="h-8 text-xs font-mono mt-1"
+          placeholder="ex: 15000"
         />
-      </div>
-
-      {/* Liste des avantages */}
-      <div className="space-y-1.5">
-        <Label className="text-[10px] text-muted-foreground">Avantages inclus</Label>
-        {benefits.map((benefit, index) => (
-          <div key={index} className="flex items-center gap-1.5">
-            <span className="text-muted-foreground text-[11px] w-4 shrink-0 text-center">•</span>
-            <Input
-              value={benefit}
-              placeholder={`Avantage ${index + 1}`}
-              onChange={(e) => updateBenefit(index, e.target.value)}
-              className="h-8 text-xs flex-1"
-            />
-            {benefits.length > 1 && (
-              <button
-                type="button"
-                onClick={() => removeBenefit(index)}
-                className="shrink-0 p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
-            )}
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={addBenefit}
-          className="flex items-center gap-1.5 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors mt-1"
-        >
-          <Plus className="size-3.5" />
-          Ajouter un avantage
-        </button>
       </div>
     </div>
   );
@@ -197,14 +150,8 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
   // Configuration VIP
   const [vipCardName, setVipCardName] = useState("Club VIP");
   const [bronzeThreshold, setBronzeThreshold] = useState("0");
-  const [bronzeBenefits, setBronzeBenefits] = useState<string[]>(["-5% de réduction"]);
   const [silverThreshold, setSilverThreshold] = useState("15000");
-  const [silverBenefits, setSilverBenefits] = useState<string[]>(["-10% de réduction", "Cadeau de bienvenue"]);
   const [goldThreshold, setGoldThreshold] = useState("30000");
-  const [goldBenefits, setGoldBenefits] = useState<string[]>(["-15% de réduction", "Accès prioritaire", "Cadeau exclusif"]);
-
-  // Accordéon aperçu VIP
-  const [openTier, setOpenTier] = useState<"bronze" | "silver" | "gold" | null>(null);
 
   // Configuration POINTS
   const [initialPoints, setInitialPoints] = useState("0");
@@ -250,12 +197,8 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
     setNameError("");
     setVipCardName("Club VIP");
     setBronzeThreshold("0");
-    setBronzeBenefits(["-5% de réduction"]);
     setSilverThreshold("15000");
-    setSilverBenefits(["-10% de réduction", "Cadeau de bienvenue"]);
     setGoldThreshold("30000");
-    setGoldBenefits(["-15% de réduction", "Accès prioritaire", "Cadeau exclusif"]);
-    setOpenTier(null);
     setInitialPoints("0");
     setStampCardName("Carte à Tampons");
     setStampsTarget(10);
@@ -307,9 +250,9 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
         bronze_threshold: Number(bronzeThreshold) || 0,
         silver_threshold: Number(silverThreshold) || 15000,
         gold_threshold: Number(goldThreshold) || 30000,
-        bronze_benefits: bronzeBenefits.filter(Boolean).join(" | ") || "-5% de réduction",
-        silver_benefits: silverBenefits.filter(Boolean).join(" | ") || "-10% de réduction",
-        gold_benefits: goldBenefits.filter(Boolean).join(" | ") || "-15% de réduction",
+        bronze_benefits: null,
+        silver_benefits: null,
+        gold_benefits: null,
       };
 
       const resolvedCardName =
@@ -530,7 +473,7 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
                       🥇 Gold
                     </span>
                     <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold self-center ml-1">
-                      Seuils & avantages configurables
+                      Paliers d'achats configurables (DA)
                     </span>
                   </div>
                 </div>
@@ -707,7 +650,7 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
                   <div className="flex items-center gap-2">
                     <Crown className="size-4 text-amber-500" />
                     <p className="text-xs font-bold uppercase tracking-wider text-foreground">
-                      Paliers & Avantages VIP
+                      Paliers VIP (DA)
                     </p>
                   </div>
 
@@ -732,8 +675,6 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
                     labelColor="text-amber-700 dark:text-amber-400"
                     threshold={bronzeThreshold}
                     onThresholdChange={setBronzeThreshold}
-                    benefits={bronzeBenefits}
-                    onBenefitsChange={setBronzeBenefits}
                   />
 
                   {/* Silver */}
@@ -744,8 +685,6 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
                     labelColor="text-slate-700 dark:text-slate-300"
                     threshold={silverThreshold}
                     onThresholdChange={setSilverThreshold}
-                    benefits={silverBenefits}
-                    onBenefitsChange={setSilverBenefits}
                   />
 
                   {/* Gold */}
@@ -756,8 +695,6 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
                     labelColor="text-yellow-600 dark:text-yellow-400"
                     threshold={goldThreshold}
                     onThresholdChange={setGoldThreshold}
-                    benefits={goldBenefits}
-                    onBenefitsChange={setGoldBenefits}
                   />
                 </div>
               )}
@@ -992,42 +929,22 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
               )}
 
               {cardType === "vip" && (
-                <div className="pt-2 border-t space-y-2">
-                  <p className="font-semibold text-foreground text-[11px]">Avantages par niveau :</p>
-                  {[
-                    { emoji: "🥉", label: "Bronze", threshold: bronzeThreshold, benefits: bronzeBenefits, tier: "bronze" as const, color: "text-amber-700 dark:text-amber-400" },
-                    { emoji: "🥈", label: "Silver", threshold: silverThreshold, benefits: silverBenefits, tier: "silver" as const, color: "text-slate-600 dark:text-slate-300" },
-                    { emoji: "🥇", label: "Gold", threshold: goldThreshold, benefits: goldBenefits, tier: "gold" as const, color: "text-yellow-600 dark:text-yellow-400" },
-                  ].map(({ emoji, label, threshold, benefits, tier, color }) => (
-                    <div key={tier} className="rounded-lg border bg-background overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() => setOpenTier(openTier === tier ? null : tier)}
-                        className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-surface-muted/50 transition-colors"
-                      >
-                        <span className={cn("text-[11px] font-bold", color)}>
-                          {emoji} {label}
-                          <span className="font-normal text-muted-foreground ml-1.5">
-                            dès {Number(threshold).toLocaleString()} DA
-                          </span>
-                        </span>
-                        <ChevronDown className={cn("size-3.5 text-muted-foreground transition-transform", openTier === tier && "rotate-180")} />
-                      </button>
-                      {openTier === tier && (
-                        <div className="px-3 pb-2.5 space-y-1">
-                          {benefits.filter(Boolean).map((b, i) => (
-                            <div key={i} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                              <Check className="size-3 mt-0.5 text-primary shrink-0" />
-                              <span>{b}</span>
-                            </div>
-                          ))}
-                          {benefits.filter(Boolean).length === 0 && (
-                            <p className="text-[11px] text-muted-foreground italic">Aucun avantage configuré</p>
-                          )}
-                        </div>
-                      )}
+                <div className="pt-2 border-t space-y-2 text-xs">
+                  <p className="font-semibold text-foreground text-[11px]">Paliers d'achats :</p>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-lg bg-background p-2 border">
+                      <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 block">🥉 Bronze</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">{Number(bronzeThreshold).toLocaleString()} DA</span>
                     </div>
-                  ))}
+                    <div className="rounded-lg bg-background p-2 border">
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block">🥈 Silver</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">{Number(silverThreshold).toLocaleString()} DA</span>
+                    </div>
+                    <div className="rounded-lg bg-background p-2 border">
+                      <span className="text-[11px] font-bold text-yellow-600 dark:text-yellow-400 block">🥇 Gold</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">{Number(goldThreshold).toLocaleString()} DA</span>
+                    </div>
+                  </div>
                 </div>
               )}
 
