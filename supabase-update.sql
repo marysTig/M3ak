@@ -43,9 +43,10 @@ create trigger trg_cards_updated_at
   for each row execute function public.set_updated_at();
 
 
--- ─── 2b. Colonne téléphone dans profiles ─────────────────────────────────────
+-- ─── 2b. Colonne téléphone dans profiles et merchants ─────────────────────────
 
 alter table public.profiles add column if not exists phone text;
+alter table public.merchants add column if not exists phone text;
 
 -- ─── 2c. Colonne subscription_expires_at dans merchants ──────────────────────
 
@@ -709,9 +710,13 @@ create table if not exists public.subscription_payments (
 
 alter table public.subscription_payments enable row level security;
 
+drop policy if exists "Admins can manage subscription payments" on public.subscription_payments;
 create policy "Admins can manage subscription payments"
   on public.subscription_payments for all
-  using (public.is_admin());
+  using (public.is_admin())
+  with check (public.is_admin());
+
+grant all on public.subscription_payments to authenticated;
 
 -- =============================================================================
 -- FIN DU SCRIPT
