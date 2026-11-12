@@ -291,7 +291,10 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
   }
 
   async function handleConfirmCreate() {
-    if (!merchantId) return;
+    if (!merchantId) {
+      toast.error("Commerce introuvable. Veuillez rafraîchir la page et réessayer.");
+      return;
+    }
     setLoading(true);
 
     try {
@@ -315,63 +318,62 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
           ? stampCardName.trim() || "Carte à Tampons"
           : null;
 
-      // 1. Tenter l'appel avec les 7 paramètres (nouvelle RPC)
+      // Appel RPC merchant_create_card avec tous les paramètres
       let cardResult: { card_id: string; qr_token: string; points: number; customer_name: string } | null = null;
 
-      try {
-        const { data, error } = await supabase.rpc("merchant_create_card", {
-          p_customer_name: customerName.trim(),
-          p_merchant_id: merchantId,
-          p_phone: phone.trim() || null,
-          p_card_type: cardType,
-          p_card_name: resolvedCardName,
-          p_theme_id: themeId,
-          p_config: configPayload,
-        });
+      const { data: rpcData, error: rpcError } = await supabase.rpc("merchant_create_card", {
+        p_customer_name: customerName.trim(),
+        p_merchant_id: merchantId,
+        p_phone: phone.trim() || null,
+        p_card_type: cardType,
+        p_card_name: resolvedCardName,
+        p_theme_id: themeId,
+        p_config: configPayload,
+      });
 
-        if (!error && data) {
-          cardResult = data as typeof cardResult;
-        } else if (error && !error.message?.includes("function") && error.code !== "PGRST202") {
-          throw new Error(error.message);
+      if (rpcError) {
+        // Si la RPC n'existe pas avec 7 paramètres (ancienne version), utiliser le fallback direct
+        if (rpcError.code === "PGRST202" || rpcError.message?.toLowerCase().includes("could not find the function")) {
+          const { data: legacyData, error: legacyErr } = await supabase.rpc("merchant_create_card", {
+            p_customer_name: customerName.trim(),
+            p_merchant_id: merchantId,
+            p_phone: phone.trim() || null,
+          });
+
+          if (legacyErr || !legacyData) {
+            throw new Error(legacyErr?.message || "Erreur lors de la création de la carte.");
+          }
+          cardResult = legacyData as typeof cardResult;
+
+          // Mettre à jour directement les colonnes de type et configuration
+          await supabase
+            .from("loyalty_cards")
+            .update({
+              card_type: cardType,
+              card_name: resolvedCardName,
+              theme_id: themeId,
+              stamps_count: 0,
+              stamps_target: Number(stampsTarget) || 10,
+              stamp_reward: configPayload.stamp_reward,
+              stamp_conditions: configPayload.stamp_conditions,
+              vip_tier: "bronze",
+              vip_spent: 0,
+              vip_bronze_threshold: configPayload.bronze_threshold,
+              vip_silver_threshold: configPayload.silver_threshold,
+              vip_gold_threshold: configPayload.gold_threshold,
+              vip_bronze_benefits: configPayload.bronze_benefits,
+              vip_silver_benefits: configPayload.silver_benefits,
+              vip_gold_benefits: configPayload.gold_benefits,
+            })
+            .eq("id", cardResult!.card_id);
+        } else {
+          // Erreur métier (accès refusé, commerce suspendu, etc.)
+          throw new Error(rpcError.message);
         }
-      } catch (rpcErr) {
-        // En cas d'erreur de signature, passer au fallback ci-dessous
-      }
-
-      // 2. Fallback sécurisé : si la RPC avec 7 paramètres n'est pas encore rechargée, appeler avec 3 paramètres puis mettre à jour la ligne
-      if (!cardResult) {
-        const { data: legacyData, error: legacyErr } = await supabase.rpc("merchant_create_card", {
-          p_customer_name: customerName.trim(),
-          p_merchant_id: merchantId,
-          p_phone: phone.trim() || null,
-        });
-
-        if (legacyErr || !legacyData) {
-          throw new Error(legacyErr?.message || "Erreur lors de la création de la carte.");
-        }
-        cardResult = legacyData as typeof cardResult;
-
-        // Mettre à jour directement les colonnes de type et configuration
-        await supabase
-          .from("loyalty_cards")
-          .update({
-            card_type: cardType,
-            card_name: resolvedCardName,
-            theme_id: themeId,
-            stamps_count: 0,
-            stamps_target: Number(stampsTarget) || 10,
-            stamp_reward: configPayload.stamp_reward,
-            stamp_conditions: configPayload.stamp_conditions,
-            vip_tier: "bronze",
-            vip_spent: 0,
-            vip_bronze_threshold: configPayload.bronze_threshold,
-            vip_silver_threshold: configPayload.silver_threshold,
-            vip_gold_threshold: configPayload.gold_threshold,
-            vip_bronze_benefits: configPayload.bronze_benefits,
-            vip_silver_benefits: configPayload.silver_benefits,
-            vip_gold_benefits: configPayload.gold_benefits,
-          })
-          .eq("id", cardResult.card_id);
+      } else if (!rpcData) {
+        throw new Error("Erreur lors de la création de la carte : aucune donnée retournée.");
+      } else {
+        cardResult = rpcData as typeof cardResult;
       }
 
       // 3. Attribution garantie des points initiaux (Système de points)
