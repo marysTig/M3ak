@@ -276,9 +276,9 @@ function PublicCardPage() {
       <div className="mx-auto max-w-sm space-y-5 px-3.5 sm:px-4 pt-4 sm:pt-6">
         {/* Bandeau Mode Commerçant */}
         {isMerchant && (
-          <div className="flex items-center justify-between rounded-xl bg-primary/10 border border-primary/20 px-3.5 py-2.5 text-xs text-primary font-medium">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl bg-primary/10 border border-primary/20 px-3.5 py-2.5 text-xs text-primary font-medium">
             <span className="flex items-center gap-1.5 font-bold">
-              <Sparkles className="size-3.5" />
+              <Sparkles className="size-3.5 shrink-0" />
               Commerçant connecté
             </span>
             {card.card_type === "points" && (
@@ -286,7 +286,7 @@ function PublicCardPage() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-7 px-2.5 text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                className="h-7 px-2.5 text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 shrink-0 w-full sm:w-auto"
                 disabled={resettingPoints || card.points === 0}
                 onClick={handleResetPoints}
               >
@@ -545,8 +545,8 @@ function PublicCardPage() {
           <div className="space-y-4">
             {/* Solde de points */}
             <div className="card-surface space-y-2.5 p-4 sm:p-6 text-center">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center sm:text-left">
                   Solde de points
                 </p>
                 {isMerchant && (
@@ -556,7 +556,7 @@ function PublicCardPage() {
                     size="sm"
                     disabled={resettingPoints || card.points === 0}
                     onClick={handleResetPoints}
-                    className="h-7 px-2.5 text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 shadow-sm"
+                    className="h-7 px-2.5 text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 shadow-sm shrink-0 w-full sm:w-auto"
                     title={card.points === 0 ? "Le solde est déjà à 0" : "Remettre les points à zéro"}
                   >
                     <RotateCcw className={cn("size-3 mr-1", resettingPoints && "animate-spin")} />

@@ -122,7 +122,7 @@ export function VirtualCard({
       onClick={onClick}
       className={cn(
         "relative box-border grid w-full cursor-pointer grid-rows-[1fr_auto] overflow-hidden rounded-2xl text-left transition-all duration-300",
-        compact ? "h-[150px] sm:h-[165px] p-3.5 sm:p-4" : "min-h-[195px] sm:h-[230px] p-4 sm:p-6",
+        compact ? "min-h-[142px] h-[148px] sm:h-[165px] p-3 sm:p-4" : "min-h-[190px] sm:h-[230px] p-3.5 sm:p-6",
         "shadow-[0_4px_20px_rgb(0_0_0/30%),0_12px_40px_rgb(0_0_0/20%)]",
         selected
           ? "ring-4 ring-white/70 ring-offset-2 ring-offset-transparent scale-[1.03]"
@@ -135,17 +135,17 @@ export function VirtualCard({
       />
 
       {selected && (
-        <span className="absolute right-3 top-3 z-10 flex size-6 items-center justify-center rounded-full bg-white/90 shadow">
-          <Check className="size-3.5 text-primary" />
+        <span className="absolute right-2.5 top-2.5 sm:right-3 sm:top-3 z-10 flex size-5 sm:size-6 items-center justify-center rounded-full bg-white/90 shadow">
+          <Check className="size-3 sm:size-3.5 text-primary" />
         </span>
       )}
 
       {/* Header section */}
-      <div className="relative z-10 flex items-start justify-between">
-        <div className="min-w-0 pr-2">
-          <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="relative z-10 flex items-start justify-between gap-1.5 sm:gap-2">
+        <div className="min-w-0 pr-1 flex-1">
+          <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
             <span
-              className="text-[9px] font-bold uppercase tracking-[1.5px] px-1.5 py-0.5 rounded-md"
+              className="text-[8px] sm:text-[9px] font-bold uppercase tracking-[1px] sm:tracking-[1.5px] px-1.5 py-0.5 rounded-md leading-tight"
               style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(4px)" }}
             >
               {cardType === "vip"
@@ -155,31 +155,31 @@ export function VirtualCard({
                 : "CARTE DE FIDÉLITÉ"}
             </span>
             {cardName && (
-              <span className="text-[10px] opacity-80 truncate max-w-[140px]">
+              <span className="text-[9px] sm:text-[10px] opacity-80 truncate max-w-[100px] sm:max-w-[140px]">
                 · {cardName}
               </span>
             )}
           </div>
 
-          <p className={cn("mt-1 max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap font-bold tracking-wide", compact ? "text-sm" : "text-base")}
+          <p className={cn("mt-1 max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-bold tracking-wide", compact ? "text-xs sm:text-sm" : "text-sm sm:text-base")}
             style={{ color: theme.textColor, textShadow: "0 1px 8px rgba(0,0,0,0.2)" }}>
             {businessName}
           </p>
           {category && !compact && (
-            <p className="text-[10px]" style={{ color: theme.textColor, opacity: 0.55 }}>{category}</p>
+            <p className="text-[10px] truncate max-w-full" style={{ color: theme.textColor, opacity: 0.55 }}>{category}</p>
           )}
         </div>
 
-        <div className="flex flex-col items-end gap-1.5 shrink-0">
+        <div className="flex flex-col items-end gap-1 sm:gap-1.5 shrink-0">
           <span
-            className={cn("flex items-center justify-center rounded-xl font-bold", isLight ? "text-white" : "text-white", compact ? "size-8 text-xs" : "size-10 text-sm")}
+            className={cn("flex items-center justify-center rounded-xl font-bold", isLight ? "text-white" : "text-white", compact ? "size-7 sm:size-8 text-xs" : "size-8 sm:size-10 text-xs sm:text-sm")}
             style={{ background: "rgba(255,255,255,0.2)", backdropFilter: "blur(8px)", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}
           >
             {initials}
           </span>
           {cardType === "vip" && (
             <span
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase shadow-sm"
+              className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-[10px] font-black tracking-wider uppercase shadow-sm"
               style={{
                 background: currentTier.badgeBg,
                 color: currentTier.text,
@@ -187,7 +187,7 @@ export function VirtualCard({
                 backdropFilter: "blur(6px)",
               }}
             >
-              <Crown className="size-2.5" />
+              <Crown className="size-2 sm:size-2.5" />
               {currentTier.label}
             </span>
           )}
@@ -195,10 +195,10 @@ export function VirtualCard({
       </div>
 
       {/* Bottom section depending on cardType */}
-      <div className="relative z-10 flex items-end justify-between pt-2">
-        <div className="min-w-0">
+      <div className="relative z-10 flex items-end justify-between pt-1.5 sm:pt-2 gap-2">
+        <div className="min-w-0 flex-1">
           {customerName && (
-            <p className={cn("font-medium truncate max-w-[180px] sm:max-w-[220px]", compact ? "text-xs mb-0.5" : "text-sm mb-1")}
+            <p className={cn("font-medium truncate max-w-[130px] sm:max-w-[220px]", compact ? "text-[11px] sm:text-xs mb-0.5" : "text-xs sm:text-sm mb-1")}
               style={{ color: theme.textColor, opacity: 0.9 }}>
               {customerName}
             </p>
@@ -206,29 +206,29 @@ export function VirtualCard({
 
           {cardType === "vip" ? (
             <div>
-              <p className="text-[9px] font-semibold uppercase tracking-[1.5px]" style={{ color: theme.textColor, opacity: 0.7 }}>
+              <p className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[1px] sm:tracking-[1.5px]" style={{ color: theme.textColor, opacity: 0.7 }}>
                 Achats cumulés
               </p>
-              <p className={cn("font-bold leading-tight flex items-baseline gap-1", compact ? "text-base sm:text-lg" : "text-xl sm:text-2xl")}
+              <p className={cn("font-bold leading-tight flex items-baseline gap-1", compact ? "text-sm sm:text-lg" : "text-lg sm:text-2xl")}
                 style={{ color: theme.textColor, textShadow: "0 1px 8px rgba(0,0,0,0.2)" }}>
                 <span>{vipSpent.toLocaleString("fr-FR")}</span>
-                <span className="text-xs font-normal opacity-80">DA</span>
+                <span className="text-[10px] sm:text-xs font-normal opacity-80">DA</span>
               </p>
             </div>
           ) : cardType === "stamps" ? (
             <div>
-              <p className="text-[9px] font-semibold uppercase tracking-[1.5px]" style={{ color: theme.textColor, opacity: 0.7 }}>
+              <p className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[1px] sm:tracking-[1.5px]" style={{ color: theme.textColor, opacity: 0.7 }}>
                 Tampons validés
               </p>
-              <p className={cn("font-bold leading-tight", compact ? "text-base sm:text-lg" : "text-xl sm:text-2xl")}
+              <p className={cn("font-bold leading-tight", compact ? "text-sm sm:text-lg" : "text-xl sm:text-2xl")}
                 style={{ color: theme.textColor, textShadow: "0 1px 8px rgba(0,0,0,0.2)" }}>
-                {stampsCount} <span className="text-xs font-normal opacity-80">/ {stampsTarget}</span>
+                {stampsCount} <span className="text-[10px] sm:text-xs font-normal opacity-80">/ {stampsTarget}</span>
               </p>
             </div>
           ) : (
             <div>
-              <p className="text-[9px] font-semibold uppercase tracking-[2px]" style={{ color: theme.textColor, opacity: 0.6 }}>Points</p>
-              <p className={cn("font-bold leading-tight", compact ? "text-lg" : "text-2xl")}
+              <p className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[1.5px] sm:tracking-[2px]" style={{ color: theme.textColor, opacity: 0.6 }}>Points</p>
+              <p className={cn("font-bold leading-tight", compact ? "text-base sm:text-lg" : "text-xl sm:text-2xl")}
                 style={{ color: theme.textColor, textShadow: "0 1px 8px rgba(0,0,0,0.2)" }}>
                 {points}
               </p>
@@ -238,9 +238,9 @@ export function VirtualCard({
 
         <div className="text-right shrink-0 flex flex-col items-end justify-end">
           {cardType === "stamps" && stampReward && (
-            <div className="max-w-[140px] text-right mb-0.5">
+            <div className="max-w-[100px] sm:max-w-[140px] text-right mb-0.5">
               <span
-                className="inline-block text-[9px] px-2 py-0.5 rounded-md truncate max-w-full font-medium"
+                className="inline-block text-[8px] sm:text-[9px] px-1.5 sm:px-2 py-0.5 rounded-md truncate max-w-full font-medium"
                 style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(4px)" }}
                 title={stampReward}
               >
@@ -248,7 +248,7 @@ export function VirtualCard({
               </span>
             </div>
           )}
-          <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: theme.textColor, opacity: 0.6 }}>
+          <p className="text-[8px] sm:text-[9px] font-bold uppercase tracking-widest" style={{ color: theme.textColor, opacity: 0.6 }}>
             M3AK
           </p>
         </div>
@@ -317,9 +317,9 @@ function MaCartePage() {
           </div>
         </section>
 
-        <section className="card-surface space-y-4 p-4 sm:p-5">
+        <section className="card-surface space-y-4 p-3.5 sm:p-5">
           <h2 className="font-semibold text-sm sm:text-base">Choisir un thème</h2>
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
             {themes.map((theme) => (
               <div key={theme.id} className="flex flex-col gap-1.5">
                 <VirtualCard

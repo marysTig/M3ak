@@ -128,7 +128,7 @@ function VipTierEditor({
         <span className="text-[10px] text-muted-foreground">{sublabel}</span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
         {/* Seuil d'accès (DA) */}
         <div>
           <Label className="text-[10px] text-muted-foreground">Seuil d'accès (DA)</Label>
@@ -136,7 +136,7 @@ function VipTierEditor({
             type="number"
             value={threshold}
             onChange={(e) => onThresholdChange(e.target.value)}
-            className="h-8 text-xs font-mono mt-1"
+            className="h-9 sm:h-8 text-xs font-mono mt-1"
             placeholder="ex: 15000"
           />
         </div>
@@ -148,7 +148,7 @@ function VipTierEditor({
             type="text"
             value={info}
             onChange={(e) => onInfoChange(e.target.value)}
-            className="h-8 text-xs mt-1"
+            className="h-9 sm:h-8 text-xs mt-1"
             placeholder={infoPlaceholder}
           />
         </div>
@@ -965,21 +965,27 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
               {cardType === "vip" && (
                 <div className="pt-2 border-t space-y-2 text-xs">
                   <p className="font-semibold text-foreground text-[11px]">Paliers & Avantages VIP :</p>
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-lg bg-background p-2 border">
-                      <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 block">🥉 Bronze</span>
-                      <span className="text-[10px] text-muted-foreground font-mono block">{Number(bronzeThreshold).toLocaleString()} DA</span>
-                      {bronzeInfo && <span className="text-[10px] text-foreground font-medium truncate block mt-0.5">{bronzeInfo}</span>}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div className="rounded-lg bg-background p-2.5 sm:p-2 border flex sm:flex-col justify-between sm:justify-center items-center gap-1.5 sm:gap-0.5">
+                      <div className="flex sm:flex-col items-start sm:items-center gap-1.5 sm:gap-0.5">
+                        <span className="text-xs sm:text-[11px] font-bold text-amber-700 dark:text-amber-400">🥉 Bronze</span>
+                        <span className="text-[11px] sm:text-[10px] text-muted-foreground font-mono">{Number(bronzeThreshold).toLocaleString()} DA</span>
+                      </div>
+                      {bronzeInfo && <span className="text-xs sm:text-[10px] text-foreground font-medium sm:truncate sm:max-w-full text-right sm:text-center">{bronzeInfo}</span>}
                     </div>
-                    <div className="rounded-lg bg-background p-2 border">
-                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block">🥈 Silver</span>
-                      <span className="text-[10px] text-muted-foreground font-mono block">{Number(silverThreshold).toLocaleString()} DA</span>
-                      {silverInfo && <span className="text-[10px] text-foreground font-medium truncate block mt-0.5">{silverInfo}</span>}
+                    <div className="rounded-lg bg-background p-2.5 sm:p-2 border flex sm:flex-col justify-between sm:justify-center items-center gap-1.5 sm:gap-0.5">
+                      <div className="flex sm:flex-col items-start sm:items-center gap-1.5 sm:gap-0.5">
+                        <span className="text-xs sm:text-[11px] font-bold text-slate-600 dark:text-slate-300">🥈 Silver</span>
+                        <span className="text-[11px] sm:text-[10px] text-muted-foreground font-mono">{Number(silverThreshold).toLocaleString()} DA</span>
+                      </div>
+                      {silverInfo && <span className="text-xs sm:text-[10px] text-foreground font-medium sm:truncate sm:max-w-full text-right sm:text-center">{silverInfo}</span>}
                     </div>
-                    <div className="rounded-lg bg-background p-2 border">
-                      <span className="text-[11px] font-bold text-yellow-600 dark:text-yellow-400 block">🥇 Gold</span>
-                      <span className="text-[10px] text-muted-foreground font-mono block">{Number(goldThreshold).toLocaleString()} DA</span>
-                      {goldInfo && <span className="text-[10px] text-foreground font-medium truncate block mt-0.5">{goldInfo}</span>}
+                    <div className="rounded-lg bg-background p-2.5 sm:p-2 border flex sm:flex-col justify-between sm:justify-center items-center gap-1.5 sm:gap-0.5">
+                      <div className="flex sm:flex-col items-start sm:items-center gap-1.5 sm:gap-0.5">
+                        <span className="text-xs sm:text-[11px] font-bold text-yellow-600 dark:text-yellow-400">🥇 Gold</span>
+                        <span className="text-[11px] sm:text-[10px] text-muted-foreground font-mono">{Number(goldThreshold).toLocaleString()} DA</span>
+                      </div>
+                      {goldInfo && <span className="text-xs sm:text-[10px] text-foreground font-medium sm:truncate sm:max-w-full text-right sm:text-center">{goldInfo}</span>}
                     </div>
                   </div>
                 </div>

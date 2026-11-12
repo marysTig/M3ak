@@ -563,8 +563,8 @@ function CustomersPage() {
                       <TableCell className="hidden sm:table-cell">
                         <StatusBadge status={c.status} />
                       </TableCell>
-                      <TableCell className="text-right px-3 sm:px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1.5">
+                      <TableCell className="text-right px-2.5 sm:px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1 sm:gap-1.5">
                           {cardType === "points" ? (
                             <Button
                               type="button"
@@ -575,7 +575,7 @@ function CustomersPage() {
                                 e.stopPropagation();
                                 handleResetCustomerPoints(c);
                               }}
-                              className="h-7 px-2 sm:px-2.5 text-xs font-medium text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                              className="h-7 px-2 sm:px-2.5 text-xs font-medium text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 shrink-0"
                               title={c.card.points === 0 ? "Le solde est déjà à 0" : "Remettre les points à zéro"}
                             >
                               <RotateCcw className="size-3 sm:mr-1" />
@@ -590,7 +590,7 @@ function CustomersPage() {
                                 e.stopPropagation();
                                 openSheet(c);
                               }}
-                              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground shrink-0"
                             >
                               Détails
                             </Button>
@@ -604,7 +604,7 @@ function CustomersPage() {
                               e.stopPropagation();
                               handleDeleteCard(c);
                             }}
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
                             title={`Supprimer la carte de ${c.customer.full_name}`}
                           >
                             <Trash2 className="size-3.5" />
@@ -815,9 +815,9 @@ function CustomersPage() {
                   {/* ───────────────────────────────────────────────────────────── */}
                   {cardType === "points" && (
                     <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                          <Sparkles className="size-3.5 text-primary" />
+                          <Sparkles className="size-3.5 text-primary shrink-0" />
                           Solde de points
                         </span>
                         <Button
@@ -826,7 +826,7 @@ function CustomersPage() {
                           size="sm"
                           disabled={resettingPoints || selected.card.points === 0}
                           onClick={handleResetPoints}
-                          className="h-7 px-2.5 text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 shadow-sm"
+                          className="h-7 px-2.5 text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 shadow-sm shrink-0 w-full sm:w-auto"
                           title={selected.card.points === 0 ? "Le solde est déjà à 0" : "Remettre les points à zéro"}
                         >
                           <RotateCcw className={cn("size-3 mr-1.5", resettingPoints && "animate-spin")} />
@@ -959,7 +959,7 @@ function CustomersPage() {
                       </form>
 
                       {/* Remettre les points à zéro */}
-                      <div className="pt-2.5 border-t border-border flex items-center justify-between">
+                      <div className="pt-2.5 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                         <div className="text-left">
                           <p className="text-xs font-semibold text-foreground">Remise à zéro</p>
                           <p className="text-[11px] text-muted-foreground">
@@ -972,7 +972,7 @@ function CustomersPage() {
                           size="sm"
                           disabled={resettingPoints || selected.card.points === 0}
                           onClick={handleResetPoints}
-                          className="h-8 px-2.5 text-xs font-medium text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 shrink-0"
+                          className="h-8 px-3 text-xs font-medium text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 shrink-0 w-full sm:w-auto"
                           title={selected.card.points === 0 ? "Le solde est déjà à 0" : "Remettre les points à zéro"}
                         >
                           <RotateCcw className={cn("size-3.5 mr-1.5", resettingPoints && "animate-spin")} />
@@ -1148,7 +1148,7 @@ function CustomersPage() {
                   {/* ZONE DANGEREUSE : SUPPRIMER LE CLIENT                         */}
                   {/* ───────────────────────────────────────────────────────────── */}
                   <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3.5 space-y-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                       <div>
                         <p className="text-xs font-bold text-destructive">Zone dangereuse</p>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -1161,7 +1161,7 @@ function CustomersPage() {
                         size="sm"
                         disabled={deletingCard}
                         onClick={() => handleDeleteCard(selected)}
-                        className="h-8 px-2.5 text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/40 shrink-0"
+                        className="h-8 px-3 text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/40 shrink-0 w-full sm:w-auto"
                       >
                         <Trash2 className={cn("size-3.5 mr-1.5", deletingCard && "animate-pulse")} />
                         {deletingCard ? "Suppression…" : "Supprimer"}
