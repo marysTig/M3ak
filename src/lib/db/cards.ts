@@ -329,3 +329,28 @@ export async function resetCardPoints(cardId: string): Promise<{ new_balance: nu
 
   return { new_balance: 0 };
 }
+
+/**
+ * Supprime définitivement la carte d'un client pour un commerce donné.
+ * Le commerçant ne peut supprimer que les cartes de son propre commerce.
+ * Les transactions associées sont supprimées en cascade (ON DELETE CASCADE).
+ */
+export async function deleteCustomerCard(cardId: string): Promise<void> {
+  // 1. Tenter via RPC sécurisée
+  try {
+    const { data, error } = await supabase.rpc("merchant_delete_card", { p_card_id: cardId });
+    if (!error && data) {
+      return;
+    }
+  } catch {
+    // Fallback direct
+  }
+
+  // 2. Fallback direct sur loyalty_cards
+  const { error } = await supabase
+    .from("loyalty_cards")
+    .delete()
+    .eq("id", cardId);
+
+  if (error) throw new Error(error.message);
+}

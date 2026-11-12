@@ -653,6 +653,48 @@ $$;
 grant execute on function public.reset_points(uuid) to authenticated;
 
 
+-- ─── 13. RLS & RPC : Suppression d'une carte/client par le commerçant ─────────
+
+drop policy if exists "cards_merchant_delete" on public.loyalty_cards;
+create policy "cards_merchant_delete" on public.loyalty_cards for delete
+  using ((select owner_id from public.merchants where id = merchant_id) = auth.uid());
+
+drop function if exists public.merchant_delete_card(uuid);
+
+create or replace function public.merchant_delete_card(
+  p_card_id uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, extensions, auth
+as $$
+declare
+  v_caller_id uuid := auth.uid();
+  v_owner_id  uuid;
+begin
+  select m.owner_id into v_owner_id
+  from public.loyalty_cards c
+  join public.merchants m on m.id = c.merchant_id
+  where c.id = p_card_id;
+
+  if v_owner_id is null then
+    raise exception 'Carte introuvable';
+  end if;
+
+  if v_owner_id <> v_caller_id and not public.is_admin() then
+    raise exception 'Accès refusé : vous n''êtes pas le propriétaire de ce commerce';
+  end if;
+
+  delete from public.loyalty_cards where id = p_card_id;
+
+  return true;
+end;
+$$;
+
+grant execute on function public.merchant_delete_card(uuid) to authenticated;
+
+
 -- =============================================================================
 -- FIN DU SCRIPT
 -- =============================================================================

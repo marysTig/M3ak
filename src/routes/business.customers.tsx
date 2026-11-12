@@ -15,6 +15,7 @@ import {
   Smartphone,
   Sparkles,
   Ticket,
+  Trash2,
   Users,
   RotateCcw,
 } from "lucide-react";
@@ -35,7 +36,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/lib/supabase";
 import { getMerchantCustomers, type CustomerWithCard } from "@/lib/db/customers";
-import { addPoints, addStamps, redeemStamps, addVipSpending, resetCardPoints } from "@/lib/db/cards";
+import { addPoints, addStamps, redeemStamps, addVipSpending, resetCardPoints, deleteCustomerCard } from "@/lib/db/cards";
 import { getCardTransactions } from "@/lib/db/transactions";
 import type { Transaction } from "@/lib/db/transactions";
 import { getLoyaltyProgram } from "@/lib/db/program";
@@ -121,6 +122,7 @@ function CustomersPage() {
   const [pointsError, setPointsError] = useState("");
   const [addingPoints, setAddingPoints] = useState(false);
   const [resettingPoints, setResettingPoints] = useState(false);
+  const [deletingCard, setDeletingCard] = useState(false);
 
   // Actions VIP
   const [vipSpendInput, setVipSpendInput] = useState("");
@@ -305,6 +307,26 @@ function CustomersPage() {
   async function handleResetPoints() {
     if (!selected) return;
     await handleResetCustomerPoints(selected);
+  }
+
+  async function handleDeleteCard(c: CustomerWithCard) {
+    if (!merchantId) return;
+    const confirmed = window.confirm(
+      `Supprimer définitivement la carte de ${c.customer.full_name} ?\n\nCette action supprimera la carte et tout l'historique des points de ce client pour votre commerce. Elle est irréversible.`
+    );
+    if (!confirmed) return;
+
+    setDeletingCard(true);
+    try {
+      await deleteCustomerCard(c.card.id);
+      toast.success(`Carte de ${c.customer.full_name} supprimée.`);
+      setSelected(null);
+      if (merchantId) await reload(merchantId);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression.");
+    } finally {
+      setDeletingCard(false);
+    }
   }
 
   async function handleAddVipSpend(e?: React.FormEvent, directAmount?: number) {
@@ -542,36 +564,52 @@ function CustomersPage() {
                         <StatusBadge status={c.status} />
                       </TableCell>
                       <TableCell className="text-right px-3 sm:px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                        {cardType === "points" ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={resettingPoints || c.card.points === 0}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleResetCustomerPoints(c);
-                            }}
-                            className="h-7 px-2 sm:px-2.5 text-xs font-medium text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
-                            title={c.card.points === 0 ? "Le solde est déjà à 0" : "Remettre les points à zéro"}
-                          >
-                            <RotateCcw className="size-3 sm:mr-1" />
-                            <span className="hidden sm:inline">Mettre à 0</span>
-                          </Button>
-                        ) : (
+                        <div className="flex items-center justify-end gap-1.5">
+                          {cardType === "points" ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={resettingPoints || c.card.points === 0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleResetCustomerPoints(c);
+                              }}
+                              className="h-7 px-2 sm:px-2.5 text-xs font-medium text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                              title={c.card.points === 0 ? "Le solde est déjà à 0" : "Remettre les points à zéro"}
+                            >
+                              <RotateCcw className="size-3 sm:mr-1" />
+                              <span className="hidden sm:inline">Mettre à 0</span>
+                            </Button>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openSheet(c);
+                              }}
+                              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              Détails
+                            </Button>
+                          )}
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
+                            disabled={deletingCard}
                             onClick={(e) => {
                               e.stopPropagation();
-                              openSheet(c);
+                              handleDeleteCard(c);
                             }}
-                            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            title={`Supprimer la carte de ${c.customer.full_name}`}
                           >
-                            Détails
+                            <Trash2 className="size-3.5" />
                           </Button>
-                        )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -1104,6 +1142,31 @@ function CustomersPage() {
                       </ul>
                     </div>
                   )}
+
+                  {/* ───────────────────────────────────────────────────────────── */}
+                  {/* ZONE DANGEREUSE : SUPPRIMER LE CLIENT                         */}
+                  {/* ───────────────────────────────────────────────────────────── */}
+                  <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-destructive">Zone dangereuse</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Supprime définitivement ce client et son historique
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={deletingCard}
+                        onClick={() => handleDeleteCard(selected)}
+                        className="h-8 px-2.5 text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/40 shrink-0"
+                      >
+                        <Trash2 className={cn("size-3.5 mr-1.5", deletingCard && "animate-pulse")} />
+                        {deletingCard ? "Suppression…" : "Supprimer"}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </>
             );
