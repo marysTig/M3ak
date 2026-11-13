@@ -89,21 +89,27 @@ export async function getMyMerchant(): Promise<Merchant | null> {
         data = existingByOwner;
       } else {
         const slug = `${baseSlug}-${user.id.slice(0, 5)}`;
-        const res = await supabase
-          .from("merchants")
-          .insert({
-            owner_id: user.id,
-            name,
-            slug,
-            status: "active",
-            plan: "starter",
-            phone: metaPhone || prof?.phone || null,
-          })
-          .select()
-          .maybeSingle();
+        let inserted = null;
+        try {
+          const res = await supabase
+            .from("merchants")
+            .insert({
+              owner_id: user.id,
+              name,
+              slug,
+              status: "active",
+              plan: "starter",
+              phone: metaPhone || prof?.phone || null,
+            })
+            .select()
+            .maybeSingle();
+          if (res.data) inserted = res.data;
+        } catch {
+          // Conflit 409 ignoré : on relit ci-dessous
+        }
 
-        if (res.data) {
-          data = res.data;
+        if (inserted) {
+          data = inserted;
           await supabase.from("loyalty_programs").upsert({
             merchant_id: data.id,
             theme_id: "aurora",

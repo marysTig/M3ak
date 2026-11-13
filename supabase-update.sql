@@ -198,14 +198,42 @@ returns boolean language sql security definer set search_path = public stable as
   );
 $$;
 
+drop policy if exists "profiles_self"        on public.profiles;
+create policy "profiles_self"               on public.profiles for all
+  using (id = auth.uid() or public.is_admin())
+  with check (id = auth.uid() or public.is_admin());
+
 drop policy if exists "profiles_admin"       on public.profiles;
 create policy "profiles_admin"              on public.profiles for select using (public.is_admin());
+
+drop policy if exists "merchants_owner"      on public.merchants;
+create policy "merchants_owner"             on public.merchants for all
+  using (owner_id = auth.uid() or public.is_admin())
+  with check (owner_id = auth.uid() or public.is_admin());
+
+drop policy if exists "merchants_select_active" on public.merchants;
+create policy "merchants_select_active"     on public.merchants for select
+  using (status = 'active');
 
 drop policy if exists "merchants_admin"      on public.merchants;
 create policy "merchants_admin"             on public.merchants for all using (public.is_admin());
 
+drop policy if exists "stores_owner"         on public.stores;
+create policy "stores_owner"                on public.stores for all
+  using ((select owner_id from public.merchants where id = merchant_id) = auth.uid() or public.is_admin())
+  with check ((select owner_id from public.merchants where id = merchant_id) = auth.uid() or public.is_admin());
+
 drop policy if exists "stores_admin"         on public.stores;
 create policy "stores_admin"                on public.stores for all using (public.is_admin());
+
+drop policy if exists "lp_merchant"          on public.loyalty_programs;
+create policy "lp_merchant"                 on public.loyalty_programs for all
+  using ((select owner_id from public.merchants where id = merchant_id) = auth.uid() or public.is_admin())
+  with check ((select owner_id from public.merchants where id = merchant_id) = auth.uid() or public.is_admin());
+
+drop policy if exists "lp_select_all"        on public.loyalty_programs;
+create policy "lp_select_all"               on public.loyalty_programs for select
+  using (true);
 
 drop policy if exists "lp_admin"             on public.loyalty_programs;
 create policy "lp_admin"                    on public.loyalty_programs for all using (public.is_admin());
