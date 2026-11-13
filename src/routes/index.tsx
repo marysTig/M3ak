@@ -168,16 +168,20 @@ function AuthPage() {
     setLoading(true);
     try {
       const { email, username: cleanUser } = toAuthEmail(form.username);
+      const cleanPhone = form.phone.trim() || null;
+      const cleanBusinessName = form.businessName.trim();
 
-      // 1. Créer le compte
+      // 1. Créer le compte utilisateur dans Supabase Auth
+      // Les métadonnées sont transmises au trigger database handle_new_user()
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password: form.password,
         options: {
           data: {
-            full_name: form.businessName.trim(),
+            full_name: cleanBusinessName,
             role: "merchant",
             username: cleanUser,
+            phone: cleanPhone,
           },
         },
       });
@@ -207,51 +211,52 @@ function AuthPage() {
         return;
       }
 
-      // 2. Connexion directe pour établir la session
-      await supabase.auth.signInWithPassword({
-        email,
-        password: form.password,
-      });
+      // 2. Établir la session authentifiée de manière garantie
+      let activeSession = data.session;
+      if (!activeSession) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password: form.password,
+        });
 
-      // 3. Assurer que le profil et la fiche commerce sont créés
+        if (signInError) {
+          console.error("[handleSignUp] Échec connexion post-signup:", signInError.message);
+          toast.error("Compte créé mais erreur de connexion automatique", {
+            description: signInError.message,
+          });
+          return;
+        }
+        activeSession = signInData.session;
+      }
+
+      const authUserId = activeSession?.user?.id || userId;
+
+      // 3. Le trigger database handle_new_user() a déjà créé le profil et le commerce.
+      // On vérifie leur présence sans déclencher de double insertion conflictuelle.
       const baseSlug = cleanUser.replace(/[^a-z0-9]/g, "-") || "commerce";
-      const cleanPhone = form.phone.trim() || null;
 
-      await supabase.from("profiles").upsert({
-        id: userId,
-        full_name: form.businessName.trim(),
-        phone: cleanPhone,
-        role: "merchant",
-      }, { onConflict: "id" });
-
-      // Vérifier si le commerce a déjà été créé par le trigger auth
       let { data: mRow } = await supabase
         .from("merchants")
         .select("*")
-        .eq("owner_id", userId)
+        .eq("owner_id", authUserId)
         .maybeSingle();
 
-      if (mRow) {
-        // Déjà existant : mettre à jour avec les informations exactes
-        const { data: updated } = await supabase
-          .from("merchants")
-          .update({
-            name: form.businessName.trim(),
-            phone: cleanPhone,
-            status: "active",
-          })
-          .eq("id", mRow.id)
-          .select()
-          .maybeSingle();
-        if (updated) mRow = updated;
-      } else {
-        // N'existe pas encore : insérer avec un slug unique garanti
-        const uniqueSlug = `${baseSlug}-${userId.slice(0, 5)}`;
-        const { data: inserted, error: insErr } = await supabase
+      // Repli défensif au cas où le trigger n'a pas été exécuté dans Supabase
+      if (!mRow) {
+        // S'assurer que le profil existe
+        await supabase.from("profiles").upsert({
+          id: authUserId,
+          full_name: cleanBusinessName,
+          phone: cleanPhone,
+          role: "merchant",
+        }, { onConflict: "id" });
+
+        const uniqueSlug = `${baseSlug}-${authUserId.slice(0, 5)}`;
+        const { data: inserted } = await supabase
           .from("merchants")
           .insert({
-            owner_id: userId,
-            name: form.businessName.trim(),
+            owner_id: authUserId,
+            name: cleanBusinessName,
             phone: cleanPhone,
             slug: uniqueSlug,
             status: "active",
@@ -260,17 +265,7 @@ function AuthPage() {
           .select()
           .maybeSingle();
 
-        if (inserted) {
-          mRow = inserted;
-        } else if (insErr) {
-          // En cas de conflit éventuel, recharger par owner_id
-          const { data: fallbackM } = await supabase
-            .from("merchants")
-            .select("*")
-            .eq("owner_id", userId)
-            .maybeSingle();
-          if (fallbackM) mRow = fallbackM;
-        }
+        if (inserted) mRow = inserted;
       }
 
       if (mRow) {
