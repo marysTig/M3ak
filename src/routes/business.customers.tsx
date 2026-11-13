@@ -1268,6 +1268,8 @@ function CustomersPage() {
       <NewCardDialog
         open={newCardOpen}
         onOpenChange={setNewCardOpen}
+        merchantId={merchantId}
+        merchantName={merchantName}
         onCreated={async () => {
           if (merchantId) await reload(merchantId);
         }}

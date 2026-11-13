@@ -43,6 +43,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 import { getLoyaltyProgram } from "@/lib/db/program";
+import { getMyMerchant } from "@/lib/db/merchants";
 import { addPoints, type CardType } from "@/lib/db/cards";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +51,8 @@ interface NewCardDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated?: () => void;
+  merchantId?: string | null;
+  merchantName?: string;
 }
 
 type Step = "type_selection" | "configure" | "preview" | "created";
@@ -157,7 +160,13 @@ function VipTierEditor({
   );
 }
 
-export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogProps) {
+export function NewCardDialog({
+  open,
+  onOpenChange,
+  onCreated,
+  merchantId: propMerchantId,
+  merchantName: propMerchantName,
+}: NewCardDialogProps) {
   const [step, setStep] = useState<Step>("type_selection");
   const [cardType, setCardType] = useState<CardType>("vip");
 
@@ -185,8 +194,8 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
   const [stampConditions, setStampConditions] = useState("");
 
   // Thème & Merchant
-  const [merchantId, setMerchantId] = useState<string | null>(null);
-  const [merchantName, setMerchantName] = useState("Mon commerce");
+  const [merchantId, setMerchantId] = useState<string | null>(propMerchantId || null);
+  const [merchantName, setMerchantName] = useState(propMerchantName || "Mon commerce");
   const [themeId, setThemeId] = useState("aurora");
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState<CreatedData | null>(null);
@@ -194,14 +203,17 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
 
   useEffect(() => {
     if (!open) return;
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const user = session?.user;
-      if (!user) return;
-      const { data: m } = await supabase
-        .from("merchants")
-        .select("id, name")
-        .eq("owner_id", user.id)
-        .maybeSingle();
+
+    if (propMerchantId) {
+      setMerchantId(propMerchantId);
+      if (propMerchantName) setMerchantName(propMerchantName);
+      getLoyaltyProgram(propMerchantId).then((prog) => {
+        if (prog?.theme_id) setThemeId(prog.theme_id);
+      });
+      return;
+    }
+
+    getMyMerchant().then(async (m) => {
       if (m) {
         setMerchantId(m.id);
         setMerchantName(m.name);
@@ -209,7 +221,7 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
         if (prog?.theme_id) setThemeId(prog.theme_id);
       }
     });
-  }, [open]);
+  }, [open, propMerchantId, propMerchantName]);
 
   function reset() {
     setStep("type_selection");
@@ -260,8 +272,21 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
   }
 
   async function handleConfirmCreate() {
-    if (!merchantId) {
-      toast.error("Commerce introuvable. Veuillez rafraîchir la page et réessayer.");
+    let activeMerchantId = merchantId || propMerchantId;
+    let activeMerchantName = merchantName || propMerchantName;
+
+    if (!activeMerchantId) {
+      const m = await getMyMerchant();
+      if (m) {
+        activeMerchantId = m.id;
+        activeMerchantName = m.name;
+        setMerchantId(m.id);
+        setMerchantName(m.name);
+      }
+    }
+
+    if (!activeMerchantId) {
+      toast.error("Commerce introuvable. Veuillez vous reconnecter ou rafraîchir la page.");
       return;
     }
     setLoading(true);
@@ -292,7 +317,7 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
 
       const { data: rpcData, error: rpcError } = await supabase.rpc("merchant_create_card", {
         p_customer_name: customerName.trim(),
-        p_merchant_id: merchantId,
+        p_merchant_id: activeMerchantId,
         p_phone: phone.trim() || null,
         p_card_type: cardType,
         p_card_name: resolvedCardName,
@@ -305,7 +330,7 @@ export function NewCardDialog({ open, onOpenChange, onCreated }: NewCardDialogPr
         if (rpcError.code === "PGRST202" || rpcError.message?.toLowerCase().includes("could not find the function")) {
           const { data: legacyData, error: legacyErr } = await supabase.rpc("merchant_create_card", {
             p_customer_name: customerName.trim(),
-            p_merchant_id: merchantId,
+            p_merchant_id: activeMerchantId,
             p_phone: phone.trim() || null,
           });
 

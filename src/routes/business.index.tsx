@@ -219,6 +219,8 @@ function Overview() {
       <NewCardDialog
         open={newCardOpen}
         onOpenChange={setNewCardOpen}
+        merchantId={merchant?.id}
+        merchantName={merchant?.name}
         onCreated={() => {}}
       />
     </div>

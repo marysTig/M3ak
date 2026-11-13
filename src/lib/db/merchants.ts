@@ -52,50 +52,40 @@ export async function getMyMerchant(): Promise<Merchant | null> {
     .maybeSingle();
 
   // Si la fiche n'existe pas encore pour ce commerçant, on la crée automatiquement
-  if (!data && user.user_metadata?.role === "merchant") {
-    const rawUser = (user.email ?? "").replace("@m3ak.app", "") || "moncommerce";
-    const name = user.user_metadata?.full_name || rawUser;
-    const baseSlug = rawUser.toLowerCase().replace(/[^a-z0-9]/g, "-") || "commerce";
-
-    // 1. S'assurer que le profil existe dans public.profiles (évite l'erreur de clé étrangère 409)
-    await supabase.from("profiles").upsert({
-      id: user.id,
-      full_name: name,
-      role: "merchant",
-    }, { onConflict: "id" });
-
-    // 2. Vérifier si un commerce existe déjà pour cet owner_id
-    const { data: existingByOwner } = await supabase
-      .from("merchants")
-      .select("*")
-      .eq("owner_id", user.id)
+  if (!data) {
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("role, full_name, phone")
+      .eq("id", user.id)
       .maybeSingle();
 
-    if (existingByOwner) {
-      data = existingByOwner;
-    } else {
-      // 3. Tenter d'insérer avec un slug unique sans écraser d'autre commerce
-      let slug = baseSlug;
-      let inserted = null;
+    const isMerchant = user.user_metadata?.role === "merchant" || prof?.role === "merchant";
+    const isAdmin = user.user_metadata?.role === "admin" || prof?.role === "admin";
 
-      const res1 = await supabase
+    if (isMerchant || (!prof?.role && !user.user_metadata?.role)) {
+      const rawUser = (user.email ?? "").replace("@m3ak.app", "") || "moncommerce";
+      const name = user.user_metadata?.full_name || prof?.full_name || rawUser;
+      const baseSlug = rawUser.toLowerCase().replace(/[^a-z0-9]/g, "-") || "commerce";
+
+      // 1. S'assurer que le profil existe dans public.profiles (évite l'erreur de clé étrangère 409)
+      await supabase.from("profiles").upsert({
+        id: user.id,
+        full_name: name,
+        role: "merchant",
+      }, { onConflict: "id" });
+
+      // 2. Vérifier si un commerce existe déjà pour cet owner_id
+      const { data: existingByOwner } = await supabase
         .from("merchants")
-        .insert({
-          owner_id: user.id,
-          name,
-          slug,
-          status: "active",
-          plan: "starter",
-        })
-        .select()
+        .select("*")
+        .eq("owner_id", user.id)
         .maybeSingle();
 
-      if (!res1.error && res1.data) {
-        inserted = res1.data;
+      if (existingByOwner) {
+        data = existingByOwner;
       } else {
-        // En cas de conflit sur le slug, ajouter un suffixe unique
-        slug = `${baseSlug}-${user.id.slice(0, 5)}`;
-        const res2 = await supabase
+        const slug = `${baseSlug}-${user.id.slice(0, 5)}`;
+        const res = await supabase
           .from("merchants")
           .insert({
             owner_id: user.id,
@@ -103,15 +93,32 @@ export async function getMyMerchant(): Promise<Merchant | null> {
             slug,
             status: "active",
             plan: "starter",
+            phone: user.user_metadata?.phone || prof?.phone || null,
           })
           .select()
           .maybeSingle();
-        if (!res2.error && res2.data) {
-          inserted = res2.data;
+
+        if (res.data) {
+          data = res.data;
+          await supabase.from("loyalty_programs").upsert({
+            merchant_id: data.id,
+            theme_id: "aurora",
+            status: "active",
+          }, { onConflict: "merchant_id" });
         }
       }
-
-      if (inserted) data = inserted;
+    } else if (isAdmin) {
+      // Pour l'administrateur, utiliser le premier commerce actif pour permettre la gestion/tests
+      const { data: firstMerchant } = await supabase
+        .from("merchants")
+        .select("*")
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (firstMerchant) {
+        data = firstMerchant;
+      }
     }
   }
 

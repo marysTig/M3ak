@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase";
 import { getMerchantTransactions, type Transaction } from "@/lib/db/transactions";
+import { getMyMerchant } from "@/lib/db/merchants";
 
 export const Route = createFileRoute("/business/transactions")({
   head: () => ({
@@ -42,6 +43,7 @@ function formatDate(iso: string) {
 
 function TransactionsPage() {
   const [merchantId, setMerchantId] = useState<string | null>(null);
+  const [merchantName, setMerchantName] = useState("");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
@@ -49,12 +51,10 @@ function TransactionsPage() {
   const [newCardOpen, setNewCardOpen] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const user = session?.user;
-      if (!user) return;
-      const { data: m } = await supabase.from("merchants").select("id").eq("owner_id", user.id).maybeSingle();
+    getMyMerchant().then(async (m) => {
       if (m) {
         setMerchantId(m.id);
+        setMerchantName(m.name);
         const tx = await getMerchantTransactions(m.id);
         setTransactions(tx);
       }
@@ -173,6 +173,8 @@ function TransactionsPage() {
       <NewCardDialog
         open={newCardOpen}
         onOpenChange={setNewCardOpen}
+        merchantId={merchantId}
+        merchantName={merchantName}
         onCreated={reload}
       />
     </>
