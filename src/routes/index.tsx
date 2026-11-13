@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Eye, EyeOff, Loader2, Lock, User } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, Loader2, Lock, Phone, User } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -48,6 +48,7 @@ function AuthPage() {
     password: "",
     confirmPassword: "",
     businessName: "",
+    phone: "",
   });
   const [errors, setErrors] = useState<{ [k: string]: string }>({});
 
@@ -218,9 +219,12 @@ function AuthPage() {
 
       // 3. Assurer que le profil et la fiche commerce sont créés
       const baseSlug = cleanUser.replace(/[^a-z0-9]/g, "-") || "commerce";
+      const cleanPhone = form.phone.trim() || null;
+
       await supabase.from("profiles").upsert({
         id: userId,
         full_name: form.businessName.trim(),
+        phone: cleanPhone,
         role: "merchant",
       }, { onConflict: "id" });
 
@@ -228,6 +232,7 @@ function AuthPage() {
       const res = await supabase.from("merchants").insert({
         owner_id: userId,
         name: form.businessName.trim(),
+        phone: cleanPhone,
         slug: baseSlug,
         status: "active",
         plan: "starter",
@@ -239,6 +244,7 @@ function AuthPage() {
         const res2 = await supabase.from("merchants").insert({
           owner_id: userId,
           name: form.businessName.trim(),
+          phone: cleanPhone,
           slug: `${baseSlug}-${userId.slice(0, 5)}`,
           status: "active",
           plan: "starter",
@@ -338,6 +344,26 @@ function AuthPage() {
               </div>
             )}
 
+            {/* Téléphone (signup only) */}
+            {mode === "signup" && (
+              <div className="space-y-1.5">
+                <Label htmlFor="phone">Numéro de téléphone <span className="text-muted-foreground text-xs font-normal">(Optionnel)</span></Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="0550 12 34 56"
+                    className="pl-9"
+                    value={form.phone}
+                    onChange={(e) => set("phone", e.target.value)}
+                    disabled={loading}
+                    autoComplete="tel"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Username */}
             <div className="space-y-1.5">
               <Label htmlFor="username">Nom d'utilisateur</Label>
@@ -419,10 +445,11 @@ function AuthPage() {
               </div>
             )}
 
-            {/* Info pending (signup) */}
+            {/* Info activation immédiate (signup) */}
             {mode === "signup" && (
-              <div className="rounded-xl bg-warning-soft px-4 py-3 text-xs text-warning">
-                ⏳ Votre compte sera activé après validation par l'administrateur.
+              <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+                <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span>Votre compte est activé automatiquement dès sa création.</span>
               </div>
             )}
 

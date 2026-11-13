@@ -42,6 +42,7 @@ interface MerchantRow {
   plan: string;
   status: "active" | "pending" | "suspended";
   customers: number;
+  createdAt: string;
 }
 
 function AdminOverview() {
@@ -83,6 +84,13 @@ function AdminOverview() {
           plan: m.plan,
           status: m.status,
           customers: Array.isArray(m.loyalty_cards) ? m.loyalty_cards.length : 0,
+          createdAt: new Intl.DateTimeFormat("fr-FR", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          }).format(new Date(m.created_at)),
         }));
         setMerchants(rows.slice(0, 5));
 
@@ -235,7 +243,12 @@ function AdminOverview() {
             <TableBody>
               {merchants.map((b) => (
                 <TableRow key={b.id}>
-                  <TableCell className="font-medium">{b.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <div>
+                      <p className="font-semibold text-foreground">{b.name}</p>
+                      <p className="text-[11px] text-muted-foreground font-normal">Activé le {b.createdAt}</p>
+                    </div>
+                  </TableCell>
                   <TableCell className="hidden text-muted-foreground sm:table-cell">{b.category}</TableCell>
                   <TableCell className="text-right">{b.customers.toLocaleString()}</TableCell>
                   <TableCell className="hidden md:table-cell">{b.plan}</TableCell>

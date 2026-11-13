@@ -144,7 +144,13 @@ function AdminBusinesses() {
         status: m.status,
         subscription_expires_at: m.subscription_expires_at ?? null,
         customers: Array.isArray(m.loyalty_cards) ? m.loyalty_cards.length : 0,
-        joined: new Date(m.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }),
+        joined: new Intl.DateTimeFormat("fr-FR", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(new Date(m.created_at)),
       }));
 
       setRows(mapped);
@@ -540,7 +546,7 @@ function AdminBusinesses() {
                       <TableHead>Commerce & Contact</TableHead>
                       <TableHead className="text-right">Clients</TableHead>
                       <TableHead className="hidden sm:table-cell">Abonnement expire</TableHead>
-                      <TableHead className="hidden lg:table-cell">Inscription</TableHead>
+                      <TableHead className="hidden md:table-cell">Créé & Activé le</TableHead>
                       <TableHead>Statut</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -573,6 +579,10 @@ function AdminBusinesses() {
                                 )}
                                 <span className="text-[10px] text-muted-foreground">· {b.category ?? "Général"}</span>
                               </div>
+                              <div className="md:hidden mt-1 text-[11px] text-muted-foreground flex items-center gap-1">
+                                <Calendar className="size-3 text-primary/70 shrink-0" />
+                                <span>Activé le {b.joined}</span>
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell className="text-right font-medium">{b.customers.toLocaleString()}</TableCell>
@@ -588,10 +598,18 @@ function AdminBusinesses() {
                                 {expiry.label}
                               </span>
                             ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
+                              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                                <CheckCircle2 className="size-3 shrink-0" />
+                                Actif immédiat
+                              </span>
                             )}
                           </TableCell>
-                          <TableCell className="hidden text-muted-foreground lg:table-cell text-xs">{b.joined}</TableCell>
+                          <TableCell className="hidden md:table-cell text-xs text-muted-foreground whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              <Calendar className="size-3.5 text-primary/70 shrink-0" />
+                              <span className="font-medium text-foreground">{b.joined}</span>
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <StatusBadge
                               status={isExpired ? "Expiré" : isActive ? "Actif" : b.status === "suspended" ? "Désactivé" : "En attente"}
