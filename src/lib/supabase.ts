@@ -17,7 +17,36 @@ if (!supabaseUrl || !supabaseKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+/**
+ * Client Supabase singleton — instancié une seule fois.
+ *
+ * Configuration requise :
+ *  - persistSession    : stocke le refresh_token dans localStorage
+ *  - autoRefreshToken  : renouvelle l'access_token automatiquement avant expiration
+ *  - detectSessionInUrl: récupère la session depuis l'URL (magic link / OAuth)
+ */
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
+
+// Synchronisation native lors du retour sur l'onglet ou mise au premier plan
+if (typeof window !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      supabase.auth.startAutoRefresh();
+    } else {
+      supabase.auth.stopAutoRefresh();
+    }
+  });
+
+  window.addEventListener("focus", () => {
+    supabase.auth.startAutoRefresh();
+  });
+}
 
 // ─── Types de base de données ────────────────────────────────────────────────
 

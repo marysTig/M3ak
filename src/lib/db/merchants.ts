@@ -2,7 +2,7 @@
  * db/merchants.ts — CRUD commerçants
  */
 import { supabase } from "../supabase";
-import type { Merchant } from "../auth";
+import { getValidSession, type Merchant } from "../auth";
 
 export type MerchantUpdate = Partial<Pick<Merchant,
   "name" | "category" | "email" | "phone" | "address" | "logo_url" | "slug"
@@ -41,15 +41,27 @@ export async function activateMerchant(merchantId: string, duration: ActivationD
 
 /** Récupère le commerce du commerçant connecté */
 export async function getMyMerchant(): Promise<Merchant | null> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const session = await getValidSession();
   const user = session?.user;
   if (!user) return null;
 
-  let { data } = await supabase
+  let { data, error } = await supabase
     .from("merchants")
     .select("*")
     .eq("owner_id", user.id)
     .maybeSingle();
+
+  if (error && (error.code === "PGRST303" || error.message?.includes("JWT expired"))) {
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    if (refreshed.session) {
+      const retry = await supabase
+        .from("merchants")
+        .select("*")
+        .eq("owner_id", user.id)
+        .maybeSingle();
+      data = retry.data;
+    }
+  }
 
   // Si la fiche n'existe pas encore pour ce commerçant, on la crée automatiquement
   if (!data) {

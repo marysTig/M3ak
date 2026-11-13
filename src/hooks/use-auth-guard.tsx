@@ -2,14 +2,17 @@
  * use-auth-guard.tsx
  *
  * Hook partagé qui :
- *  - Vérifie la session Supabase au montage
- *  - Redirige vers "/" si pas connecté
+ *  - Vérifie et rafraîchit automatiquement la session Supabase au montage
+ *  - Gère nativement l'expiration des tokens (PGRST303) sans boucle infinie
+ *  - Redirige vers "/" avec message clair si le refresh token est expiré/révoqué
  *  - Redirige vers la bonne route si le rôle ne correspond pas
- *  - Retourne { user, profile, loading }
+ *  - Retourne { profile, loading }
  */
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
+import { safeSignOut, getValidSession } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 
 export interface AuthProfile {
@@ -37,34 +40,73 @@ export function useAuthGuard(requiredRole: RequiredRole = "any") {
     let mounted = true;
 
     async function check() {
-      const { data: { session } } = await supabase.auth.getSession();
+      // 1. Obtenir une session valide (rafraîchie automatiquement si proche de l'expiration)
+      const session = await getValidSession();
 
       if (!session?.user) {
-        navigate({ to: "/" });
+        if (mounted) {
+          setLoading(false);
+          navigate({ to: "/" });
+        }
         return;
       }
 
       const userId = session.user.id;
 
-      // Charger le profil
-      let { data: prof } = await supabase
+      // 2. Charger le profil avec gestion de l'expiration JWT (PGRST303)
+      let { data: prof, error: profErr } = await supabase
         .from("profiles")
         .select("id, full_name, role")
         .eq("id", userId)
         .maybeSingle();
 
-      if (!prof && session.user.user_metadata?.role) {
+      // En cas de token expiré reçu par PostgREST (PGRST303)
+      if (profErr && (profErr.code === "PGRST303" || profErr.message?.includes("JWT expired"))) {
+        console.warn("[useAuthGuard] JWT expiré détecté sur profiles, rafraîchissement natif...");
+        const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
+
+        if (refreshErr || !refreshed.session) {
+          console.error("[useAuthGuard] Échec du rafraîchissement natif:", refreshErr?.message);
+          await safeSignOut();
+          if (mounted) {
+            setLoading(false);
+            toast.error("Session expirée", {
+              description: "Veuillez vous reconnecter pour continuer.",
+            });
+            navigate({ to: "/" });
+          }
+          return;
+        }
+
+        // Réessayer la lecture avec le token fraîchement renouvelé
+        const retry = await supabase
+          .from("profiles")
+          .select("id, full_name, role")
+          .eq("id", userId)
+          .maybeSingle();
+
+        prof = retry.data;
+      }
+
+      // Repli sur les métadonnées de l'utilisateur si la table profiles n'a pas encore la ligne
+      if (!prof && session.user.user_metadata?.['role']) {
         prof = {
           id: userId,
-          full_name: session.user.user_metadata.full_name || "Utilisateur",
-          role: session.user.user_metadata.role,
+          full_name: (session.user.user_metadata['full_name'] as string) || "Utilisateur",
+          role: session.user.user_metadata['role'] as "admin" | "merchant" | "customer",
         };
       }
 
       if (!prof) {
-        // Profil absent → déconnexion et retour à l'accueil
-        await supabase.auth.signOut();
-        navigate({ to: "/" });
+        // Profil inexistant et irrécupérable → déconnexion locale sécurisée
+        await safeSignOut();
+        if (mounted) {
+          setLoading(false);
+          toast.error("Session invalide", {
+            description: "Votre compte est introuvable. Veuillez vous reconnecter.",
+          });
+          navigate({ to: "/" });
+        }
         return;
       }
 
@@ -72,7 +114,10 @@ export function useAuthGuard(requiredRole: RequiredRole = "any") {
 
       // Vérifier le rôle requis
       if (requiredRole !== "any" && role !== requiredRole) {
-        navigate({ to: ROLE_HOME[role] ?? "/" });
+        if (mounted) {
+          setLoading(false);
+          navigate({ to: ROLE_HOME[role] ?? "/" });
+        }
         return;
       }
 
@@ -83,7 +128,7 @@ export function useAuthGuard(requiredRole: RequiredRole = "any") {
         : (email.split("@")[0] ?? email);
 
       const parts = prof.full_name.trim().split(" ");
-      const initials = parts.map((p: string) => p[0]).join("").slice(0, 2).toUpperCase();
+      const initials = parts.map((p: string) => p[0]).join("").slice(0, 2).toUpperCase() || "U";
 
       if (mounted) {
         setProfile({ id: prof.id, full_name: prof.full_name, role, initials, username });
@@ -93,9 +138,16 @@ export function useAuthGuard(requiredRole: RequiredRole = "any") {
 
     check();
 
-    // Écouter les changements de session (logout, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) navigate({ to: "/" });
+    // Écouter les changements d'auth (logout, session révoquée)
+    // SANS bloquer ni effectuer d'appels asynchrones Supabase directement dans le callback
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session) {
+        if (mounted) {
+          setProfile(null);
+          setLoading(false);
+          navigate({ to: "/" });
+        }
+      }
     });
 
     return () => {

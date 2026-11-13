@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import { DashboardShell, type NavItem } from "@/components/app/dashboard-shell";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
-import { supabase } from "@/lib/supabase";
+import { safeSignOut } from "@/lib/auth";
 import { useNavigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/admin")({
@@ -22,7 +22,7 @@ function AdminLayout() {
   const { profile, loading } = useAuthGuard("admin");
 
   async function handleSignOut() {
-    await supabase.auth.signOut();
+    await safeSignOut();
     toast.success("Déconnecté");
     navigate({ to: "/" });
   }

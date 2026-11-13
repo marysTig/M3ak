@@ -11,6 +11,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import { safeSignOut } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { getMyCards } from "@/lib/db/cards";
 import { getMyTransactions } from "@/lib/db/transactions";
@@ -98,7 +99,7 @@ function ProfilePage() {
   }
 
   async function handleSignOut() {
-    await supabase.auth.signOut();
+    await safeSignOut();
     window.location.href = "/";
   }
 

@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, useMatchRoute, useNavigate } from "@tans
 import { ArrowLeft, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
-import { supabase } from "@/lib/supabase";
+import { safeSignOut } from "@/lib/auth";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
 
 export const Route = createFileRoute("/business")({
@@ -16,7 +16,7 @@ function BusinessLayout() {
   const { profile, loading } = useAuthGuard("merchant");
 
   async function handleSignOut() {
-    await supabase.auth.signOut();
+    await safeSignOut();
     toast.success("Déconnecté");
     navigate({ to: "/" });
   }
