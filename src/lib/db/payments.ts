@@ -117,3 +117,4 @@ export async function deleteSubscriptionPayment(id: string): Promise<void> {
   const local = getLocalPayments().filter((p) => p.id !== id);
   saveLocalPayments(local);
 }
+
