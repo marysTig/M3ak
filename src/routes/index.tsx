@@ -132,7 +132,7 @@ function AuthPage() {
           .maybeSingle();
 
         if (!existingM) {
-          const mName = data.user?.user_metadata?.full_name || cleanUser;
+          const mName = (data.user?.user_metadata ? data.user.user_metadata['full_name'] : null) || cleanUser;
           const baseSlug = cleanUser.replace(/[^a-z0-9]/g, "-") || "commerce";
 
           // S'assurer que le profil existe d'abord
@@ -142,22 +142,13 @@ function AuthPage() {
             role: "merchant",
           }, { onConflict: "id" });
 
-          const res = await supabase.from("merchants").insert({
+          await supabase.from("merchants").insert({
             owner_id: userId,
             name: mName,
-            slug: baseSlug,
+            slug: `${baseSlug}-${userId.slice(0, 5)}`,
             status: "active",
             plan: "starter",
           });
-          if (res.error) {
-            await supabase.from("merchants").insert({
-              owner_id: userId,
-              name: mName,
-              slug: `${baseSlug}-${userId.slice(0, 5)}`,
-              status: "active",
-              plan: "starter",
-            });
-          }
         }
 
         navigate({ to: "/business" });
@@ -233,28 +224,53 @@ function AuthPage() {
         role: "merchant",
       }, { onConflict: "id" });
 
-      let mRow = null;
-      const res = await supabase.from("merchants").insert({
-        owner_id: userId,
-        name: form.businessName.trim(),
-        phone: cleanPhone,
-        slug: baseSlug,
-        status: "active",
-        plan: "starter",
-      }).select().maybeSingle();
+      // Vérifier si le commerce a déjà été créé par le trigger auth
+      let { data: mRow } = await supabase
+        .from("merchants")
+        .select("*")
+        .eq("owner_id", userId)
+        .maybeSingle();
 
-      if (!res.error && res.data) {
-        mRow = res.data;
+      if (mRow) {
+        // Déjà existant : mettre à jour avec les informations exactes
+        const { data: updated } = await supabase
+          .from("merchants")
+          .update({
+            name: form.businessName.trim(),
+            phone: cleanPhone,
+            status: "active",
+          })
+          .eq("id", mRow.id)
+          .select()
+          .maybeSingle();
+        if (updated) mRow = updated;
       } else {
-        const res2 = await supabase.from("merchants").insert({
-          owner_id: userId,
-          name: form.businessName.trim(),
-          phone: cleanPhone,
-          slug: `${baseSlug}-${userId.slice(0, 5)}`,
-          status: "active",
-          plan: "starter",
-        }).select().maybeSingle();
-        if (res2.data) mRow = res2.data;
+        // N'existe pas encore : insérer avec un slug unique garanti
+        const uniqueSlug = `${baseSlug}-${userId.slice(0, 5)}`;
+        const { data: inserted, error: insErr } = await supabase
+          .from("merchants")
+          .insert({
+            owner_id: userId,
+            name: form.businessName.trim(),
+            phone: cleanPhone,
+            slug: uniqueSlug,
+            status: "active",
+            plan: "starter",
+          })
+          .select()
+          .maybeSingle();
+
+        if (inserted) {
+          mRow = inserted;
+        } else if (insErr) {
+          // En cas de conflit éventuel, recharger par owner_id
+          const { data: fallbackM } = await supabase
+            .from("merchants")
+            .select("*")
+            .eq("owner_id", userId)
+            .maybeSingle();
+          if (fallbackM) mRow = fallbackM;
+        }
       }
 
       if (mRow) {

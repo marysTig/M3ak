@@ -109,6 +109,14 @@ export async function getMyMerchant(): Promise<Merchant | null> {
             theme_id: "aurora",
             status: "active",
           }, { onConflict: "merchant_id" });
+        } else {
+          // En cas de conflit (ex: trigger auth a créé le commerce en parallèle), recharger
+          const { data: retry } = await supabase
+            .from("merchants")
+            .select("*")
+            .eq("owner_id", user.id)
+            .maybeSingle();
+          if (retry) data = retry;
         }
       }
     } else if (isAdmin) {
