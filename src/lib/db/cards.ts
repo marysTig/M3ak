@@ -346,21 +346,42 @@ export async function resetCardPoints(cardId: string): Promise<{ new_balance: nu
  * Les transactions associées sont supprimées en cascade (ON DELETE CASCADE).
  */
 export async function deleteCustomerCard(cardId: string): Promise<void> {
-  // 1. Tenter via RPC sécurisée
+  // 1. Tenter d'abord via la RPC sécurisée (SECURITY DEFINER)
   try {
     const { data, error } = await supabase.rpc("merchant_delete_card", { p_card_id: cardId });
-    if (!error && data) {
+    if (!error && (data === true || data === null)) {
       return;
     }
-  } catch {
-    // Fallback direct
+    if (error) {
+      console.warn("RPC merchant_delete_card returned error, trying direct delete:", error);
+    }
+  } catch (rpcErr) {
+    console.warn("RPC call threw error:", rpcErr);
   }
 
-  // 2. Fallback direct sur loyalty_cards
+  // 2. Nettoyage préventif des enregistrements dépendants pour éviter les blocages de clés étrangères
+  try {
+    await supabase.from("reward_redemptions").delete().eq("card_id", cardId);
+  } catch (err) {
+    console.warn("Pre-delete reward_redemptions warning:", err);
+  }
+  try {
+    await supabase.from("transactions").delete().eq("card_id", cardId);
+  } catch (err) {
+    console.warn("Pre-delete transactions warning:", err);
+  }
+
+  // 3. Suppression directe sur loyalty_cards
   const { error } = await supabase
     .from("loyalty_cards")
     .delete()
     .eq("id", cardId);
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("Direct loyalty_cards delete error:", error);
+    if (error.code === "42501" || error.message?.toLowerCase().includes("policy")) {
+      throw new Error("Action non autorisée par Supabase. Veuillez exécuter la mise à jour SQL dans votre SQL Editor.");
+    }
+    throw new Error(error.message || "Impossible de supprimer la carte.");
+  }
 }

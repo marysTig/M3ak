@@ -660,6 +660,14 @@ drop policy if exists "cards_merchant_delete" on public.loyalty_cards;
 create policy "cards_merchant_delete" on public.loyalty_cards for delete
   using ((select owner_id from public.merchants where id = merchant_id) = auth.uid());
 
+drop policy if exists "tx_merchant_delete" on public.transactions;
+create policy "tx_merchant_delete" on public.transactions for delete
+  using ((select owner_id from public.merchants where id = merchant_id) = auth.uid());
+
+drop policy if exists "redemptions_merchant_delete" on public.reward_redemptions;
+create policy "redemptions_merchant_delete" on public.reward_redemptions for delete
+  using ((select m.owner_id from public.loyalty_cards c join public.merchants m on m.id = c.merchant_id where c.id = card_id) = auth.uid());
+
 drop function if exists public.merchant_delete_card(uuid);
 
 create or replace function public.merchant_delete_card(
@@ -687,6 +695,13 @@ begin
     raise exception 'Accès refusé : vous n''êtes pas le propriétaire de ce commerce';
   end if;
 
+  -- 1. Supprimer d'abord les échanges de récompenses liés
+  delete from public.reward_redemptions where card_id = p_card_id;
+
+  -- 2. Supprimer les transactions liées
+  delete from public.transactions where card_id = p_card_id;
+
+  -- 3. Supprimer la carte
   delete from public.loyalty_cards where id = p_card_id;
 
   return true;

@@ -28,6 +28,16 @@ import { PageHeader } from "@/components/app/page-header";
 import { VirtualCard, themes } from "@/routes/business.program";
 import { StatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -123,6 +133,7 @@ function CustomersPage() {
   const [addingPoints, setAddingPoints] = useState(false);
   const [resettingPoints, setResettingPoints] = useState(false);
   const [deletingCard, setDeletingCard] = useState(false);
+  const [cardToDelete, setCardToDelete] = useState<CustomerWithCard | null>(null);
 
   // Actions VIP
   const [vipSpendInput, setVipSpendInput] = useState("");
@@ -309,21 +320,26 @@ function CustomersPage() {
     await handleResetCustomerPoints(selected);
   }
 
-  async function handleDeleteCard(c: CustomerWithCard) {
-    if (!merchantId) return;
-    const confirmed = window.confirm(
-      `Supprimer définitivement la carte de ${c.customer.full_name} ?\n\nCette action supprimera la carte et tout l'historique des points de ce client pour votre commerce. Elle est irréversible.`
-    );
-    if (!confirmed) return;
+  function handleDeleteCard(c: CustomerWithCard) {
+    setCardToDelete(c);
+  }
 
+  async function confirmDeleteCard() {
+    if (!cardToDelete || !merchantId) return;
     setDeletingCard(true);
+    const target = cardToDelete;
     try {
-      await deleteCustomerCard(c.card.id);
-      toast.success(`Carte de ${c.customer.full_name} supprimée.`);
-      setSelected(null);
+      await deleteCustomerCard(target.card.id);
+      // Mise à jour optimiste immédiate dans l'interface
+      setCustomers((prev) => prev.filter((item) => item.card.id !== target.card.id));
+      if (selected?.card.id === target.card.id) {
+        setSelected(null);
+      }
+      setCardToDelete(null);
+      toast.success(`Le client ${target.customer.full_name} a été supprimé.`);
       if (merchantId) await reload(merchantId);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression.");
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression du client.");
     } finally {
       setDeletingCard(false);
     }
@@ -1256,6 +1272,50 @@ function CustomersPage() {
           if (merchantId) await reload(merchantId);
         }}
       />
+
+      {/* ── Dialogue de confirmation de suppression client ── */}
+      <AlertDialog
+        open={!!cardToDelete}
+        onOpenChange={(open) => {
+          if (!open && !deletingCard) setCardToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="size-5" />
+              Supprimer définitivement ce client ?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 pt-2 text-left">
+                <p className="text-sm text-foreground">
+                  Êtes-vous sûr de vouloir supprimer la carte et le compte fidélité de{" "}
+                  <strong>{cardToDelete?.customer.full_name}</strong> ?
+                </p>
+                <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive space-y-1">
+                  <p className="font-bold">⚠️ Action irréversible :</p>
+                  <p className="text-muted-foreground">
+                    Cette action supprimera sa carte pour votre boutique, l'ensemble de ses points ou achats cumulés ainsi que l'historique de ses transactions.
+                  </p>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingCard}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDeleteCard();
+              }}
+              disabled={deletingCard}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingCard ? "Suppression en cours…" : "Supprimer définitivement"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
