@@ -51,8 +51,8 @@ interface NewCardDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated?: () => void;
-  merchantId?: string | null;
-  merchantName?: string;
+  merchantId?: string | null | undefined;
+  merchantName?: string | undefined;
 }
 
 type Step = "type_selection" | "configure" | "preview" | "created";
@@ -62,16 +62,16 @@ interface CreatedData {
   cardId: string;
   qrToken: string;
   cardType: CardType;
-  cardName?: string;
+  cardName?: string | null;
   points: number;
   stampsCount: number;
   stampsTarget: number;
-  stampReward?: string;
+  stampReward?: string | null;
   vipTier: "bronze" | "silver" | "gold";
   vipSpent: number;
   themeId: string;
   cardLink: string;
-  phone?: string;
+  phone?: string | null;
 }
 
 /** Génère le lien public de la carte */
@@ -368,6 +368,10 @@ export function NewCardDialog({
         throw new Error("Erreur lors de la création de la carte : aucune donnée retournée.");
       } else {
         cardResult = rpcData as typeof cardResult;
+      }
+
+      if (!cardResult) {
+        throw new Error("Erreur lors de la création de la carte : aucune donnée retournée.");
       }
 
       // 3. Attribution garantie des points initiaux (Système de points)

@@ -100,10 +100,10 @@ export function VirtualCard({
   onClick?: () => void;
   compact?: boolean;
   cardType?: "points" | "vip" | "stamps";
-  cardName?: string;
+  cardName?: string | null | undefined;
   stampsCount?: number;
   stampsTarget?: number;
-  stampReward?: string;
+  stampReward?: string | null | undefined;
   vipTier?: "bronze" | "silver" | "gold";
   vipSpent?: number;
 }) {

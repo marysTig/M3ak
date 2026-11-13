@@ -59,12 +59,16 @@ export async function getMyMerchant(): Promise<Merchant | null> {
       .eq("id", user.id)
       .maybeSingle();
 
-    const isMerchant = user.user_metadata?.role === "merchant" || prof?.role === "merchant";
-    const isAdmin = user.user_metadata?.role === "admin" || prof?.role === "admin";
+    const metaRole = user.user_metadata ? (user.user_metadata['role'] as string | undefined) : undefined;
+    const metaName = user.user_metadata ? (user.user_metadata['full_name'] as string | undefined) : undefined;
+    const metaPhone = user.user_metadata ? (user.user_metadata['phone'] as string | undefined) : undefined;
 
-    if (isMerchant || (!prof?.role && !user.user_metadata?.role)) {
+    const isMerchant = metaRole === "merchant" || prof?.role === "merchant";
+    const isAdmin = metaRole === "admin" || prof?.role === "admin";
+
+    if (isMerchant || (!prof?.role && !metaRole)) {
       const rawUser = (user.email ?? "").replace("@m3ak.app", "") || "moncommerce";
-      const name = user.user_metadata?.full_name || prof?.full_name || rawUser;
+      const name = metaName || prof?.full_name || rawUser;
       const baseSlug = rawUser.toLowerCase().replace(/[^a-z0-9]/g, "-") || "commerce";
 
       // 1. S'assurer que le profil existe dans public.profiles (évite l'erreur de clé étrangère 409)
@@ -93,7 +97,7 @@ export async function getMyMerchant(): Promise<Merchant | null> {
             slug,
             status: "active",
             plan: "starter",
-            phone: user.user_metadata?.phone || prof?.phone || null,
+            phone: metaPhone || prof?.phone || null,
           })
           .select()
           .maybeSingle();
