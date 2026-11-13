@@ -129,17 +129,25 @@ function AdminBusinesses() {
 
   async function load() {
     try {
-      const [merchantsData, paymentsData] = await Promise.all([
+      const [merchantsData, paymentsData, profilesRes] = await Promise.all([
         getAllMerchants(),
         getSubscriptionPayments(),
+        supabase.from("profiles").select("id, phone"),
       ]);
+
+      const profilePhoneMap = new Map<string, string>();
+      if (profilesRes.data) {
+        profilesRes.data.forEach((p: { id: string; phone: string | null }) => {
+          if (p.phone) profilePhoneMap.set(p.id, p.phone);
+        });
+      }
 
       const mapped: MerchantRow[] = (merchantsData as any[]).map((m) => ({
         id: m.id,
         name: m.name,
         category: m.category,
         owner_id: m.owner_id,
-        phone: m.phone || m.profiles?.phone || null,
+        phone: m.phone || profilePhoneMap.get(m.owner_id) || m.profiles?.phone || null,
         plan: m.plan,
         status: m.status,
         subscription_expires_at: m.subscription_expires_at ?? null,
@@ -564,16 +572,28 @@ function AdminBusinesses() {
                           <TableCell>
                             <div>
                               <p className="font-semibold text-sm text-foreground">{b.name}</p>
-                              <div className="flex items-center gap-2 mt-0.5">
+                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                 {b.phone ? (
-                                  <a
-                                    href={`tel:${b.phone}`}
-                                    className="text-xs font-mono text-primary hover:underline flex items-center gap-1"
-                                    title="Appeler"
-                                  >
-                                    <Phone className="size-3 shrink-0" />
-                                    {b.phone}
-                                  </a>
+                                  <>
+                                    <a
+                                      href={`tel:${b.phone}`}
+                                      className="text-xs font-mono font-medium text-primary hover:underline flex items-center gap-1 bg-primary/10 px-1.5 py-0.5 rounded"
+                                      title="Appeler ce commerçant"
+                                    >
+                                      <Phone className="size-3 shrink-0" />
+                                      {b.phone}
+                                    </a>
+                                    <a
+                                      href={`https://wa.me/${b.phone.replace(/[^0-9]/g, "")}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-[11px] text-[#25D366] hover:underline flex items-center gap-0.5 font-medium"
+                                      title="Envoyer un WhatsApp"
+                                    >
+                                      <MessageCircle className="size-3 shrink-0" />
+                                      WhatsApp
+                                    </a>
+                                  </>
                                 ) : (
                                   <span className="text-xs text-muted-foreground/60 italic">Sans numéro</span>
                                 )}

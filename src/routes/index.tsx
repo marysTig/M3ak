@@ -66,9 +66,14 @@ function AuthPage() {
 
   function validateSignUp() {
     const errs: { [k: string]: string } = {};
+    if (!form.businessName.trim()) errs['businessName'] = "Nom du commerce requis.";
+    if (!form.phone.trim()) {
+      errs['phone'] = "Numéro de téléphone requis.";
+    } else if (form.phone.trim().replace(/[^0-9]/g, "").length < 9) {
+      errs['phone'] = "Numéro invalide (au moins 9 chiffres).";
+    }
     if (!form.username.trim()) errs['username'] = "Nom d'utilisateur requis.";
     if (form.username.trim().length < 3) errs['username'] = "Minimum 3 caractères.";
-    if (!form.businessName.trim()) errs['businessName'] = "Nom du commerce requis.";
     if (!form.password) errs['password'] = "Mot de passe requis.";
     if (form.password.length < 6) errs['password'] = "Minimum 6 caractères.";
     if (form.password !== form.confirmPassword) errs['confirmPassword'] = "Les mots de passe ne correspondent pas.";
@@ -344,16 +349,16 @@ function AuthPage() {
               </div>
             )}
 
-            {/* Téléphone (signup only) */}
+            {/* Numéro de téléphone du commerçant (signup only) */}
             {mode === "signup" && (
               <div className="space-y-1.5">
-                <Label htmlFor="phone">Numéro de téléphone <span className="text-muted-foreground text-xs font-normal">(Optionnel)</span></Label>
+                <Label htmlFor="phone">Numéro de téléphone du commerçant *</Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="0550 12 34 56"
+                    placeholder="0550 12 34 56 ou 06 / 07..."
                     className="pl-9"
                     value={form.phone}
                     onChange={(e) => set("phone", e.target.value)}
@@ -361,6 +366,13 @@ function AuthPage() {
                     autoComplete="tel"
                   />
                 </div>
+                {errors['phone'] ? (
+                  <p className="text-xs text-destructive">{errors['phone']}</p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">
+                    Ce numéro sera affiché dans le panneau administrateur pour le suivi de votre compte et abonnements.
+                  </p>
+                )}
               </div>
             )}
 

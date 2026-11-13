@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertTriangle, ArrowRight } from "lucide-react";
+import { AlertTriangle, ArrowRight, Phone } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   Area, AreaChart, CartesianGrid,
@@ -39,6 +39,7 @@ interface MerchantRow {
   id: string;
   name: string;
   category: string | null;
+  phone: string | null;
   plan: string;
   status: "active" | "pending" | "suspended";
   customers: number;
@@ -81,6 +82,7 @@ function AdminOverview() {
           id: m.id,
           name: m.name,
           category: m.category,
+          phone: (m as any).phone || null,
           plan: m.plan,
           status: m.status,
           customers: Array.isArray(m.loyalty_cards) ? m.loyalty_cards.length : 0,
@@ -246,7 +248,15 @@ function AdminOverview() {
                   <TableCell className="font-medium">
                     <div>
                       <p className="font-semibold text-foreground">{b.name}</p>
-                      <p className="text-[11px] text-muted-foreground font-normal">Activé le {b.createdAt}</p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        {b.phone ? (
+                          <span className="text-[11px] font-mono text-primary flex items-center gap-1 font-semibold">
+                            <Phone className="size-2.5 shrink-0" />
+                            {b.phone}
+                          </span>
+                        ) : null}
+                        <span className="text-[11px] text-muted-foreground font-normal">Activé le {b.createdAt}</span>
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell className="hidden text-muted-foreground sm:table-cell">{b.category}</TableCell>
