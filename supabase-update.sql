@@ -1020,5 +1020,156 @@ values
 on conflict (key) do nothing;
 
 -- =============================================================================
+-- 10. SPÉCIFICATIONS COMPLÉMENTAIRES PROSPECTION (CRM EXCEL, ATTRIBUTIONS, DASHBOARD PROSPECTEUR)
+-- =============================================================================
+
+-- 10a. Username et statut pour l'équipe commerciale dans profiles
+alter table public.profiles add column if not exists username text;
+create unique index if not exists idx_profiles_username on public.profiles(lower(username)) where username is not null;
+
+-- 10b. Colonnes Finale et Import dans la table prospects
+alter table public.prospects add column if not exists finale text check (finale in ('paid', 'unpaid') or finale is null);
+alter table public.prospects add column if not exists import_id uuid;
+alter table public.prospects add column if not exists assigned_at timestamptz;
+
+create index if not exists idx_prospects_finale on public.prospects(finale);
+create index if not exists idx_prospects_assigned_to on public.prospects(assigned_to);
+
+-- 10c. Table des fichiers d'importation Excel
+create table if not exists public.prospect_imports (
+  id uuid primary key default gen_random_uuid(),
+  filename text not null,
+  imported_by uuid references public.profiles(id) on delete set null,
+  assigned_to uuid references public.profiles(id) on delete set null,
+  total_rows int not null default 0,
+  valid_rows int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+alter table public.prospect_imports enable row level security;
+
+drop policy if exists "Admins can manage prospect imports" on public.prospect_imports;
+create policy "Admins can manage prospect imports"
+  on public.prospect_imports for all
+  using (public.is_admin())
+  with check (public.is_admin());
+
+grant all on public.prospect_imports to authenticated;
+
+-- 10d. Table de l'historique des attributions (prospect_assignments)
+create table if not exists public.prospect_assignments (
+  id uuid primary key default gen_random_uuid(),
+  prospect_id uuid not null references public.prospects(id) on delete cascade,
+  prospector_id uuid not null references public.profiles(id) on delete cascade,
+  assigned_by uuid references public.profiles(id) on delete set null,
+  assigned_at timestamptz not null default now(),
+  notes text
+);
+
+alter table public.prospect_assignments enable row level security;
+
+drop policy if exists "Admins can manage prospect assignments" on public.prospect_assignments;
+create policy "Admins can manage prospect assignments"
+  on public.prospect_assignments for all
+  using (public.is_admin())
+  with check (public.is_admin());
+
+drop policy if exists "Prospectors can view their assignment history" on public.prospect_assignments;
+create policy "Prospectors can view their assignment history"
+  on public.prospect_assignments for select
+  using (prospector_id = auth.uid());
+
+grant all on public.prospect_assignments to authenticated;
+
+-- 10e. Table du journal d'activités (prospect_activities)
+create table if not exists public.prospect_activities (
+  id uuid primary key default gen_random_uuid(),
+  prospect_id uuid not null references public.prospects(id) on delete cascade,
+  prospector_id uuid references public.profiles(id) on delete set null,
+  action text not null, -- 'status_change', 'note_added', 'assigned'
+  old_value text,
+  new_value text,
+  details text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.prospect_activities enable row level security;
+
+drop policy if exists "Admins can view all activities" on public.prospect_activities;
+create policy "Admins can view all activities"
+  on public.prospect_activities for all
+  using (public.is_admin())
+  with check (public.is_admin());
+
+drop policy if exists "Prospectors can view and insert activities on their prospects" on public.prospect_activities;
+create policy "Prospectors can view and insert activities on their prospects"
+  on public.prospect_activities for all
+  using (
+    prospector_id = auth.uid() or
+    exists (select 1 from public.prospects where id = prospect_activities.prospect_id and assigned_to = auth.uid())
+  )
+  with check (
+    prospector_id = auth.uid()
+  );
+
+grant all on public.prospect_activities to authenticated;
+
+-- 10f. RLS et Trigger de sécurité stricte sur les prospects
+-- Règle : Seul l'administrateur peut modifier "finale" et "assigned_to".
+-- Le prospecteur ne peut modifier que "status" et "notes" sur SES prospects attribués.
+
+create or replace function public.check_prospect_permissions()
+returns trigger as $$
+declare
+  is_adm boolean;
+begin
+  is_adm := public.is_admin();
+
+  if not is_adm then
+    -- 1. Le prospecteur doit être celui assigné
+    if old.assigned_to is distinct from auth.uid() then
+      raise exception 'Sécurité : vous ne pouvez modifier que les commerces qui vous sont attribués.';
+    end if;
+
+    -- 2. Interdiction stricte de toucher à la colonne finale
+    if new.finale is distinct from old.finale then
+      raise exception 'Sécurité : la colonne Finale est réservée exclusivement aux administrateurs.';
+    end if;
+
+    -- 3. Interdiction de réassigner le prospect
+    if new.assigned_to is distinct from old.assigned_to then
+      raise exception 'Sécurité : la réattribution est réservée exclusivement aux administrateurs.';
+    end if;
+  end if;
+
+  new.updated_at := now();
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists trg_prospect_permissions on public.prospects;
+create trigger trg_prospect_permissions
+  before update on public.prospects
+  for each row execute function public.check_prospect_permissions();
+
+-- Mise à jour des politiques RLS de public.prospects
+drop policy if exists "Admins can manage prospects" on public.prospects;
+create policy "Admins can manage prospects"
+  on public.prospects for all
+  using (public.is_admin())
+  with check (public.is_admin());
+
+drop policy if exists "Prospectors can view assigned prospects" on public.prospects;
+create policy "Prospectors can view assigned prospects"
+  on public.prospects for select
+  using (assigned_to = auth.uid());
+
+drop policy if exists "Prospectors can update assigned prospects status and notes" on public.prospects;
+create policy "Prospectors can update assigned prospects status and notes"
+  on public.prospects for update
+  using (assigned_to = auth.uid())
+  with check (assigned_to = auth.uid());
+
+-- =============================================================================
 -- FIN DU SCRIPT
 -- =============================================================================

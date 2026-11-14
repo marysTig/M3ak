@@ -15,12 +15,17 @@ import { supabase } from "./supabase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type UserRole = "admin" | "merchant" | "customer";
+export type UserRole = "admin" | "merchant" | "customer" | "prospector";
 
 export interface Profile {
   id: string;
   full_name: string;
   role: UserRole;
+  username?: string;
+  phone?: string | null;
+  wilaya?: string | null;
+  commune?: string | null;
+  status?: "active" | "suspended";
   created_at: string;
   updated_at: string;
 }

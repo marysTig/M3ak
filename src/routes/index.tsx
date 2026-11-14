@@ -123,6 +123,8 @@ function AuthPage() {
       const role = profile?.role ?? (data.user?.user_metadata?.role as string) ?? "customer";
       if (role === "admin") {
         navigate({ to: "/admin" });
+      } else if (role === "prospector") {
+        navigate({ to: "/prospector" });
       } else if (role === "merchant") {
         // Garantit que la fiche commerce existe
         const { data: existingM } = await supabase

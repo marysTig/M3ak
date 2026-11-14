@@ -5,31 +5,26 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
-  Clock,
-  Download,
-  Edit,
+  FileCheck,
   FileSpreadsheet,
-  FileText,
-  Filter,
-  History,
+  FileUp,
   Layers,
   MapPin,
-  Phone,
   Plus,
   RefreshCw,
   Search,
   Trash2,
-  Upload,
+  UploadCloud,
   UserCheck,
   Users,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { PageHeader } from "@/components/app/page-header";
-import { StatusBadge } from "@/components/app/status-badge";
+import { HierarchicalProspectsTable } from "@/components/prospection/hierarchical-prospects-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -64,49 +59,32 @@ import {
   createProspect,
   deleteProspect,
   getProspects,
-  importProspectsBatch,
-  updateProspect,
+  importAndAssignExcelProspects,
+  updateProspectFinale,
+  updateProspectStatus,
 } from "@/lib/db/prospects";
-import type { Prospect, Prospector, ProspectStatus } from "@/lib/types/prospection";
-import { PROSPECT_STATUS_COLORS, PROSPECT_STATUS_LABELS } from "@/lib/types/prospection";
+import type { ExcelParseResult, ParsedProspectRow } from "@/lib/excel-parser";
+import { parseProspectsExcelFile } from "@/lib/excel-parser";
+import type { Prospect, ProspectFinale, Prospector, ProspectStatus } from "@/lib/types/prospection";
 
 export const Route = createFileRoute("/admin/prospection/prospects")({
   validateSearch: (search: Record<string, unknown>) => {
     return {
       tab: (search.tab as string) || "all",
       status: (search.status as string) || undefined,
+      finale: (search.finale as string) || undefined,
       wilaya: (search.wilaya as string) || undefined,
       prospectorId: (search.prospectorId as string) || undefined,
     };
   },
   head: () => ({
     meta: [
-      { title: "Gestion des Prospects — M3ak CRM" },
-      { name: "description", content: "Gestion, import et attribution des commerces prospects." },
+      { title: "Gestion des Prospects & CRM — M3ak" },
+      { name: "description", content: "Tableau hiérarchique, import Excel (.xlsx) et attribution des listes." },
     ],
   }),
   component: ProspectsManagementPage,
 });
-
-const ALL_STATUSES: ProspectStatus[] = [
-  "new",
-  "contacted",
-  "interested",
-  "callback",
-  "trial",
-  "converted",
-  "rejected",
-];
-
-const CATEGORIES = [
-  "Restaurant / Café",
-  "Boutique / Prêt-à-porter",
-  "Superette / Alimentation",
-  "Beauté / Coiffure",
-  "Santé / Pharmacie",
-  "Services & Loisirs",
-  "Autre",
-];
 
 function ProspectsManagementPage() {
   const searchParams = Route.useSearch();
@@ -117,52 +95,53 @@ function ProspectsManagementPage() {
   const [prospectors, setProspectors] = useState<Prospector[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filtres
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedWilaya, setSelectedWilaya] = useState<string>(searchParams.wilaya || "all");
-  const [selectedStatus, setSelectedStatus] = useState<string>(searchParams.status || "all");
-  const [selectedProspector, setSelectedProspector] = useState<string>(
-    searchParams.prospectorId || "all"
-  );
-
-  // Sélections multiples pour attribution ou suppression
+  // Sélections multiples
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // Modale Nouveau/Édition Prospect
+  // Modale Nouveau Prospect
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
   const [formBusinessName, setFormBusinessName] = useState("");
-  const [formContactName, setFormContactName] = useState("");
   const [formPhone, setFormPhone] = useState("");
-  const [formCategory, setFormCategory] = useState("Restaurant / Café");
   const [formWilaya, setFormWilaya] = useState("Alger");
   const [formCommune, setFormCommune] = useState("");
-  const [formAddress, setFormAddress] = useState("");
-  const [formStatus, setFormStatus] = useState<ProspectStatus>("new");
+  const [formCategory, setFormCategory] = useState("Restaurant / Café");
+  const [formStatus, setFormStatus] = useState<ProspectStatus>("callback");
+  const [formFinale, setFormFinale] = useState<ProspectFinale>(null);
   const [formAssignedTo, setFormAssignedTo] = useState<string>("unassigned");
   const [formNotes, setFormNotes] = useState("");
   const [savingForm, setSavingForm] = useState(false);
 
-  // Modale d'attribution groupée
+  // Modale Attribution de la sélection existante
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-  const [targetProspectorId, setTargetProspectorId] = useState<string>("");
+  const [targetProspectorId, setTargetProspectorId] = useState("");
   const [assigning, setAssigning] = useState(false);
 
-  // Wizard d'importation
-  const [importStep, setImportStep] = useState<1 | 2 | 3 | 4>(1);
-  const [rawCsvText, setRawCsvText] = useState("");
-  const [parsedRows, setParsedRows] = useState<any[]>([]);
-  const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{
+  // ─── WORKFLOW IMPORT & ATTRIBUTION EXCEL ───
+  const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [parseResult, setParseResult] = useState<ExcelParseResult | null>(null);
+  const [parsing, setParsing] = useState(false);
+  const [excelStep, setExcelStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [targetImportProspectorId, setTargetImportProspectorId] = useState<string>("");
+  const [committingImport, setCommittingImport] = useState(false);
+  const [importReport, setImportReport] = useState<{
     inserted: number;
     duplicates: number;
-    errors: number;
+    rejected: number;
   } | null>(null);
 
   async function loadData() {
     setLoading(true);
     try {
-      const [pList, prList] = await Promise.all([getProspects(), getProspectors()]);
+      const [pList, prList] = await Promise.all([
+        getProspects({
+          status: searchParams.status,
+          finale: searchParams.finale,
+          wilaya: searchParams.wilaya,
+          prospectorId: searchParams.prospectorId,
+        }),
+        getProspectors(),
+      ]);
       setProspects(pList);
       setProspectors(prList);
     } catch (err) {
@@ -174,7 +153,7 @@ function ProspectsManagementPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [searchParams.status, searchParams.finale, searchParams.wilaya, searchParams.prospectorId]);
 
   const handleTabChange = (val: string) => {
     navigate({
@@ -182,124 +161,67 @@ function ProspectsManagementPage() {
     });
   };
 
-  // Filtrage
-  const filteredProspects = useMemo(() => {
-    return prospects.filter((p) => {
-      const matchSearch =
-        p.business_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.contact_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.commune?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchWilaya = selectedWilaya === "all" || p.wilaya === selectedWilaya;
-      const matchStatus = selectedStatus === "all" || p.status === selectedStatus;
-      const matchProspector =
-        selectedProspector === "all" ||
-        (selectedProspector === "unassigned" ? !p.assigned_to : p.assigned_to === selectedProspector);
-      return matchSearch && matchWilaya && matchStatus && matchProspector;
-    });
-  }, [prospects, searchTerm, selectedWilaya, selectedStatus, selectedProspector]);
-
-  // Sélection globale
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedIds(filteredProspects.map((p) => p.id));
-    } else {
-      setSelectedIds([]);
+  // Modification directe de Finale (ADMIN SEULEMENT)
+  const handleAdminChangeFinale = async (prospectId: string, newFinale: ProspectFinale) => {
+    try {
+      setProspects((prev) =>
+        prev.map((p) => (p.id === prospectId ? { ...p, finale: newFinale } : p))
+      );
+      await updateProspectFinale(prospectId, newFinale);
+    } catch (err) {
+      console.error("Erreur mise à jour Finale :", err);
+      alert("Erreur lors de la mise à jour de la colonne Finale.");
+      loadData();
     }
   };
 
-  const handleToggleSelectOne = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
+  // Modification directe du Statut
+  const handleStatusChange = async (prospectId: string, newStatus: ProspectStatus) => {
+    try {
+      setProspects((prev) =>
+        prev.map((p) => (p.id === prospectId ? { ...p, status: newStatus } : p))
+      );
+      await updateProspectStatus(prospectId, newStatus);
+    } catch (err) {
+      console.error("Erreur mise à jour Statut :", err);
+      loadData();
+    }
   };
 
-  // Ouvrir formulaire d'ajout
-  const handleOpenCreateModal = () => {
-    setEditingProspect(null);
-    setFormBusinessName("");
-    setFormContactName("");
-    setFormPhone("");
-    setFormCategory("Restaurant / Café");
-    setFormWilaya("Alger");
-    setFormCommune("");
-    setFormAddress("");
-    setFormStatus("new");
-    setFormAssignedTo("unassigned");
-    setFormNotes("");
-    setIsModalOpen(true);
-  };
-
-  // Ouvrir formulaire d'édition
-  const handleOpenEditModal = (p: Prospect) => {
-    setEditingProspect(p);
-    setFormBusinessName(p.business_name);
-    setFormContactName(p.contact_name || "");
-    setFormPhone(p.phone || "");
-    setFormCategory(p.category || "Restaurant / Café");
-    setFormWilaya(p.wilaya || "Alger");
-    setFormCommune(p.commune || "");
-    setFormAddress(p.address || "");
-    setFormStatus(p.status);
-    setFormAssignedTo(p.assigned_to || "unassigned");
-    setFormNotes(p.notes || "");
-    setIsModalOpen(true);
-  };
-
-  // Sauvegarder Prospect (Nouveau ou Édition)
-  const handleSaveProspect = async (e: React.FormEvent) => {
+  // Création manuelle d'un prospect
+  const handleCreateProspect = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formBusinessName.trim() || !formPhone.trim()) {
-      alert("Le nom du commerce et le numéro de téléphone sont obligatoires.");
+      alert("Le nom et le numéro de téléphone sont obligatoires.");
       return;
     }
 
     setSavingForm(true);
     try {
-      const payload: Partial<Prospect> = {
+      const created = await createProspect({
         business_name: formBusinessName.trim(),
-        contact_name: formContactName.trim() || undefined,
         phone: formPhone.trim(),
-        category: formCategory,
         wilaya: formWilaya,
         commune: formCommune.trim() || undefined,
-        address: formAddress.trim() || undefined,
+        category: formCategory,
         status: formStatus,
+        finale: formFinale,
         assigned_to: formAssignedTo === "unassigned" ? null : formAssignedTo,
         notes: formNotes.trim() || undefined,
-      };
+      });
 
-      if (editingProspect) {
-        const updated = await updateProspect(editingProspect.id, payload);
-        if (updated) {
-          setProspects((prev) => prev.map((p) => (p.id === editingProspect.id ? updated : p)));
-        }
-      } else {
-        const created = await createProspect(payload);
-        if (created) {
-          setProspects((prev) => [created, ...prev]);
-        }
+      if (created) {
+        setProspects((prev) => [created, ...prev]);
+        setIsModalOpen(false);
       }
-      setIsModalOpen(false);
     } catch (err) {
-      console.error("Erreur sauvegarde prospect :", err);
-      alert("Erreur lors de la sauvegarde.");
+      console.error("Erreur création prospect :", err);
     } finally {
       setSavingForm(false);
     }
   };
 
-  // Suppression
-  const handleDeleteProspect = async (id: string, name: string) => {
-    if (!confirm(`Supprimer définitivement le commerce "${name}" ?`)) return;
-    const ok = await deleteProspect(id);
-    if (ok) {
-      setProspects((prev) => prev.filter((p) => p.id !== id));
-      setSelectedIds((prev) => prev.filter((i) => i !== id));
-    }
-  };
-
-  // Attribution groupée
+  // Attribution groupée de la sélection existante
   const handleExecuteBatchAssign = async () => {
     if (!targetProspectorId || selectedIds.length === 0) return;
     setAssigning(true);
@@ -324,96 +246,77 @@ function ProspectsManagementPage() {
         setSelectedIds([]);
         setIsAssignModalOpen(false);
       }
-    } catch (err) {
-      console.error("Erreur attribution groupée :", err);
     } finally {
       setAssigning(false);
     }
   };
 
-  // Analyse du texte CSV/TSV
-  const handleParseCsv = () => {
-    if (!rawCsvText.trim()) return;
-    const lines = rawCsvText.trim().split("\n");
-    if (lines.length === 0) return;
+  // ─── GESTION DU WORKFLOW EXCEL (.XLSX) ───
 
-    const parsed: any[] = [];
-    // Parsing souple : séparateur virgule, point-virgule ou tabulation
-    lines.forEach((line) => {
-      const cleanLine = line.trim();
-      if (!cleanLine) return;
-      let parts: string[] = [];
-      if (cleanLine.includes("\t")) {
-        parts = cleanLine.split("\t");
-      } else if (cleanLine.includes(";")) {
-        parts = cleanLine.split(";");
-      } else {
-        parts = cleanLine.split(",");
-      }
-
-      const row = {
-        business_name: parts[0]?.trim() || "",
-        phone: parts[1]?.trim() || "",
-        wilaya: parts[2]?.trim() || "Alger",
-        commune: parts[3]?.trim() || "",
-        category: parts[4]?.trim() || "Commerce",
-        notes: parts[5]?.trim() || "",
-      };
-
-      if (row.business_name && row.phone) {
-        parsed.push(row);
-      }
-    });
-
-    setParsedRows(parsed);
-    setImportStep(2);
+  const handleFileDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      processExcelFile(files[0]);
+    }
   };
 
-  // Détection des doublons et Importation réelle
-  const handleExecuteImport = async () => {
-    if (parsedRows.length === 0) return;
-    setImporting(true);
-    setImportStep(3);
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      processExcelFile(e.target.files[0]);
+    }
+  };
+
+  const processExcelFile = async (file: File) => {
+    if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
+      alert("Format invalide. Veuillez importer un fichier Excel (.xlsx ou .xls).");
+      return;
+    }
+
+    setExcelFile(file);
+    setParsing(true);
     try {
-      // Détection des doublons avec les prospects existants par téléphone
-      const existingPhones = new Set(
-        prospects.map((p) => p.phone?.replace(/[\s.-]/g, "") || "")
-      );
-
-      const uniqueRows: any[] = [];
-      let dupesCount = 0;
-
-      parsedRows.forEach((row) => {
-        const cleanPhone = row.phone.replace(/[\s.-]/g, "");
-        if (existingPhones.has(cleanPhone)) {
-          dupesCount++;
-        } else {
-          uniqueRows.push({
-            business_name: row.business_name,
-            phone: row.phone,
-            wilaya: row.wilaya,
-            commune: row.commune || null,
-            category: row.category || "Commerce",
-            notes: row.notes || "Importé via assistant",
-            status: "new",
-          });
-        }
-      });
-
-      const res = await importProspectsBatch(uniqueRows);
-      setImportResult({
-        inserted: res.count,
-        duplicates: dupesCount,
-        errors: res.errors.length,
-      });
-      setImportStep(4);
-      loadData();
-    } catch (err) {
-      console.error("Erreur import batch :", err);
-      alert("Erreur lors de l'importation.");
-      setImportStep(2);
+      const result = await parseProspectsExcelFile(file);
+      setParseResult(result);
+      setExcelStep(2); // Prévisualisation
+    } catch (err: any) {
+      alert(`Erreur de lecture du fichier Excel : ${err?.message}`);
     } finally {
-      setImporting(false);
+      setParsing(false);
+    }
+  };
+
+  const handleCommitExcelImport = async () => {
+    if (!parseResult || parseResult.validRows.length === 0) return;
+    setCommittingImport(true);
+    try {
+      const res = await importAndAssignExcelProspects({
+        filename: parseResult.filename,
+        assigned_to: targetImportProspectorId ? targetImportProspectorId : null,
+        rows: parseResult.validRows.map((r) => ({
+          business_name: r.business_name,
+          wilaya: r.wilaya,
+          commune: r.commune,
+          phone: r.phone,
+          category: r.category,
+          status: r.status,
+          finale: r.finale,
+        })),
+      });
+
+      setImportReport({
+        inserted: res.insertedCount,
+        duplicates: res.duplicateCount,
+        rejected: res.rejectedCount + parseResult.invalidRows.length,
+      });
+
+      setExcelStep(5); // Résumé final
+      loadData();
+    } catch (err: any) {
+      alert(`Erreur lors de l'enregistrement dans Supabase : ${err?.message}`);
+    } finally {
+      setCommittingImport(false);
     }
   };
 
@@ -421,7 +324,7 @@ function ProspectsManagementPage() {
     <div className="space-y-8">
       <PageHeader
         title="Gestion des Prospects"
-        description="Fichier centralisé des commerces, importation de leads et distribution aux prospecteurs."
+        description="Fichier centralisé des commerces, importation exclusive par fichier Excel (.xlsx) et attribution des listes."
         action={
           <div className="flex items-center gap-2">
             <Button
@@ -440,12 +343,12 @@ function ProspectsManagementPage() {
               onClick={() => handleTabChange("import")}
               className="gap-2"
             >
-              <Upload className="size-4" />
-              Importer
+              <FileSpreadsheet className="size-4" />
+              Importer un fichier Excel
             </Button>
-            <Button size="sm" onClick={handleOpenCreateModal} className="gap-2">
+            <Button size="sm" onClick={() => setIsModalOpen(true)} className="gap-2">
               <Plus className="size-4" />
-              Nouveau commerce
+              Nouveau prospect
             </Button>
           </div>
         }
@@ -453,84 +356,22 @@ function ProspectsManagementPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 max-w-md">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
           <TabsTrigger value="all" className="gap-2">
             <Building2 className="size-4" />
-            Tous ({prospects.length})
+            Tous les commerces ({prospects.length})
           </TabsTrigger>
           <TabsTrigger value="import" className="gap-2">
             <FileSpreadsheet className="size-4" />
-            Importer des prospects
-          </TabsTrigger>
-          <TabsTrigger value="assign" className="gap-2">
-            <Layers className="size-4" />
-            Attribution des listes
+            Importer & Attribuer (Excel)
           </TabsTrigger>
         </TabsList>
 
-        {/* TAB 1: TOUS LES COMMERCES */}
+        {/* TAB 1: TOUS LES COMMERCES AVEC TABLEAU HIÉRARCHIQUE */}
         <TabsContent value="all" className="space-y-4">
-          {/* Barre de filtres et recherche */}
-          <div className="flex flex-col gap-3 rounded-2xl border border-border/80 bg-surface/70 p-4 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
-              <Input
-                placeholder="Rechercher par nom de commerce, téléphone, contact..."
-                className="pl-9"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Select value={selectedWilaya} onValueChange={setSelectedWilaya}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Wilaya" />
-                </SelectTrigger>
-                <SelectContent className="max-h-60">
-                  <SelectItem value="all">Toutes wilayas</SelectItem>
-                  {ALGERIA_WILAYAS.map((w) => (
-                    <SelectItem key={w.code} value={w.name}>
-                      {w.code} - {w.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Statut" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous statuts</SelectItem>
-                  {ALL_STATUSES.map((st) => (
-                    <SelectItem key={st} value={st}>
-                      {PROSPECT_STATUS_LABELS[st]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={selectedProspector} onValueChange={setSelectedProspector}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Prospecteur" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les prospecteurs</SelectItem>
-                  <SelectItem value="unassigned">Non assignés</SelectItem>
-                  {prospectors.map((pr) => (
-                    <SelectItem key={pr.id} value={pr.id}>
-                      {pr.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Barre d'action groupée si sélection > 0 */}
+          {/* Action groupée si sélection */}
           {selectedIds.length > 0 && (
-            <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
+            <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-xs">
               <div className="flex items-center gap-2 font-medium text-primary">
                 <CheckCircle2 className="size-4" />
                 {selectedIds.length} commerce(s) sélectionné(s)
@@ -540,15 +381,15 @@ function ProspectsManagementPage() {
                   size="sm"
                   variant="outline"
                   onClick={() => setIsAssignModalOpen(true)}
-                  className="gap-1.5 bg-surface"
+                  className="gap-1.5 bg-surface text-xs"
                 >
-                  <UserCheck className="size-4" />
+                  <UserCheck className="size-3.5" />
                   Attribuer à un prospecteur
                 </Button>
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="text-rose-500 hover:text-rose-600"
+                  className="text-rose-500 hover:text-rose-600 text-xs"
                   onClick={() => {
                     if (
                       confirm(
@@ -562,452 +403,361 @@ function ProspectsManagementPage() {
                     }
                   }}
                 >
-                  <Trash2 className="size-4" />
+                  <Trash2 className="size-3.5" />
                   Supprimer
                 </Button>
               </div>
             </div>
           )}
 
-          {/* Tableau */}
-          <div className="overflow-hidden rounded-2xl border border-border/80 bg-surface/70 shadow-sm backdrop-blur-sm">
-            <Table>
-              <TableHeader className="bg-surface/90">
-                <TableRow>
-                  <TableHead className="w-10">
-                    <Checkbox
-                      checked={
-                        filteredProspects.length > 0 &&
-                        selectedIds.length === filteredProspects.length
-                      }
-                      onCheckedChange={handleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead>Commerce</TableHead>
-                  <TableHead>Catégorie</TableHead>
-                  <TableHead>Téléphone</TableHead>
-                  <TableHead>Wilaya / Secteur</TableHead>
-                  <TableHead>Prospecteur assigné</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-40 text-center">
-                      <div className="flex items-center justify-center gap-2 text-muted">
-                        <RefreshCw className="size-4 animate-spin" />
-                        Chargement des prospects...
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : filteredProspects.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-40 text-center text-muted">
-                      Aucun commerce trouvé avec ces critères.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredProspects.map((p) => {
-                    const isSelected = selectedIds.includes(p.id);
-                    return (
-                      <TableRow
-                        key={p.id}
-                        className={`hover:bg-surface/90 ${isSelected ? "bg-primary/5" : ""}`}
-                      >
-                        <TableCell>
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={() => handleToggleSelectOne(p.id)}
-                          />
-                        </TableCell>
-
-                        <TableCell>
-                          <div>
-                            <div className="font-semibold text-foreground">
-                              {p.business_name}
-                            </div>
-                            {p.contact_name && (
-                              <div className="text-xs text-muted">Gérant : {p.contact_name}</div>
-                            )}
-                          </div>
-                        </TableCell>
-
-                        <TableCell>
-                          <span className="text-xs text-muted-foreground">{p.category || "—"}</span>
-                        </TableCell>
-
-                        <TableCell>
-                          <div className="flex items-center gap-1.5 font-mono text-sm">
-                            <Phone className="size-3.5 text-muted" />
-                            {p.phone || "—"}
-                          </div>
-                        </TableCell>
-
-                        <TableCell>
-                          <div className="flex items-center gap-1.5 text-sm">
-                            <MapPin className="size-3.5 text-muted shrink-0" />
-                            <span>{p.wilaya || "—"}</span>
-                            {p.commune && (
-                              <span className="text-xs text-muted">({p.commune})</span>
-                            )}
-                          </div>
-                        </TableCell>
-
-                        <TableCell>
-                          {p.prospector ? (
-                            <Badge variant="outline" className="gap-1 border-primary/30 text-primary">
-                              <UserCheck className="size-3" />
-                              {p.prospector.full_name}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-muted italic">Non assigné</span>
-                          )}
-                        </TableCell>
-
-                        <TableCell>
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              PROSPECT_STATUS_COLORS[p.status]
-                            }`}
-                          >
-                            {PROSPECT_STATUS_LABELS[p.status]}
-                          </span>
-                        </TableCell>
-
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleOpenEditModal(p)}
-                              title="Modifier la fiche"
-                            >
-                              <Edit className="size-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-rose-500 hover:text-rose-600"
-                              onClick={() => handleDeleteProspect(p.id, p.business_name)}
-                              title="Supprimer"
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          {/* TABLEAU HIÉRARCHIQUE INTERACTIF COMPLET */}
+          <HierarchicalProspectsTable
+            prospects={prospects}
+            canEditStatus={true}
+            canEditFinale={true} // L'administrateur a le contrôle total de Finale
+            onStatusChange={handleStatusChange}
+            onFinaleChange={handleAdminChangeFinale}
+            enableSelection={true}
+            selectedIds={selectedIds}
+            onSelectChange={setSelectedIds}
+            showProspectorColumn={true}
+            defaultHierarchical={true}
+          />
         </TabsContent>
 
-        {/* TAB 2: IMPORTER DES PROSPECTS */}
+        {/* TAB 2: WORKFLOW 5 ÉTAPES IMPORT EXCEL & ATTRIBUTION */}
         <TabsContent value="import" className="space-y-6">
           <div className="rounded-2xl border border-border/80 bg-surface/70 p-6 shadow-sm backdrop-blur-sm space-y-6">
-            <div>
-              <h3 className="font-semibold text-lg">Assistant d'Importation de Fichier Leads</h3>
-              <p className="text-sm text-muted">
-                Importez facilement des listes de commerçants au format CSV, Excel ou texte brut copié-collé.
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <FileSpreadsheet className="size-5 text-emerald-500" />
+                  Assistant d'Importation & d'Attribution Excel (.xlsx)
+                </h3>
+                <p className="text-sm text-muted">
+                  Workflow complet en 5 étapes pour intégrer et confier des listes de prospects à vos prospecteurs.
+                </p>
+              </div>
+
+              {excelStep > 1 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setExcelStep(1);
+                    setExcelFile(null);
+                    setParseResult(null);
+                    setImportReport(null);
+                  }}
+                >
+                  Réinitialiser
+                </Button>
+              )}
             </div>
 
-            {/* Étapes du wizard */}
-            <div className="flex items-center justify-between max-w-xl text-xs font-medium">
-              <span className={`flex items-center gap-1.5 ${importStep >= 1 ? "text-primary font-bold" : "text-muted"}`}>
-                <span className="flex size-6 items-center justify-center rounded-full border border-current">1</span>
-                Saisie / Fichier
+            {/* Stepper visuel 5 étapes */}
+            <div className="flex items-center justify-between max-w-3xl text-xs font-medium border-b border-border/60 pb-4 overflow-x-auto">
+              <span className={`flex items-center gap-1.5 shrink-0 ${excelStep >= 1 ? "text-primary font-bold" : "text-muted"}`}>
+                <span className="flex size-5 items-center justify-center rounded-full border border-current text-[11px]">1</span>
+                Importation
               </span>
-              <ChevronRight className="size-4 text-muted" />
-              <span className={`flex items-center gap-1.5 ${importStep >= 2 ? "text-primary font-bold" : "text-muted"}`}>
-                <span className="flex size-6 items-center justify-center rounded-full border border-current">2</span>
+              <ChevronRight className="size-4 text-muted shrink-0" />
+              <span className={`flex items-center gap-1.5 shrink-0 ${excelStep >= 2 ? "text-primary font-bold" : "text-muted"}`}>
+                <span className="flex size-5 items-center justify-center rounded-full border border-current text-[11px]">2</span>
                 Prévisualisation
               </span>
-              <ChevronRight className="size-4 text-muted" />
-              <span className={`flex items-center gap-1.5 ${importStep >= 3 ? "text-primary font-bold" : "text-muted"}`}>
-                <span className="flex size-6 items-center justify-center rounded-full border border-current">3</span>
-                Dédoublonnage
+              <ChevronRight className="size-4 text-muted shrink-0" />
+              <span className={`flex items-center gap-1.5 shrink-0 ${excelStep >= 3 ? "text-primary font-bold" : "text-muted"}`}>
+                <span className="flex size-5 items-center justify-center rounded-full border border-current text-[11px]">3</span>
+                Vérification
               </span>
-              <ChevronRight className="size-4 text-muted" />
-              <span className={`flex items-center gap-1.5 ${importStep >= 4 ? "text-emerald-500 font-bold" : "text-muted"}`}>
-                <span className="flex size-6 items-center justify-center rounded-full border border-current">4</span>
-                Résultat
+              <ChevronRight className="size-4 text-muted shrink-0" />
+              <span className={`flex items-center gap-1.5 shrink-0 ${excelStep >= 4 ? "text-primary font-bold" : "text-muted"}`}>
+                <span className="flex size-5 items-center justify-center rounded-full border border-current text-[11px]">4</span>
+                Attribution
+              </span>
+              <ChevronRight className="size-4 text-muted shrink-0" />
+              <span className={`flex items-center gap-1.5 shrink-0 ${excelStep >= 5 ? "text-emerald-500 font-bold" : "text-muted"}`}>
+                <span className="flex size-5 items-center justify-center rounded-full border border-current text-[11px]">5</span>
+                Validation
               </span>
             </div>
 
-            {/* Étape 1: Upload / Collage */}
-            {importStep === 1 && (
+            {/* ÉTAPE 1 : DRAG & DROP FICHIER EXCEL */}
+            {excelStep === 1 && (
               <div className="space-y-4 max-w-2xl">
-                <div className="rounded-xl border border-dashed border-border p-4 bg-surface/50 text-xs text-muted space-y-1">
-                  <div className="font-semibold text-foreground">Format attendu des colonnes :</div>
-                  <code>Nom du commerce ; Téléphone ; Wilaya ; Commune ; Catégorie ; Notes</code>
-                  <p className="pt-1">
-                    Séparateurs acceptés : tabulation (copié depuis Excel), point-virgule (;) ou virgule (,).
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Collez vos données brutes ou contenu CSV :</Label>
-                  <Textarea
-                    placeholder="Restaurant Le Sultan ; 0550112233 ; Alger ; Bab Ezzouar ; Restaurant&#10;Boutique Moda ; 0661445566 ; Oran ; Es Senia ; Prêt-à-porter"
-                    rows={8}
-                    className="font-mono text-xs"
-                    value={rawCsvText}
-                    onChange={(e) => setRawCsvText(e.target.value)}
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleFileDrop}
+                  className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-10 text-center transition-colors cursor-pointer ${
+                    isDragging
+                      ? "border-primary bg-primary/10"
+                      : "border-border/80 hover:border-primary/60 bg-surface/50"
+                  }`}
+                  onClick={() => document.getElementById("excel-upload-input")?.click()}
+                >
+                  <input
+                    id="excel-upload-input"
+                    type="file"
+                    accept=".xlsx, .xls"
+                    className="hidden"
+                    onChange={handleFileInputChange}
                   />
+
+                  <div className="flex size-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 mb-3">
+                    <UploadCloud className="size-8" />
+                  </div>
+
+                  <h4 className="font-semibold text-foreground text-sm">
+                    Glissez-déposez votre fichier Excel ici
+                  </h4>
+                  <p className="text-xs text-muted mt-1">
+                    ou cliquez pour sélectionner un fichier <strong>.xlsx</strong> sur votre ordinateur
+                  </p>
+
+                  <div className="mt-4 rounded-xl border border-border/60 bg-surface p-3 text-[11px] text-muted text-left space-y-1">
+                    <div className="font-semibold text-foreground">Colonnes Excel reconnues :</div>
+                    <div>1. Nom du prospect | 2. Wilaya | 3. Commune | 4. Téléphone | 5. Activité</div>
+                    <div className="text-[10px] text-muted">
+                      (Les colonnes Statut et Finale sont initialisées automatiquement si non spécifiées)
+                    </div>
+                  </div>
                 </div>
 
-                <Button onClick={handleParseCsv} disabled={!rawCsvText.trim()} className="gap-2">
-                  <FileText className="size-4" />
-                  Analyser et prévisualiser
-                </Button>
+                {parsing && (
+                  <div className="flex items-center justify-center gap-2 text-xs text-muted">
+                    <RefreshCw className="size-4 animate-spin text-primary" />
+                    Lecture et analyse du fichier Excel en cours...
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Étape 2: Prévisualisation */}
-            {importStep === 2 && (
+            {/* ÉTAPE 2 : PRÉVISUALISATION HIÉRARCHIQUE */}
+            {excelStep === 2 && parseResult && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold">
-                    {parsedRows.length} ligne(s) détectée(s) prêtes à être importées
+                  <div>
+                    <h4 className="font-semibold text-sm">
+                      Fichier analysé : <strong>{parseResult.filename}</strong>
+                    </h4>
+                    <p className="text-xs text-muted">
+                      {parseResult.totalRows} ligne(s) détectée(s) — {parseResult.validRows.length} valide(s),{" "}
+                      {parseResult.invalidRows.length} avec erreurs
+                    </p>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => setImportStep(1)}>
-                    Modifier les données
+                  <Button size="sm" onClick={() => setExcelStep(3)} className="gap-1.5">
+                    Passer à la vérification
+                    <ChevronRight className="size-4" />
                   </Button>
                 </div>
 
-                <div className="max-h-80 overflow-y-auto rounded-xl border border-border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Commerce</TableHead>
-                        <TableHead>Téléphone</TableHead>
-                        <TableHead>Wilaya</TableHead>
-                        <TableHead>Commune</TableHead>
-                        <TableHead>Catégorie</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {parsedRows.slice(0, 10).map((r, i) => (
-                        <TableRow key={i}>
-                          <TableCell className="font-semibold">{r.business_name}</TableCell>
-                          <TableCell className="font-mono text-xs">{r.phone}</TableCell>
-                          <TableCell>{r.wilaya}</TableCell>
-                          <TableCell>{r.commune || "—"}</TableCell>
-                          <TableCell className="text-xs text-muted">{r.category}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                {/* Prévisualisation dans le tableau hiérarchique */}
+                <HierarchicalProspectsTable
+                  prospects={parseResult.validRows.map((r) => ({
+                    id: `temp-${r.index}`,
+                    business_name: r.business_name,
+                    wilaya: r.wilaya,
+                    commune: r.commune,
+                    phone: r.phone,
+                    category: r.category,
+                    status: r.status,
+                    finale: r.finale,
+                    notes: null,
+                    assigned_to: null,
+                    created_at: new Date().toISOString(),
+                  }))}
+                  canEditStatus={false}
+                  canEditFinale={false}
+                  showProspectorColumn={false}
+                  defaultHierarchical={true}
+                />
+              </div>
+            )}
+
+            {/* ÉTAPE 3 : VÉRIFICATION ET DÉTECTION D'ERREURS / DOUBLONS */}
+            {excelStep === 3 && parseResult && (
+              <div className="space-y-6 max-w-3xl">
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+                    <div className="text-2xl font-bold text-emerald-600">
+                      {parseResult.validRows.length}
+                    </div>
+                    <div className="text-xs text-muted">Lignes prêtes</div>
+                  </div>
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+                    <div className="text-2xl font-bold text-amber-500">
+                      {parseResult.duplicateCount}
+                    </div>
+                    <div className="text-xs text-muted">Doublons téléphoniques</div>
+                  </div>
+                  <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4">
+                    <div className="text-2xl font-bold text-rose-500">
+                      {parseResult.invalidRows.length}
+                    </div>
+                    <div className="text-xs text-muted">Lignes incomplètes</div>
+                  </div>
                 </div>
 
-                {parsedRows.length > 10 && (
-                  <p className="text-xs text-muted text-center">
-                    ... et {parsedRows.length - 10} autre(s) ligne(s)
-                  </p>
+                {parseResult.invalidRows.length > 0 && (
+                  <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 space-y-2">
+                    <div className="text-xs font-semibold text-rose-600 flex items-center gap-1.5">
+                      <AlertCircle className="size-4" />
+                      Lignes contenant des erreurs (elles seront ignorées lors de l'attribution) :
+                    </div>
+                    <div className="max-h-48 overflow-y-auto space-y-1 text-xs font-mono">
+                      {parseResult.invalidRows.slice(0, 8).map((r) => (
+                        <div key={r.index} className="flex items-center justify-between bg-surface p-2 rounded">
+                          <span>
+                            Ligne {r.index}: {r.business_name || "(Nom manquant)"}
+                          </span>
+                          <span className="text-rose-500">{r.errors.join(", ")}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
 
-                <div className="pt-2 flex items-center gap-3">
-                  <Button onClick={handleExecuteImport} disabled={importing} className="gap-2">
-                    <Upload className="size-4" />
-                    Vérifier les doublons et importer dans Supabase
+                <div className="flex items-center justify-between pt-2">
+                  <Button variant="outline" size="sm" onClick={() => setExcelStep(2)}>
+                    Retour à la prévisualisation
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setExcelStep(4)}
+                    disabled={parseResult.validRows.length === 0}
+                    className="gap-1.5"
+                  >
+                    Choisir le prospecteur (Attribution)
+                    <ChevronRight className="size-4" />
                   </Button>
                 </div>
               </div>
             )}
 
-            {/* Étape 3: Chargement */}
-            {importStep === 3 && (
-              <div className="flex flex-col items-center justify-center p-12 space-y-3">
-                <RefreshCw className="size-8 animate-spin text-primary" />
-                <div className="font-semibold">Importation et dédoublonnage en cours...</div>
-                <div className="text-xs text-muted">Vérification des numéros de téléphone existants.</div>
+            {/* ÉTAPE 4 : ATTRIBUTION À UN PROSPECTEUR */}
+            {excelStep === 4 && parseResult && (
+              <div className="space-y-6 max-w-xl">
+                <div>
+                  <h4 className="font-semibold text-sm">Attribuer ce fichier Excel</h4>
+                  <p className="text-xs text-muted">
+                    Sélectionnez le prospecteur qui recevra directement ces{" "}
+                    <strong>{parseResult.validRows.length}</strong> commerces dans son dashboard personnel.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Prospecteur commercial responsable :</Label>
+                  <Select
+                    value={targetImportProspectorId}
+                    onValueChange={setTargetImportProspectorId}
+                  >
+                    <SelectTrigger className="bg-surface">
+                      <SelectValue placeholder="Choisir un prospecteur..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Ne pas attribuer maintenant (Laisser disponible)</SelectItem>
+                      {prospectors.map((pr) => (
+                        <SelectItem key={pr.id} value={pr.id}>
+                          {pr.full_name} (@{pr.username}) — Wilaya : {pr.wilaya || "Algérie"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="rounded-xl border border-border p-4 bg-surface/50 text-xs text-muted space-y-1">
+                  <div>• Fichier source : <strong>{parseResult.filename}</strong></div>
+                  <div>• Date d'attribution : <strong>{new Date().toLocaleDateString("fr-FR")}</strong></div>
+                  <div>• Les anciennes listes et historiques restent strictement préservés.</div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <Button variant="outline" size="sm" onClick={() => setExcelStep(3)}>
+                    Retour
+                  </Button>
+                  <Button
+                    onClick={handleCommitExcelImport}
+                    disabled={committingImport}
+                    className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    {committingImport ? (
+                      <RefreshCw className="size-4 animate-spin" />
+                    ) : (
+                      <Check className="size-4" />
+                    )}
+                    Confirmer et enregistrer dans Supabase
+                  </Button>
+                </div>
               </div>
             )}
 
-            {/* Étape 4: Résumé */}
-            {importStep === 4 && importResult && (
-              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 space-y-4 max-w-xl">
+            {/* ÉTAPE 5 : VALIDATION & RAPPORT FINAL */}
+            {excelStep === 5 && importReport && (
+              <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-6 space-y-4 max-w-xl">
                 <div className="flex items-center gap-3">
-                  <CheckCircle2 className="size-6 text-emerald-500" />
-                  <h4 className="font-bold text-lg text-emerald-950 dark:text-emerald-100">
-                    Rapport d'importation terminé
-                  </h4>
+                  <CheckCircle2 className="size-7 text-emerald-500" />
+                  <div>
+                    <h4 className="font-bold text-lg text-emerald-950 dark:text-emerald-100">
+                      Importation et attribution réussies !
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      Les commerces ont été enregistrés et sont dès maintenant synchronisés avec le dashboard du prospecteur.
+                    </p>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="grid grid-cols-3 gap-3 text-center pt-2">
                   <div className="rounded-xl bg-surface p-3 border border-border">
-                    <div className="text-2xl font-bold text-emerald-600">{importResult.inserted}</div>
-                    <div className="text-xs text-muted">Nouveaux leads</div>
+                    <div className="text-2xl font-bold text-emerald-600">{importReport.inserted}</div>
+                    <div className="text-xs text-muted">Commerces créés</div>
                   </div>
                   <div className="rounded-xl bg-surface p-3 border border-border">
-                    <div className="text-2xl font-bold text-amber-500">{importResult.duplicates}</div>
+                    <div className="text-2xl font-bold text-amber-500">{importReport.duplicates}</div>
                     <div className="text-xs text-muted">Doublons ignorés</div>
                   </div>
                   <div className="rounded-xl bg-surface p-3 border border-border">
-                    <div className="text-2xl font-bold text-rose-500">{importResult.errors}</div>
-                    <div className="text-xs text-muted">Erreurs</div>
+                    <div className="text-2xl font-bold text-rose-500">{importReport.rejected}</div>
+                    <div className="text-xs text-muted">Rejetés</div>
                   </div>
                 </div>
 
                 <Button
                   onClick={() => {
-                    setImportStep(1);
-                    setRawCsvText("");
-                    setParsedRows([]);
-                    setImportResult(null);
+                    setExcelStep(1);
+                    setExcelFile(null);
+                    setParseResult(null);
+                    setImportReport(null);
                     handleTabChange("all");
                   }}
-                  className="w-full gap-2"
+                  className="w-full gap-2 mt-4"
                 >
-                  Voir les commerces dans la liste
+                  Consulter la liste générale des commerces
                 </Button>
               </div>
             )}
-          </div>
-        </TabsContent>
-
-        {/* TAB 3: ATTRIBUTION DES LISTES */}
-        <TabsContent value="assign" className="space-y-6">
-          <div className="rounded-2xl border border-border/80 bg-surface/70 p-6 shadow-sm backdrop-blur-sm space-y-6">
-            <div>
-              <h3 className="font-semibold text-lg">Distribution & Attribution en Masse</h3>
-              <p className="text-sm text-muted">
-                Sélectionnez des lots de prospects non assignés et confiez-les directement à un prospecteur de la wilaya concernée.
-              </p>
-            </div>
-
-            {/* Sélecteur de prospecteur cible */}
-            <div className="flex flex-col sm:flex-row sm:items-end gap-4 p-4 rounded-xl border border-border bg-surface/50">
-              <div className="space-y-1.5 flex-1">
-                <Label>Affecter à ce prospecteur commercial :</Label>
-                <Select value={targetProspectorId} onValueChange={setTargetProspectorId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choisir un prospecteur..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {prospectors.map((pr) => (
-                      <SelectItem key={pr.id} value={pr.id}>
-                        {pr.full_name} ({pr.wilaya || "Algérie"} - {pr.assigned_count || 0} prospects)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button
-                onClick={handleExecuteBatchAssign}
-                disabled={!targetProspectorId || selectedIds.length === 0 || assigning}
-                className="gap-2 shrink-0"
-              >
-                {assigning ? (
-                  <RefreshCw className="size-4 animate-spin" />
-                ) : (
-                  <UserCheck className="size-4" />
-                )}
-                Attribuer {selectedIds.length} commerce(s)
-              </Button>
-            </div>
-
-            {/* Liste rapide des non-assignés */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold">
-                  Commerces non encore attribués (
-                  {prospects.filter((p) => !p.assigned_to).length})
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const unassignedIds = prospects.filter((p) => !p.assigned_to).map((p) => p.id);
-                    setSelectedIds(unassignedIds);
-                  }}
-                >
-                  Sélectionner tous les non-attribués
-                </Button>
-              </div>
-
-              <div className="max-h-96 overflow-y-auto rounded-xl border border-border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-10">
-                        <Checkbox
-                          checked={
-                            prospects.filter((p) => !p.assigned_to).length > 0 &&
-                            selectedIds.length === prospects.filter((p) => !p.assigned_to).length
-                          }
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedIds(prospects.filter((p) => !p.assigned_to).map((p) => p.id));
-                            } else {
-                              setSelectedIds([]);
-                            }
-                          }}
-                        />
-                      </TableHead>
-                      <TableHead>Commerce</TableHead>
-                      <TableHead>Wilaya</TableHead>
-                      <TableHead>Commune</TableHead>
-                      <TableHead>Téléphone</TableHead>
-                      <TableHead>Statut</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {prospects
-                      .filter((p) => !p.assigned_to)
-                      .map((p) => (
-                        <TableRow key={p.id}>
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedIds.includes(p.id)}
-                              onCheckedChange={() => handleToggleSelectOne(p.id)}
-                            />
-                          </TableCell>
-                          <TableCell className="font-semibold">{p.business_name}</TableCell>
-                          <TableCell>{p.wilaya}</TableCell>
-                          <TableCell>{p.commune || "—"}</TableCell>
-                          <TableCell className="font-mono text-xs">{p.phone}</TableCell>
-                          <TableCell>
-                            <span
-                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                                PROSPECT_STATUS_COLORS[p.status]
-                              }`}
-                            >
-                              {PROSPECT_STATUS_LABELS[p.status]}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
           </div>
         </TabsContent>
       </Tabs>
 
-      {/* MODALE CRÉATION / MODIFICATION PROSPECT */}
+      {/* MODALE CRÉATION PROSPECT */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>
-              {editingProspect ? "Modifier la fiche prospect" : "Ajouter un nouveau commerce prospect"}
-            </DialogTitle>
+            <DialogTitle>Ajouter un commerce prospect</DialogTitle>
             <DialogDescription>
-              Renseignez les coordonnées et informations de prospection du commerce.
+              Fiche manuelle d'un commerce prospect.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSaveProspect} className="space-y-4">
+          <form onSubmit={handleCreateProspect} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="bname">Nom de l'établissement *</Label>
+                <Label htmlFor="bname">Nom du prospect *</Label>
                 <Input
                   id="bname"
                   placeholder="Ex: Pizzeria Napoli"
@@ -1018,18 +768,6 @@ function ProspectsManagementPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="cname">Nom du contact / gérant</Label>
-                <Input
-                  id="cname"
-                  placeholder="Ex: M. Amar"
-                  value={formContactName}
-                  onChange={(e) => setFormContactName(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
                 <Label htmlFor="phone">Téléphone *</Label>
                 <Input
                   id="phone"
@@ -1039,22 +777,6 @@ function ProspectsManagementPage() {
                   required
                 />
               </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="cat">Catégorie d'activité</Label>
-                <Select value={formCategory} onValueChange={setFormCategory}>
-                  <SelectTrigger id="cat">
-                    <SelectValue placeholder="Catégorie" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -1062,7 +784,7 @@ function ProspectsManagementPage() {
                 <Label htmlFor="wilaya">Wilaya *</Label>
                 <Select value={formWilaya} onValueChange={setFormWilaya}>
                   <SelectTrigger id="wilaya">
-                    <SelectValue placeholder="Choisir" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="max-h-60">
                     {ALGERIA_WILAYAS.map((w) => (
@@ -1075,10 +797,10 @@ function ProspectsManagementPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="commune">Commune / Secteur</Label>
+                <Label htmlFor="commune">Commune</Label>
                 <Input
                   id="commune"
-                  placeholder="Ex: Rouiba"
+                  placeholder="Ex: Bab Ezzouar"
                   value={formCommune}
                   onChange={(e) => setFormCommune(e.target.value)}
                 />
@@ -1087,23 +809,17 @@ function ProspectsManagementPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="status">Statut de prospection</Label>
-                <Select value={formStatus} onValueChange={(v) => setFormStatus(v as ProspectStatus)}>
-                  <SelectTrigger id="status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ALL_STATUSES.map((st) => (
-                      <SelectItem key={st} value={st}>
-                        {PROSPECT_STATUS_LABELS[st]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="cat">Activité</Label>
+                <Input
+                  id="cat"
+                  placeholder="Ex: Restaurant, Prêt-à-porter..."
+                  value={formCategory}
+                  onChange={(e) => setFormCategory(e.target.value)}
+                />
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="assigned">Prospecteur assigné</Label>
+                <Label htmlFor="assigned">Commercial assigné</Label>
                 <Select value={formAssignedTo} onValueChange={setFormAssignedTo}>
                   <SelectTrigger id="assigned">
                     <SelectValue placeholder="Non assigné" />
@@ -1112,7 +828,7 @@ function ProspectsManagementPage() {
                     <SelectItem value="unassigned">Non assigné</SelectItem>
                     {prospectors.map((pr) => (
                       <SelectItem key={pr.id} value={pr.id}>
-                        {pr.full_name}
+                        {pr.full_name} (@{pr.username})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1120,12 +836,45 @@ function ProspectsManagementPage() {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Statut (Commercial)</Label>
+                <Select value={formStatus} onValueChange={(v) => setFormStatus(v as ProspectStatus)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="callback">À rappeler</SelectItem>
+                    <SelectItem value="trial">Essai gratuit</SelectItem>
+                    <SelectItem value="rejected">Refusé</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Finale (Admin)</Label>
+                <Select
+                  value={formFinale || "none"}
+                  onValueChange={(v) => setFormFinale(v === "none" ? null : (v as "paid" | "unpaid"))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">En attente (Vide)</SelectItem>
+                    <SelectItem value="paid">Payé</SelectItem>
+                    <SelectItem value="unpaid">Non payé</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="space-y-1.5">
-              <Label htmlFor="notes">Notes d'échange / Remarques commerciales</Label>
+              <Label htmlFor="notes">Notes / Observations</Label>
               <Textarea
                 id="notes"
-                placeholder="Discussions téléphoniques, objections, heure de passage préférée..."
-                rows={3}
+                placeholder="Notes de contact..."
+                rows={2}
                 value={formNotes}
                 onChange={(e) => setFormNotes(e.target.value)}
               />
@@ -1137,20 +886,20 @@ function ProspectsManagementPage() {
               </Button>
               <Button type="submit" disabled={savingForm} className="gap-2">
                 {savingForm ? <RefreshCw className="size-4 animate-spin" /> : <Check className="size-4" />}
-                {editingProspect ? "Mettre à jour" : "Créer le prospect"}
+                Créer le prospect
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* MODALE D'ATTRIBUTION GROUPÉE */}
+      {/* MODALE ATTRIBUTION GROUPÉE */}
       <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Attribuer {selectedIds.length} commerce(s)</DialogTitle>
             <DialogDescription>
-              Sélectionnez le prospecteur qui sera responsable de ces commerces.
+              Sélectionnez le prospecteur qui recevra ces commerces.
             </DialogDescription>
           </DialogHeader>
 
@@ -1162,10 +911,10 @@ function ProspectsManagementPage() {
                   <SelectValue placeholder="Choisir un prospecteur..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="unassigned">Désassigner (aucun prospecteur)</SelectItem>
+                  <SelectItem value="unassigned">Désassigner (aucun commercial)</SelectItem>
                   {prospectors.map((pr) => (
                     <SelectItem key={pr.id} value={pr.id}>
-                      {pr.full_name} ({pr.wilaya || "Algérie"})
+                      {pr.full_name} (@{pr.username}) — {pr.wilaya || "Algérie"}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1174,10 +923,7 @@ function ProspectsManagementPage() {
           </div>
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsAssignModalOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setIsAssignModalOpen(false)}>
               Annuler
             </Button>
             <Button
@@ -1194,4 +940,3 @@ function ProspectsManagementPage() {
     </div>
   );
 }
-

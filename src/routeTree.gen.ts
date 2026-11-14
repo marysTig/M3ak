@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as BusinessRouteImport } from './routes/business'
 import { Route as CustomerRouteImport } from './routes/customer'
+import { Route as ProspectorRouteImport } from './routes/prospector'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminBusinessesRouteImport } from './routes/admin.businesses'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
@@ -31,6 +32,8 @@ import { Route as CustomerProfileRouteImport } from './routes/customer.profile'
 import { Route as CustomerRewardsRouteImport } from './routes/customer.rewards'
 import { Route as CustomerScanRouteImport } from './routes/customer.scan'
 import { Route as JoinSlugRouteImport } from './routes/join.$slug'
+import { Route as ProspectorIndexRouteImport } from './routes/prospector.index'
+import { Route as ProspectorLoginRouteImport } from './routes/prospector.login'
 import { Route as AdminProspectionIndexRouteImport } from './routes/admin.prospection.index'
 import { Route as AdminProspectionCommissionsRouteImport } from './routes/admin.prospection.commissions'
 import { Route as AdminProspectionPipelineRouteImport } from './routes/admin.prospection.pipeline'
@@ -57,6 +60,11 @@ const BusinessRoute = BusinessRouteImport.update({
 const CustomerRoute = CustomerRouteImport.update({
   id: '/customer',
   path: '/customer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProspectorRoute = ProspectorRouteImport.update({
+  id: '/prospector',
+  path: '/prospector',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -149,6 +157,16 @@ const JoinSlugRoute = JoinSlugRouteImport.update({
   path: '/join/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProspectorIndexRoute = ProspectorIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ProspectorRoute,
+} as any)
+const ProspectorLoginRoute = ProspectorLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => ProspectorRoute,
+} as any)
 const AdminProspectionIndexRoute = AdminProspectionIndexRouteImport.update({
   id: '/prospection/',
   path: '/prospection/',
@@ -194,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/business': typeof BusinessRouteWithChildren
   '/customer': typeof CustomerRouteWithChildren
+  '/prospector': typeof ProspectorRouteWithChildren
   '/admin/businesses': typeof AdminBusinessesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/business/analytics': typeof BusinessAnalyticsRoute
@@ -209,9 +228,11 @@ export interface FileRoutesByFullPath {
   '/customer/rewards': typeof CustomerRewardsRoute
   '/customer/scan': typeof CustomerScanRoute
   '/join/$slug': typeof JoinSlugRoute
+  '/prospector/login': typeof ProspectorLoginRoute
   '/admin/': typeof AdminIndexRoute
   '/business/': typeof BusinessIndexRoute
   '/customer/': typeof CustomerIndexRoute
+  '/prospector/': typeof ProspectorIndexRoute
   '/admin/prospection/commissions': typeof AdminProspectionCommissionsRoute
   '/admin/prospection/pipeline': typeof AdminProspectionPipelineRoute
   '/admin/prospection/prospects': typeof AdminProspectionProspectsRoute
@@ -237,9 +258,11 @@ export interface FileRoutesByTo {
   '/customer/rewards': typeof CustomerRewardsRoute
   '/customer/scan': typeof CustomerScanRoute
   '/join/$slug': typeof JoinSlugRoute
+  '/prospector/login': typeof ProspectorLoginRoute
   '/admin': typeof AdminIndexRoute
   '/business': typeof BusinessIndexRoute
   '/customer': typeof CustomerIndexRoute
+  '/prospector': typeof ProspectorIndexRoute
   '/admin/prospection/commissions': typeof AdminProspectionCommissionsRoute
   '/admin/prospection/pipeline': typeof AdminProspectionPipelineRoute
   '/admin/prospection/prospects': typeof AdminProspectionProspectsRoute
@@ -254,6 +277,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/business': typeof BusinessRouteWithChildren
   '/customer': typeof CustomerRouteWithChildren
+  '/prospector': typeof ProspectorRouteWithChildren
   '/admin/businesses': typeof AdminBusinessesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/business/analytics': typeof BusinessAnalyticsRoute
@@ -269,9 +293,11 @@ export interface FileRoutesById {
   '/customer/rewards': typeof CustomerRewardsRoute
   '/customer/scan': typeof CustomerScanRoute
   '/join/$slug': typeof JoinSlugRoute
+  '/prospector/login': typeof ProspectorLoginRoute
   '/admin/': typeof AdminIndexRoute
   '/business/': typeof BusinessIndexRoute
   '/customer/': typeof CustomerIndexRoute
+  '/prospector/': typeof ProspectorIndexRoute
   '/admin/prospection/commissions': typeof AdminProspectionCommissionsRoute
   '/admin/prospection/pipeline': typeof AdminProspectionPipelineRoute
   '/admin/prospection/prospects': typeof AdminProspectionProspectsRoute
@@ -287,6 +313,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/business'
     | '/customer'
+    | '/prospector'
     | '/admin/businesses'
     | '/admin/settings'
     | '/business/analytics'
@@ -302,9 +329,11 @@ export interface FileRouteTypes {
     | '/customer/rewards'
     | '/customer/scan'
     | '/join/$slug'
+    | '/prospector/login'
     | '/admin/'
     | '/business/'
     | '/customer/'
+    | '/prospector/'
     | '/admin/prospection/commissions'
     | '/admin/prospection/pipeline'
     | '/admin/prospection/prospects'
@@ -330,9 +359,11 @@ export interface FileRouteTypes {
     | '/customer/rewards'
     | '/customer/scan'
     | '/join/$slug'
+    | '/prospector/login'
     | '/admin'
     | '/business'
     | '/customer'
+    | '/prospector'
     | '/admin/prospection/commissions'
     | '/admin/prospection/pipeline'
     | '/admin/prospection/prospects'
@@ -346,6 +377,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/business'
     | '/customer'
+    | '/prospector'
     | '/admin/businesses'
     | '/admin/settings'
     | '/business/analytics'
@@ -361,9 +393,11 @@ export interface FileRouteTypes {
     | '/customer/rewards'
     | '/customer/scan'
     | '/join/$slug'
+    | '/prospector/login'
     | '/admin/'
     | '/business/'
     | '/customer/'
+    | '/prospector/'
     | '/admin/prospection/commissions'
     | '/admin/prospection/pipeline'
     | '/admin/prospection/prospects'
@@ -378,6 +412,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   BusinessRoute: typeof BusinessRouteWithChildren
   CustomerRoute: typeof CustomerRouteWithChildren
+  ProspectorRoute: typeof ProspectorRouteWithChildren
   CardTokenRoute: typeof CardTokenRoute
   JoinSlugRoute: typeof JoinSlugRoute
 }
@@ -410,6 +445,13 @@ declare module '@tanstack/react-router' {
       path: '/customer'
       fullPath: '/customer'
       preLoaderRoute: typeof CustomerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prospector': {
+      id: '/prospector'
+      path: '/prospector'
+      fullPath: '/prospector'
+      preLoaderRoute: typeof ProspectorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -538,6 +580,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JoinSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/prospector/': {
+      id: '/prospector/'
+      path: '/'
+      fullPath: '/prospector/'
+      preLoaderRoute: typeof ProspectorIndexRouteImport
+      parentRoute: typeof ProspectorRoute
+    }
+    '/prospector/login': {
+      id: '/prospector/login'
+      path: '/login'
+      fullPath: '/prospector/login'
+      preLoaderRoute: typeof ProspectorLoginRouteImport
+      parentRoute: typeof ProspectorRoute
+    }
     '/admin/prospection/': {
       id: '/admin/prospection/'
       path: '/prospection'
@@ -664,11 +720,26 @@ const CustomerRouteWithChildren = CustomerRoute._addFileChildren(
   CustomerRouteChildren,
 )
 
+interface ProspectorRouteChildren {
+  ProspectorLoginRoute: typeof ProspectorLoginRoute
+  ProspectorIndexRoute: typeof ProspectorIndexRoute
+}
+
+const ProspectorRouteChildren: ProspectorRouteChildren = {
+  ProspectorLoginRoute: ProspectorLoginRoute,
+  ProspectorIndexRoute: ProspectorIndexRoute,
+}
+
+const ProspectorRouteWithChildren = ProspectorRoute._addFileChildren(
+  ProspectorRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   BusinessRoute: BusinessRouteWithChildren,
   CustomerRoute: CustomerRouteWithChildren,
+  ProspectorRoute: ProspectorRouteWithChildren,
   CardTokenRoute: CardTokenRoute,
   JoinSlugRoute: JoinSlugRoute,
 }

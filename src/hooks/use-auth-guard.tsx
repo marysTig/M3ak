@@ -18,17 +18,18 @@ import { supabase } from "@/lib/supabase";
 export interface AuthProfile {
   id: string;
   full_name: string;
-  role: "admin" | "merchant" | "customer";
+  role: "admin" | "merchant" | "customer" | "prospector";
   initials: string;
   username: string;
 }
 
-type RequiredRole = "admin" | "merchant" | "customer" | "any";
+type RequiredRole = "admin" | "merchant" | "customer" | "prospector" | "any";
 
 const ROLE_HOME: Record<string, string> = {
   admin: "/admin",
   merchant: "/business",
   customer: "/customer",
+  prospector: "/prospector",
 };
 
 export function useAuthGuard(requiredRole: RequiredRole = "any") {
