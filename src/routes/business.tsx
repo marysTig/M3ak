@@ -1,9 +1,12 @@
 import { createFileRoute, Outlet, Link, useMatchRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, LogOut } from "lucide-react";
+import { AlertCircle, ArrowLeft, Gift, LogOut } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { safeSignOut } from "@/lib/auth";
+import { safeSignOut, type Merchant } from "@/lib/auth";
+import { getMyMerchant } from "@/lib/db/merchants";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/business")({
   component: BusinessLayout,
@@ -14,6 +17,11 @@ function BusinessLayout() {
   const matchRoute = useMatchRoute();
   const isRoot = matchRoute({ to: "/business" as const });
   const { profile, loading } = useAuthGuard("merchant");
+  const [merchant, setMerchant] = useState<Merchant | null>(null);
+
+  useEffect(() => {
+    getMyMerchant().then(setMerchant);
+  }, []);
 
   async function handleSignOut() {
     await safeSignOut();
@@ -31,6 +39,16 @@ function BusinessLayout() {
 
   const name = profile?.full_name ?? "Mon commerce";
   const initials = profile?.initials ?? "M";
+
+  const isTrial = merchant?.is_trial !== false;
+  const now = Date.now();
+  const isExpired = merchant?.subscription_expires_at
+    ? new Date(merchant.subscription_expires_at).getTime() <= now
+    : false;
+  const isSuspended = merchant?.status === "suspended" || isExpired;
+  const daysRemaining = merchant?.subscription_expires_at
+    ? Math.max(0, Math.ceil((new Date(merchant.subscription_expires_at).getTime() - now) / (1000 * 60 * 60 * 24)))
+    : null;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -55,6 +73,38 @@ function BusinessLayout() {
           {initials}
         </span>
       </header>
+
+      {/* Bandeau d'information Mode Gratuit */}
+      {merchant && merchant.subscription_expires_at && isTrial && (
+        <div
+          className={cn(
+            "px-3.5 py-1.5 sm:px-6 text-xs font-medium flex items-center justify-between border-b transition-colors",
+            isSuspended
+              ? "bg-destructive/10 text-destructive border-destructive/20"
+              : (daysRemaining ?? 0) <= 2
+              ? "bg-rose-500/15 text-rose-800 dark:text-rose-300 border-rose-500/30"
+              : "bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30"
+          )}
+        >
+          <div className="flex items-center gap-1.5 truncate">
+            {isSuspended ? (
+              <AlertCircle className="size-3.5 shrink-0" />
+            ) : (
+              <Gift className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+            )}
+            <span className="truncate">
+              {isSuspended
+                ? "Mode gratuit terminé — Compte désactivé. Contactez l'administrateur pour renouveler."
+                : `Mode Gratuit : ${daysRemaining} jour${(daysRemaining ?? 0) > 1 ? "s" : ""} restant${(daysRemaining ?? 0) > 1 ? "s" : ""}`}
+            </span>
+          </div>
+          <span className="text-[11px] opacity-80 shrink-0 ml-2 hidden sm:inline">
+            {isSuspended
+              ? "Accès restreint"
+              : `Expire le ${new Date(merchant.subscription_expires_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}`}
+          </span>
+        </div>
+      )}
 
       <main className="flex-1 w-full max-w-[800px] mx-auto p-3.5 sm:p-6 pb-8">
         <Outlet />

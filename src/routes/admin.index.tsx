@@ -53,6 +53,7 @@ function AdminOverview() {
   const [activity, setActivity] = useState<{ id: string; title: string; detail: string; time: string }[]>([]);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [expiringCount, setExpiringCount] = useState(0);
+  const [freeTrialUrgentCount, setFreeTrialUrgentCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -69,13 +70,19 @@ function AdminOverview() {
         setTotalRevenue(rev);
 
         const now = Date.now();
-        const expCount = (allMerchants as any[]).filter((m) => {
-          if (!m.subscription_expires_at) return false;
+        let expCount = 0;
+        let trialUrgent = 0;
+
+        (allMerchants as any[]).forEach((m) => {
+          if (!m.subscription_expires_at) return;
           const diff = new Date(m.subscription_expires_at).getTime() - now;
           const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-          return days <= 7;
-        }).length;
+          if (days <= 7) expCount++;
+          if (m.is_trial !== false && days <= 2) trialUrgent++;
+        });
+
         setExpiringCount(expCount);
+        setFreeTrialUrgentCount(trialUrgent);
 
         // Construire les lignes marchands
         const rows: MerchantRow[] = (allMerchants as (typeof allMerchants[0] & { loyalty_cards: { count: number }[] })[]).map((m) => ({
@@ -155,6 +162,23 @@ function AdminOverview() {
         title="Platform overview"
         subtitle="Vue d'ensemble des performances du réseau et des abonnements."
       />
+
+      {freeTrialUrgentCount > 0 && (
+        <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3.5 sm:p-4 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 text-destructive font-bold text-xs sm:text-sm">
+            <AlertTriangle className="size-4 shrink-0" />
+            <span>
+              🚨 Notification urgente : {freeTrialUrgentCount} commerce{freeTrialUrgentCount > 1 ? "s" : ""} en Mode Gratuit expire{freeTrialUrgentCount > 1 ? "nt" : ""} dans moins de 2 jours (ou sont expirés). Le compte sera désactivé sans prolongation !
+            </span>
+          </div>
+          <Link
+            to="/admin/businesses"
+            className="text-xs font-bold text-destructive underline hover:opacity-80"
+          >
+            Accorder des jours gratuits ou activer →
+          </Link>
+        </div>
+      )}
 
       {expiringCount > 0 && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 sm:p-4 flex items-center justify-between flex-wrap gap-2">

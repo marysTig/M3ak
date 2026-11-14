@@ -11,7 +11,7 @@ export type MerchantUpdate = Partial<Pick<Merchant,
 /** Durée d'activation : 1 mois, 3 mois, 6 mois ou 1 an */
 export type ActivationDuration = "1month" | "3months" | "6months" | "1year";
 
-/** Active un commerce pour la durée sélectionnée */
+/** Active un commerce pour la durée sélectionnée (payante) */
 export async function activateMerchant(merchantId: string, duration: ActivationDuration) {
   const now = new Date();
   const expires = new Date(now);
@@ -30,11 +30,47 @@ export async function activateMerchant(merchantId: string, duration: ActivationD
     .update({
       status: "active",
       subscription_expires_at: expires.toISOString(),
+      is_trial: false,
       updated_at: now.toISOString(),
     })
     .eq("id", merchantId)
     .select()
     .single();
+  if (error) throw new Error(error.message);
+  return data as Merchant;
+}
+
+/** Ajoute une durée gratuite (essai gratuit) en jours à un commerce */
+export async function addFreeTrialDays(merchantId: string, daysToAdd: number = 7) {
+  const now = Date.now();
+
+  // 1. Lire la date d'expiration actuelle
+  const { data: current } = await supabase
+    .from("merchants")
+    .select("subscription_expires_at, status")
+    .eq("id", merchantId)
+    .single();
+
+  const currentExp = current?.subscription_expires_at
+    ? new Date(current.subscription_expires_at).getTime()
+    : now;
+
+  // Si déjà expiré, on prolonge à partir de now(), sinon on ajoute à la date future
+  const baseTime = currentExp > now ? currentExp : now;
+  const newExp = new Date(baseTime + daysToAdd * 24 * 60 * 60 * 1000);
+
+  const { data, error } = await supabase
+    .from("merchants")
+    .update({
+      status: "active",
+      subscription_expires_at: newExp.toISOString(),
+      is_trial: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", merchantId)
+    .select()
+    .single();
+
   if (error) throw new Error(error.message);
   return data as Merchant;
 }
@@ -112,6 +148,8 @@ export async function getMyMerchant(): Promise<Merchant | null> {
               status: "active",
               plan: "starter",
               phone: metaPhone || prof?.phone || null,
+              subscription_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+              is_trial: true,
             })
             .select()
             .maybeSingle();

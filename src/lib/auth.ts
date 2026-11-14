@@ -38,6 +38,7 @@ export interface Merchant {
   plan: "starter" | "growth" | "pro";
   status: "active" | "pending" | "suspended";
   subscription_expires_at: string | null;
+  is_trial?: boolean;
   created_at: string;
   updated_at: string;
 }

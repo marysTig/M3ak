@@ -261,6 +261,8 @@ function AuthPage() {
             slug: uniqueSlug,
             status: "active",
             plan: "starter",
+            subscription_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+            is_trial: true,
           })
           .select()
           .maybeSingle();

@@ -6,6 +6,7 @@ import {
   Clock,
   CreditCard,
   DollarSign,
+  Gift,
   MessageCircle,
   Phone,
   Plus,
@@ -39,6 +40,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase";
 import {
   activateMerchant,
+  addFreeTrialDays,
   deleteMerchant,
   getAllMerchants,
   setMerchantStatus,
@@ -55,6 +57,7 @@ import { cn } from "@/lib/utils";
 
 const filters = [
   { value: "all", label: "Tous" },
+  { value: "trial", label: "Mode Gratuit" },
   { value: "active", label: "Actifs" },
   { value: "suspended", label: "Désactivés" },
   { value: "pending", label: "En attente" },
@@ -70,22 +73,24 @@ interface MerchantRow {
   plan: string;
   status: "active" | "pending" | "suspended";
   subscription_expires_at: string | null;
+  is_trial?: boolean;
   customers: number;
   joined: string;
 }
 
-function formatExpiry(expiresAt: string | null): { label: string; expired: boolean; soon: boolean; days: number } {
-  if (!expiresAt) return { label: "—", expired: false, soon: false, days: 999 };
+function formatExpiry(expiresAt: string | null): { label: string; expired: boolean; soon: boolean; urgent: boolean; days: number } {
+  if (!expiresAt) return { label: "—", expired: false, soon: false, urgent: false, days: 999 };
   const exp = new Date(expiresAt);
   const now = new Date();
   const diff = exp.getTime() - now.getTime();
   const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
   const expired = diff < 0;
   const soon = !expired && days <= 7;
+  const urgent = !expired && days <= 2;
   const label = expired
     ? `Expiré (${Math.abs(days)}j)`
     : `${exp.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })} (${days}j)`;
-  return { label, expired, soon, days };
+  return { label, expired, soon, urgent, days };
 }
 
 export const Route = createFileRoute("/admin/businesses")({
@@ -120,6 +125,11 @@ function AdminBusinesses() {
   const [activationDuration, setActivationDuration] = useState<ActivationDuration>("1year");
   const [activating, setActivating] = useState(false);
 
+  // Free trial duration dialog state
+  const [businessForFreeDays, setBusinessForFreeDays] = useState<MerchantRow | null>(null);
+  const [freeDaysToAdd, setFreeDaysToAdd] = useState<number>(7);
+  const [addingFreeDays, setAddingFreeDays] = useState(false);
+
   // Formulaire d'encaissement
   const [payAmount, setPayAmount] = useState<string>("15000");
   const [payDuration, setPayDuration] = useState<ActivationDuration>("1year");
@@ -152,6 +162,7 @@ function AdminBusinesses() {
         plan: m.plan,
         status: m.status,
         subscription_expires_at: m.subscription_expires_at ?? null,
+        is_trial: m.is_trial !== false,
         customers: Array.isArray(m.loyalty_cards) ? m.loyalty_cards.length : 0,
         joined: new Intl.DateTimeFormat("fr-FR", {
           day: "2-digit",
@@ -178,6 +189,18 @@ function AdminBusinesses() {
     load();
   }, []);
 
+  // Alerte notification : Mode Gratuit se terminant dans moins de 2 jours (ou déjà expiré)
+  const freeTrialUrgent = useMemo(() => {
+    const now = Date.now();
+    return rows.filter((b) => {
+      if (!b.subscription_expires_at) return false;
+      const expTime = new Date(b.subscription_expires_at).getTime();
+      const diffMs = expTime - now;
+      const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      return b.is_trial !== false && days <= 2;
+    });
+  }, [rows]);
+
   // Alerte automatique des commerces qui arrivent à expiration dans moins de 7 jours (ou déjà expirés)
   const expiringSoon = useMemo(() => {
     const now = Date.now();
@@ -199,6 +222,32 @@ function AdminBusinesses() {
   const totalRevenue = useMemo(() => {
     return payments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
   }, [payments]);
+
+  async function handleAddFreeDays() {
+    if (!businessForFreeDays) return;
+    setAddingFreeDays(true);
+    try {
+      const updated = await addFreeTrialDays(businessForFreeDays.id, freeDaysToAdd);
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === businessForFreeDays.id
+            ? {
+                ...r,
+                status: "active",
+                is_trial: true,
+                subscription_expires_at: (updated as any).subscription_expires_at,
+              }
+            : r
+        )
+      );
+      toast.success(`${freeDaysToAdd} jours gratuits accordés à "${businessForFreeDays.name}" !`);
+      setBusinessForFreeDays(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de l'ajout des jours gratuits.");
+    } finally {
+      setAddingFreeDays(false);
+    }
+  }
 
   async function handleActivate() {
     if (!businessToActivate) return;
@@ -320,6 +369,8 @@ function AdminBusinesses() {
       const statusMatch =
         filter === "all"
           ? true
+          : filter === "trial"
+          ? b.is_trial !== false
           : filter === "expired"
           ? !!isExpired
           : filter === "active"
@@ -342,6 +393,110 @@ function AdminBusinesses() {
         title="Commerces & Encaissements"
         subtitle="Gestion des commerces, encaissements des abonnements et alertes d'expiration."
       />
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* ALERTE URGENTE : COMMERCES EN MODE GRATUIT EXPIRANT DANS ≤ 2J  */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {freeTrialUrgent.length > 0 && (
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 sm:p-5 space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2 text-destructive font-bold text-sm sm:text-base">
+              <AlertTriangle className="size-5 shrink-0" />
+              <span>
+                🚨 Alerte Mode Gratuit : {freeTrialUrgent.length} commerce{freeTrialUrgent.length > 1 ? "s" : ""} expire{freeTrialUrgent.length > 1 ? "nt" : ""} dans ≤ 2 jours (ou déjà expirés)
+              </span>
+            </div>
+            <span className="text-xs text-destructive/90 font-medium">
+              Ces comptes seront automatiquement suspendus sans ajout de jours gratuits
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+            {freeTrialUrgent.map((b) => {
+              const expiry = formatExpiry(b.subscription_expires_at);
+              return (
+                <div
+                  key={b.id}
+                  className="rounded-xl border border-destructive/25 bg-background p-3 flex flex-col justify-between gap-2 shadow-sm"
+                >
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <p className="font-bold text-sm text-foreground truncate">{b.name}</p>
+                      <span
+                        className={cn(
+                          "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
+                          expiry.expired
+                            ? "bg-destructive/15 text-destructive"
+                            : "bg-destructive/15 text-destructive font-bold"
+                        )}
+                      >
+                        {expiry.expired ? `Expiré (${Math.abs(expiry.days)}j)` : `${expiry.days}j restant${expiry.days > 1 ? "s" : ""}`}
+                      </span>
+                    </div>
+
+                    {b.phone ? (
+                      <p className="text-xs text-muted-foreground font-mono mt-1 flex items-center gap-1.5">
+                        <Phone className="size-3 text-primary" />
+                        {b.phone}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground/60 italic mt-1">Aucun numéro enregistré</p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 pt-1 border-t border-border/50 flex-wrap">
+                    {b.phone && (
+                      <>
+                        <a
+                          href={`tel:${b.phone}`}
+                          className="inline-flex h-7 items-center justify-center rounded-lg bg-primary/10 px-2 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                          title="Appeler le commerçant"
+                        >
+                          <Phone className="size-3 mr-1" />
+                          Appeler
+                        </a>
+                        <a
+                          href={`https://wa.me/${b.phone.replace(/[^0-9]/g, "")}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex h-7 items-center justify-center rounded-lg bg-[#25D366]/15 px-2 text-xs font-medium text-[#25D366] hover:bg-[#25D366]/25 transition-colors"
+                          title="Contacter sur WhatsApp"
+                        >
+                          <MessageCircle className="size-3 mr-1" />
+                          WhatsApp
+                        </a>
+                      </>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setBusinessForFreeDays(b);
+                        setFreeDaysToAdd(7);
+                      }}
+                      className="h-7 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white"
+                      title="Ajouter une durée gratuite"
+                    >
+                      <Gift className="size-3 mr-1" />
+                      +Jours
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setBusinessToActivate(b);
+                        setActivationDuration("1year");
+                      }}
+                      className="h-7 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white ml-auto"
+                      title="Activer un abonnement payant"
+                    >
+                      Activer
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ───────────────────────────────────────────────────────────── */}
       {/* BANDEAU D'ALERTE : COMMERCES EXPIRANT DANS MOINS DE 7 JOURS     */}
@@ -470,6 +625,18 @@ function AdminBusinesses() {
                   </a>
                 </>
               )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setBusinessForFreeDays(currentSelectedMerchant);
+                  setFreeDaysToAdd(7);
+                }}
+                className="h-8 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border-amber-500/30"
+              >
+                <Gift className="size-3.5 mr-1" />
+                +Jours Gratuits
+              </Button>
               <Button
                 size="sm"
                 variant="outline"
@@ -612,11 +779,21 @@ function AdminBusinesses() {
                               <span
                                 className={cn(
                                   "flex items-center gap-1.5 text-xs font-medium",
-                                  expiry.expired ? "text-destructive font-bold" : expiry.soon ? "text-amber-600 dark:text-amber-400 font-bold" : "text-muted-foreground"
+                                  expiry.expired
+                                    ? "text-destructive font-bold"
+                                    : expiry.urgent
+                                    ? "text-destructive font-bold"
+                                    : expiry.soon
+                                    ? "text-amber-600 dark:text-amber-400 font-bold"
+                                    : "text-muted-foreground"
                                 )}
                               >
-                                <Clock className="size-3 shrink-0" />
-                                {expiry.label}
+                                {b.is_trial !== false ? (
+                                  <Gift className="size-3 text-amber-500 shrink-0" />
+                                ) : (
+                                  <Clock className="size-3 shrink-0" />
+                                )}
+                                {b.is_trial !== false ? `Gratuit: ${expiry.label}` : expiry.label}
                               </span>
                             ) : (
                               <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
@@ -639,6 +816,21 @@ function AdminBusinesses() {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1.5">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={isUpdating}
+                                onClick={() => {
+                                  setBusinessForFreeDays(b);
+                                  setFreeDaysToAdd(7);
+                                }}
+                                className="text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 text-xs h-7 px-2"
+                                title="Ajouter une durée gratuite"
+                              >
+                                <Gift className="size-3 sm:mr-1" />
+                                <span className="hidden sm:inline">+Jours</span>
+                              </Button>
+
                               {isActive ? (
                                 <Button
                                   variant="outline"
@@ -970,6 +1162,124 @@ function AdminBusinesses() {
           </div>
         )}
       </Tabs>
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* DIALOGUE POUR AJOUTER DES JOURS GRATUITS (MODE GRATUIT)       */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      <AlertDialog
+        open={!!businessForFreeDays}
+        onOpenChange={(open) => {
+          if (!open && !addingFreeDays) setBusinessForFreeDays(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+              <Gift className="size-5" />
+              Accorder une durée gratuite — {businessForFreeDays?.name}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4 pt-2 text-left">
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Ajoutez des jours gratuits au commerce <strong>{businessForFreeDays?.name}</strong>.
+                  La nouvelle durée sera immédiatement visible dans la barre de progression du commerçant et réactivera son compte s'il était désactivé.
+                </p>
+
+                {/* Boutons de sélection rapide */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Choisir une durée gratuite prédéfinie :</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { days: 3, label: "+3 jours" },
+                      { days: 7, label: "+7 jours", sub: "(1 semaine)" },
+                      { days: 14, label: "+14 jours", sub: "(2 semaines)" },
+                      { days: 30, label: "+30 jours", sub: "(1 mois)" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.days}
+                        type="button"
+                        onClick={() => setFreeDaysToAdd(opt.days)}
+                        className={cn(
+                          "flex flex-col items-center justify-center p-2.5 rounded-xl border-2 text-xs font-medium transition-all",
+                          freeDaysToAdd === opt.days
+                            ? "border-amber-500 bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold"
+                            : "border-border bg-surface hover:border-amber-500/40 text-muted-foreground"
+                        )}
+                      >
+                        <span>{opt.label}</span>
+                        {opt.sub && <span className="text-[10px] opacity-70">{opt.sub}</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Saisie personnalisée */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="custom-days" className="text-xs font-semibold">
+                    Ou saisir un nombre de jours personnalisé :
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="custom-days"
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={freeDaysToAdd}
+                      onChange={(e) => setFreeDaysToAdd(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="h-10 text-sm font-semibold"
+                    />
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">jours</span>
+                  </div>
+                </div>
+
+                {/* Aperçu de la nouvelle date d'expiration */}
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs space-y-1 text-amber-900 dark:text-amber-200">
+                  <p>
+                    <strong>Date actuelle :</strong>{" "}
+                    {businessForFreeDays?.subscription_expires_at
+                      ? new Date(businessForFreeDays.subscription_expires_at).toLocaleDateString("fr-FR", {
+                          day: "2-digit",
+                          month: "long",
+                          year: "numeric",
+                        })
+                      : "Non définie"}
+                  </p>
+                  <p>
+                    <strong>Nouvelle date après ajout (+{freeDaysToAdd} jours) :</strong>{" "}
+                    <span className="font-bold underline">
+                      {(() => {
+                        const now = Date.now();
+                        const cur = businessForFreeDays?.subscription_expires_at
+                          ? new Date(businessForFreeDays.subscription_expires_at).getTime()
+                          : now;
+                        const base = cur > now ? cur : now;
+                        return new Date(base + freeDaysToAdd * 24 * 60 * 60 * 1000).toLocaleDateString("fr-FR", {
+                          day: "2-digit",
+                          month: "long",
+                          year: "numeric",
+                        });
+                      })()}
+                    </span>
+                  </p>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={addingFreeDays}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleAddFreeDays();
+              }}
+              disabled={addingFreeDays || freeDaysToAdd <= 0}
+              className="bg-amber-600 text-white hover:bg-amber-700 font-semibold"
+            >
+              {addingFreeDays ? "Ajout en cours…" : `Confirmer (+${freeDaysToAdd} jours gratuits)`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ───────────────────────────────────────────────────────────── */}
       {/* DIALOGUE D'ACTIVATION / PROLONGATION                          */}

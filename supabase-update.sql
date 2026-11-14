@@ -48,9 +48,10 @@ create trigger trg_cards_updated_at
 alter table public.profiles add column if not exists phone text;
 alter table public.merchants add column if not exists phone text;
 
--- ─── 2c. Colonne subscription_expires_at dans merchants ──────────────────────
+-- ─── 2c. Colonne subscription_expires_at et is_trial dans merchants ──────────
 
 alter table public.merchants add column if not exists subscription_expires_at timestamptz;
+alter table public.merchants add column if not exists is_trial boolean not null default true;
 
 -- ─── 2d. Colonnes pour les 3 types de cartes (VIP, Points, Tampons) ───────────
 
@@ -119,8 +120,9 @@ begin
     v_slug := lower(regexp_replace(v_username, '[^a-zA-Z0-9]', '-', 'g')) || '-' || substr(new.id::text, 1, 5);
 
     if not exists (select 1 from public.merchants where owner_id = new.id) then
-      insert into public.merchants (owner_id, name, slug, phone, status, plan)
-      values (new.id, v_full_name, v_slug, v_phone, 'active', 'starter')
+      -- Mode gratuit activé automatiquement pour 1 semaine (7 jours) à la création
+      insert into public.merchants (owner_id, name, slug, phone, status, plan, subscription_expires_at, is_trial)
+      values (new.id, v_full_name, v_slug, v_phone, 'active', 'starter', now() + interval '7 days', true)
       returning id into v_merchant_id;
 
       if v_merchant_id is not null then

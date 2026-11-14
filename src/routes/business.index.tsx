@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertCircle, CheckCircle2, IdCard, Settings, UserPlus, Users } from "lucide-react";
+import { AlertCircle, CheckCircle2, Gift, IdCard, Settings, UserPlus, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -63,10 +63,18 @@ function Overview() {
           setDaysRemaining(remaining);
           setExpiryFormatted(expDate.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }));
 
-          // Estimer la durée totale de l'activation (30 jours ou 365 jours)
-          const baseDate = new Date(m.updated_at || m.created_at).getTime();
-          const approxDays = Math.round((expDate.getTime() - baseDate) / (1000 * 60 * 60 * 24));
-          setTotalDays(approxDays > 60 ? 365 : 30);
+          const isTrial = m.is_trial !== false;
+          if (isTrial) {
+            // Mode gratuit : calculer la durée totale allouée (à partir de la création ou des jours cumulés)
+            const baseDate = new Date(m.created_at).getTime();
+            const trialDays = Math.max(7, Math.round((expDate.getTime() - baseDate) / (1000 * 60 * 60 * 24)));
+            setTotalDays(trialDays);
+          } else {
+            // Estimer la durée totale de l'activation payante (30 jours ou 365 jours)
+            const baseDate = new Date(m.updated_at || m.created_at).getTime();
+            const approxDays = Math.round((expDate.getTime() - baseDate) / (1000 * 60 * 60 * 24));
+            setTotalDays(approxDays > 60 ? 365 : 30);
+          }
 
           // Si expiré mais statut encore actif en DB, désactiver automatiquement
           if (isExpiredByDate && m.status === "active") {
@@ -84,12 +92,15 @@ function Overview() {
   }, []);
 
   const name = merchant?.name ?? "Mon commerce";
+  const isTrial = merchant?.is_trial !== false;
   const isSuspended = merchant?.status === "suspended" || (daysRemaining !== null && daysRemaining <= 0);
 
   function handleNewCardClick() {
     if (isSuspended) {
       toast.error("Compte désactivé ou expiré", {
-        description: "Votre période d'activation a expiré ou votre compte est désactivé. Veuillez contacter l'administrateur pour renouveler.",
+        description: isTrial
+          ? "Votre période de mode gratuit a pris fin. Veuillez contacter l'administrateur pour renouveler votre accès."
+          : "Votre période d'activation a expiré ou votre compte est désactivé. Veuillez contacter l'administrateur pour renouveler.",
       });
       return;
     }
@@ -108,12 +119,14 @@ function Overview() {
           <AlertCircle className="size-5 shrink-0" />
           <div className="text-xs">
             <p className="font-semibold">
-              {daysRemaining !== null && daysRemaining <= 0 ? "Abonnement expiré" : "Compte désactivé"}
+              {isTrial ? "Mode gratuit expiré — Compte désactivé" : (daysRemaining !== null && daysRemaining <= 0 ? "Abonnement expiré" : "Compte désactivé")}
             </p>
             <p className="mt-0.5 opacity-90">
-              {daysRemaining !== null && daysRemaining <= 0
-                ? "Votre période d'activation a pris fin. Le compte a été désactivé automatiquement. Contactez l'administrateur pour renouveler."
-                : "Votre compte est désactivé par l'administrateur. Certaines fonctionnalités sont temporairement restreintes."}
+              {isTrial
+                ? "Votre semaine de mode gratuit est terminée. Le compte est actuellement désactivé. Contactez l'administrateur pour activer votre abonnement ou prolonger votre durée gratuite."
+                : (daysRemaining !== null && daysRemaining <= 0
+                  ? "Votre période d'activation a pris fin. Le compte a été désactivé automatiquement. Contactez l'administrateur pour renouveler."
+                  : "Votre compte est désactivé par l'administrateur. Certaines fonctionnalités sont temporairement restreintes.")}
             </p>
           </div>
         </div>
@@ -173,34 +186,48 @@ function Overview() {
       <div className="mt-6 sm:mt-8 w-full max-w-md rounded-2xl border border-border bg-surface p-4 sm:p-5 shadow-[var(--shadow-soft)]">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5 sm:gap-3">
-            <div className={`flex size-9 sm:size-10 items-center justify-center rounded-full ${isSuspended ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
-              {isSuspended ? <AlertCircle className="size-4 sm:size-5" /> : <CheckCircle2 className="size-4 sm:size-5" />}
+            <div className={`flex size-9 sm:size-10 items-center justify-center rounded-full ${isSuspended ? "bg-destructive/15 text-destructive" : isTrial ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "bg-success/15 text-success"}`}>
+              {isSuspended ? <AlertCircle className="size-4 sm:size-5" /> : isTrial ? <Gift className="size-4 sm:size-5" /> : <CheckCircle2 className="size-4 sm:size-5" />}
             </div>
             <div>
               <h3 className="text-xs sm:text-sm font-semibold">
-                {isSuspended ? "Compte Expiré / Désactivé" : merchant?.status === "active" ? "Compte Activé" : "En attente de validation"}
+                {isSuspended
+                  ? (isTrial ? "Mode Gratuit Expiré" : "Compte Expiré / Désactivé")
+                  : isTrial
+                  ? "Mode Gratuit Actif"
+                  : merchant?.status === "active" ? "Compte Activé" : "En attente de validation"}
               </h3>
               <p className="text-[11px] sm:text-xs text-muted-foreground">
-                {isSuspended ? "Activation terminée" : merchant?.plan ? `Plan ${merchant.plan}` : "Compte actif"}
+                {isSuspended
+                  ? "Compte désactivé"
+                  : isTrial
+                  ? "Période d'essai offerte (1 semaine)"
+                  : merchant?.plan ? `Plan ${merchant.plan}` : "Compte actif"}
               </p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-xs sm:text-sm font-bold text-primary">2500 DA</p>
-            <p className="text-[10px] sm:text-xs text-muted-foreground">/ mois</p>
+            <p className="text-xs sm:text-sm font-bold text-primary">
+              {isTrial ? "0 DA" : "2500 DA"}
+            </p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">
+              {isTrial ? "Gratuit" : "/ mois"}
+            </p>
           </div>
         </div>
 
         {merchant?.subscription_expires_at && (
           <div className="space-y-2 pt-2 border-t border-border/50">
             <div className="flex items-center justify-between text-xs">
-              <span className={`font-semibold ${isSuspended ? "text-destructive" : (daysRemaining ?? 0) <= 7 ? "text-warning font-semibold" : "text-primary"}`}>
+              <span className={`font-semibold ${isSuspended ? "text-destructive" : (daysRemaining ?? 0) <= 2 ? "text-destructive font-bold" : (daysRemaining ?? 0) <= 7 ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-primary"}`}>
                 {isSuspended
-                  ? "Période d'activation expirée"
+                  ? (isTrial ? "Période gratuite expirée" : "Période d'activation expirée")
+                  : isTrial
+                  ? `🎁 Mode Gratuit : ${daysRemaining} jour${(daysRemaining ?? 0) > 1 ? "s" : ""} restant${(daysRemaining ?? 0) > 1 ? "s" : ""}`
                   : `${daysRemaining} jour${(daysRemaining ?? 0) > 1 ? "s" : ""} restant${(daysRemaining ?? 0) > 1 ? "s" : ""}`}
               </span>
               <span className="text-muted-foreground text-[11px]">
-                {totalDays >= 365 ? "Durée : 1 an" : "Durée : 1 mois (30j)"}
+                {isTrial ? `Durée : ${totalDays} jours` : (totalDays >= 365 ? "Durée : 1 an" : "Durée : 1 mois (30j)")}
               </span>
             </div>
             {!isSuspended && daysRemaining !== null && daysRemaining > 0 && (
@@ -208,8 +235,8 @@ function Overview() {
             )}
             <p className="mt-1 text-center text-[10px] text-muted-foreground">
               {isSuspended
-                ? `Expiré le ${expiryFormatted || "—"}`
-                : `Date de fin : ${expiryFormatted} (désactivation automatique)`}
+                ? `Expiré le ${expiryFormatted || "—"} (désactivation automatique)`
+                : `Date de fin du mode gratuit : ${expiryFormatted} (désactivation automatique)`}
             </p>
           </div>
         )}
