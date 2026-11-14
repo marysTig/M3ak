@@ -23,16 +23,42 @@ export const Route = createFileRoute("/")({
 
 type AuthMode = "signin" | "signup";
 
-function toAuthEmail(input: string): { email: string; username: string } {
-  const clean = input.trim().toLowerCase();
-  const base = clean.includes("@") ? clean.split("@")[0] : clean;
-  const username = base
+async function resolveAuthEmail(input: string): Promise<{ email: string; username: string }> {
+  const clean = input.trim();
+  
+  // 1. Si l'utilisateur a saisi une adresse email complète
+  if (clean.includes("@")) {
+    return {
+      email: clean.toLowerCase(),
+      username: clean.split("@")[0].toLowerCase(),
+    };
+  }
+
+  const cleanUser = clean
+    .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9_.-]/g, "");
+
+  // 2. Recherche automatique de l'email Supabase associé au username via RPC
+  try {
+    const { data: foundEmail, error } = await supabase.rpc("get_auth_email_by_username", {
+      p_username: cleanUser,
+    });
+    if (!error && foundEmail && typeof foundEmail === "string") {
+      return {
+        email: foundEmail,
+        username: cleanUser,
+      };
+    }
+  } catch {
+    // Si la fonction RPC n'est pas encore présente, poursuivre avec le fallback
+  }
+
+  // 3. Fallback standard M3ak
   return {
-    email: `${username}@m3ak.app`,
-    username,
+    email: `${cleanUser}@m3ak.app`,
+    username: cleanUser,
   };
 }
 
@@ -87,18 +113,30 @@ function AuthPage() {
 
     setLoading(true);
     try {
-      const { email, username: cleanUser } = toAuthEmail(form.username);
+      const { email, username: cleanUser } = await resolveAuthEmail(form.username);
 
-      const { data, error } = await supabase.auth.signInWithPassword({
+      let { data, error } = await supabase.auth.signInWithPassword({
         email,
         password: form.password,
       });
+
+      // Si échec avec l'adresse résolue et qu'il s'agissait d'un username, tenter le fallback direct
+      if (error && !form.username.includes("@") && email !== `${cleanUser}@m3ak.app`) {
+        const fallback = await supabase.auth.signInWithPassword({
+          email: `${cleanUser}@m3ak.app`,
+          password: form.password,
+        });
+        if (!fallback.error && fallback.data.user) {
+          data = fallback.data;
+          error = null;
+        }
+      }
 
       if (error) {
         console.error("Supabase Auth Error:", error.message, error);
         if (error.message.includes("Email not confirmed")) {
           toast.error("Compte non confirmé", {
-            description: "Votre compte n'est pas encore confirmé. Exécutez le script SQL pour confirmer tous les comptes.",
+            description: "Votre compte n'est pas encore confirmé dans Supabase. Exécutez la mise à jour SQL.",
           });
         } else if (error.message.includes("disabled") || (error as { code?: string }).code === "email_provider_disabled") {
           toast.error("Authentification désactivée dans Supabase", {
@@ -106,7 +144,7 @@ function AuthPage() {
           });
         } else {
           toast.error("Identifiants incorrects", {
-            description: `Vérifiez votre nom d'utilisateur et mot de passe (${error.message}).`,
+            description: "Nom d'utilisateur / email ou mot de passe invalide. Vérifiez vos identifiants.",
           });
         }
         return;

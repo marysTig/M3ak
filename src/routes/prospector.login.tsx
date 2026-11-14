@@ -18,14 +18,30 @@ export const Route = createFileRoute("/prospector/login")({
   component: ProspectorLoginPage,
 });
 
-function toAuthEmail(input: string): string {
-  const clean = input
-    .trim()
+async function resolveAuthEmail(input: string): Promise<string> {
+  const clean = input.trim();
+  if (clean.includes("@")) {
+    return clean.toLowerCase();
+  }
+
+  const cleanUser = clean
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9_.-]/g, "");
-  return `${clean}@m3ak.app`;
+
+  try {
+    const { data: foundEmail, error } = await supabase.rpc("get_auth_email_by_username", {
+      p_username: cleanUser,
+    });
+    if (!error && foundEmail && typeof foundEmail === "string") {
+      return foundEmail;
+    }
+  } catch {
+    // Fallback
+  }
+
+  return `${cleanUser}@m3ak.app`;
 }
 
 function ProspectorLoginPage() {
@@ -52,13 +68,25 @@ function ProspectorLoginPage() {
 
     setLoading(true);
     try {
-      const email = toAuthEmail(cleanUser);
+      const email = await resolveAuthEmail(cleanUser);
 
       // Authentification Supabase par identifiants
-      const { data, error } = await supabase.auth.signInWithPassword({
+      let { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+
+      // Si échec avec l'adresse résolue, tenter le fallback direct
+      if (error && !cleanUser.includes("@") && email !== `${cleanUser}@m3ak.app`) {
+        const fallback = await supabase.auth.signInWithPassword({
+          email: `${cleanUser}@m3ak.app`,
+          password,
+        });
+        if (!fallback.error && fallback.data.user) {
+          data = fallback.data;
+          error = null;
+        }
+      }
 
       if (error) {
         setErrorMsg("Identifiants incorrects. Vérifiez votre nom d'utilisateur et mot de passe.");

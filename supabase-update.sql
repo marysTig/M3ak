@@ -1170,6 +1170,44 @@ create policy "Prospectors can update assigned prospects status and notes"
   using (assigned_to = auth.uid())
   with check (assigned_to = auth.uid());
 
+-- 10g. Résolution d'email par username pour l'authentification sans email
+create or replace function public.get_auth_email_by_username(p_username text)
+returns text language plpgsql security definer set search_path = public, auth as $$
+declare
+  v_email text;
+  v_clean text;
+begin
+  v_clean := lower(trim(p_username));
+  
+  -- 1. Chercher dans profiles par username
+  select u.email into v_email
+  from auth.users u
+  join public.profiles p on p.id = u.id
+  where lower(p.username) = v_clean
+  limit 1;
+  
+  if v_email is not null then
+    return v_email;
+  end if;
+  
+  -- 2. Chercher dans auth.users metadata ou préfixe d'email
+  select email into v_email
+  from auth.users
+  where lower(raw_user_meta_data->>'username') = v_clean
+     or lower(split_part(email, '@', 1)) = v_clean
+  limit 1;
+  
+  return coalesce(v_email, v_clean || '@m3ak.app');
+end;
+$$;
+
+grant execute on function public.get_auth_email_by_username(text) to anon, authenticated;
+
+-- Confirmation globale de tous les comptes pour éliminer l'erreur "Invalid login credentials" due aux emails non confirmés
+update auth.users
+set email_confirmed_at = coalesce(email_confirmed_at, now())
+where email_confirmed_at is null;
+
 -- =============================================================================
 -- FIN DU SCRIPT
 -- =============================================================================
