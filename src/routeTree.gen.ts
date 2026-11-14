@@ -31,6 +31,13 @@ import { Route as CustomerProfileRouteImport } from './routes/customer.profile'
 import { Route as CustomerRewardsRouteImport } from './routes/customer.rewards'
 import { Route as CustomerScanRouteImport } from './routes/customer.scan'
 import { Route as JoinSlugRouteImport } from './routes/join.$slug'
+import { Route as AdminProspectionIndexRouteImport } from './routes/admin.prospection.index'
+import { Route as AdminProspectionCommissionsRouteImport } from './routes/admin.prospection.commissions'
+import { Route as AdminProspectionPipelineRouteImport } from './routes/admin.prospection.pipeline'
+import { Route as AdminProspectionProspectsRouteImport } from './routes/admin.prospection.prospects'
+import { Route as AdminProspectionReportsRouteImport } from './routes/admin.prospection.reports'
+import { Route as AdminProspectionSettingsRouteImport } from './routes/admin.prospection.settings'
+import { Route as AdminProspectionTeamRouteImport } from './routes/admin.prospection.team'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -142,6 +149,45 @@ const JoinSlugRoute = JoinSlugRouteImport.update({
   path: '/join/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminProspectionIndexRoute = AdminProspectionIndexRouteImport.update({
+  id: '/prospection/',
+  path: '/prospection/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminProspectionCommissionsRoute =
+  AdminProspectionCommissionsRouteImport.update({
+    id: '/prospection/commissions',
+    path: '/prospection/commissions',
+    getParentRoute: () => AdminRoute,
+  } as any)
+const AdminProspectionPipelineRoute =
+  AdminProspectionPipelineRouteImport.update({
+    id: '/prospection/pipeline',
+    path: '/prospection/pipeline',
+    getParentRoute: () => AdminRoute,
+  } as any)
+const AdminProspectionProspectsRoute =
+  AdminProspectionProspectsRouteImport.update({
+    id: '/prospection/prospects',
+    path: '/prospection/prospects',
+    getParentRoute: () => AdminRoute,
+  } as any)
+const AdminProspectionReportsRoute = AdminProspectionReportsRouteImport.update({
+  id: '/prospection/reports',
+  path: '/prospection/reports',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminProspectionSettingsRoute =
+  AdminProspectionSettingsRouteImport.update({
+    id: '/prospection/settings',
+    path: '/prospection/settings',
+    getParentRoute: () => AdminRoute,
+  } as any)
+const AdminProspectionTeamRoute = AdminProspectionTeamRouteImport.update({
+  id: '/prospection/team',
+  path: '/prospection/team',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -166,6 +212,13 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/business/': typeof BusinessIndexRoute
   '/customer/': typeof CustomerIndexRoute
+  '/admin/prospection/commissions': typeof AdminProspectionCommissionsRoute
+  '/admin/prospection/pipeline': typeof AdminProspectionPipelineRoute
+  '/admin/prospection/prospects': typeof AdminProspectionProspectsRoute
+  '/admin/prospection/reports': typeof AdminProspectionReportsRoute
+  '/admin/prospection/settings': typeof AdminProspectionSettingsRoute
+  '/admin/prospection/team': typeof AdminProspectionTeamRoute
+  '/admin/prospection/': typeof AdminProspectionIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -187,6 +240,13 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/business': typeof BusinessIndexRoute
   '/customer': typeof CustomerIndexRoute
+  '/admin/prospection/commissions': typeof AdminProspectionCommissionsRoute
+  '/admin/prospection/pipeline': typeof AdminProspectionPipelineRoute
+  '/admin/prospection/prospects': typeof AdminProspectionProspectsRoute
+  '/admin/prospection/reports': typeof AdminProspectionReportsRoute
+  '/admin/prospection/settings': typeof AdminProspectionSettingsRoute
+  '/admin/prospection/team': typeof AdminProspectionTeamRoute
+  '/admin/prospection': typeof AdminProspectionIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -212,6 +272,13 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/business/': typeof BusinessIndexRoute
   '/customer/': typeof CustomerIndexRoute
+  '/admin/prospection/commissions': typeof AdminProspectionCommissionsRoute
+  '/admin/prospection/pipeline': typeof AdminProspectionPipelineRoute
+  '/admin/prospection/prospects': typeof AdminProspectionProspectsRoute
+  '/admin/prospection/reports': typeof AdminProspectionReportsRoute
+  '/admin/prospection/settings': typeof AdminProspectionSettingsRoute
+  '/admin/prospection/team': typeof AdminProspectionTeamRoute
+  '/admin/prospection/': typeof AdminProspectionIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -238,6 +305,13 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/business/'
     | '/customer/'
+    | '/admin/prospection/commissions'
+    | '/admin/prospection/pipeline'
+    | '/admin/prospection/prospects'
+    | '/admin/prospection/reports'
+    | '/admin/prospection/settings'
+    | '/admin/prospection/team'
+    | '/admin/prospection/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -259,6 +333,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/business'
     | '/customer'
+    | '/admin/prospection/commissions'
+    | '/admin/prospection/pipeline'
+    | '/admin/prospection/prospects'
+    | '/admin/prospection/reports'
+    | '/admin/prospection/settings'
+    | '/admin/prospection/team'
+    | '/admin/prospection'
   id:
     | '__root__'
     | '/'
@@ -283,6 +364,13 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/business/'
     | '/customer/'
+    | '/admin/prospection/commissions'
+    | '/admin/prospection/pipeline'
+    | '/admin/prospection/prospects'
+    | '/admin/prospection/reports'
+    | '/admin/prospection/settings'
+    | '/admin/prospection/team'
+    | '/admin/prospection/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -450,6 +538,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JoinSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/prospection/': {
+      id: '/admin/prospection/'
+      path: '/prospection'
+      fullPath: '/admin/prospection/'
+      preLoaderRoute: typeof AdminProspectionIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/prospection/commissions': {
+      id: '/admin/prospection/commissions'
+      path: '/prospection/commissions'
+      fullPath: '/admin/prospection/commissions'
+      preLoaderRoute: typeof AdminProspectionCommissionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/prospection/pipeline': {
+      id: '/admin/prospection/pipeline'
+      path: '/prospection/pipeline'
+      fullPath: '/admin/prospection/pipeline'
+      preLoaderRoute: typeof AdminProspectionPipelineRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/prospection/prospects': {
+      id: '/admin/prospection/prospects'
+      path: '/prospection/prospects'
+      fullPath: '/admin/prospection/prospects'
+      preLoaderRoute: typeof AdminProspectionProspectsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/prospection/reports': {
+      id: '/admin/prospection/reports'
+      path: '/prospection/reports'
+      fullPath: '/admin/prospection/reports'
+      preLoaderRoute: typeof AdminProspectionReportsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/prospection/settings': {
+      id: '/admin/prospection/settings'
+      path: '/prospection/settings'
+      fullPath: '/admin/prospection/settings'
+      preLoaderRoute: typeof AdminProspectionSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/prospection/team': {
+      id: '/admin/prospection/team'
+      path: '/prospection/team'
+      fullPath: '/admin/prospection/team'
+      preLoaderRoute: typeof AdminProspectionTeamRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
@@ -457,12 +594,26 @@ interface AdminRouteChildren {
   AdminBusinessesRoute: typeof AdminBusinessesRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminProspectionCommissionsRoute: typeof AdminProspectionCommissionsRoute
+  AdminProspectionPipelineRoute: typeof AdminProspectionPipelineRoute
+  AdminProspectionProspectsRoute: typeof AdminProspectionProspectsRoute
+  AdminProspectionReportsRoute: typeof AdminProspectionReportsRoute
+  AdminProspectionSettingsRoute: typeof AdminProspectionSettingsRoute
+  AdminProspectionTeamRoute: typeof AdminProspectionTeamRoute
+  AdminProspectionIndexRoute: typeof AdminProspectionIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminBusinessesRoute: AdminBusinessesRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminProspectionCommissionsRoute: AdminProspectionCommissionsRoute,
+  AdminProspectionPipelineRoute: AdminProspectionPipelineRoute,
+  AdminProspectionProspectsRoute: AdminProspectionProspectsRoute,
+  AdminProspectionReportsRoute: AdminProspectionReportsRoute,
+  AdminProspectionSettingsRoute: AdminProspectionSettingsRoute,
+  AdminProspectionTeamRoute: AdminProspectionTeamRoute,
+  AdminProspectionIndexRoute: AdminProspectionIndexRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)

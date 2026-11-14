@@ -840,6 +840,185 @@ create policy "Admins can manage subscription payments"
 
 grant all on public.subscription_payments to authenticated;
 
+-- ─── 9. MODULE PROSPECTION CRM COMMERCIAL ────────────────────────────────────
+
+-- 9a. Autoriser le rôle 'prospector' dans profiles
+alter table public.profiles drop constraint if exists profiles_role_check;
+alter table public.profiles add constraint profiles_role_check
+  check (role in ('admin', 'merchant', 'customer', 'prospector'));
+
+alter table public.profiles add column if not exists wilaya text;
+alter table public.profiles add column if not exists commune text;
+alter table public.profiles add column if not exists status text default 'active'
+  check (status in ('active', 'suspended', 'pending'));
+
+-- 9b. Table des prospects (commerces ciblés)
+create table if not exists public.prospects (
+  id uuid primary key default gen_random_uuid(),
+  business_name text not null,
+  category text,
+  phone text not null,
+  email text,
+  wilaya text not null,
+  commune text,
+  address text,
+  contact_name text,
+  assigned_to uuid references public.profiles(id) on delete set null,
+  status text not null default 'new'
+    check (status in ('new', 'contacted', 'interested', 'callback', 'trial', 'converted', 'rejected')),
+  notes text,
+  trial_started_at timestamptz,
+  trial_expires_at timestamptz,
+  merchant_id uuid references public.merchants(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_prospects_status on public.prospects(status);
+create index if not exists idx_prospects_wilaya on public.prospects(wilaya);
+create index if not exists idx_prospects_assigned_to on public.prospects(assigned_to);
+
+alter table public.prospects enable row level security;
+
+drop policy if exists "Admins have full access to prospects" on public.prospects;
+create policy "Admins have full access to prospects"
+  on public.prospects for all
+  using (public.is_admin())
+  with check (public.is_admin());
+
+drop policy if exists "Prospectors can view assigned prospects" on public.prospects;
+create policy "Prospectors can view assigned prospects"
+  on public.prospects for select
+  using (assigned_to = auth.uid());
+
+drop policy if exists "Prospectors can update assigned prospects" on public.prospects;
+create policy "Prospectors can update assigned prospects"
+  on public.prospects for update
+  using (assigned_to = auth.uid())
+  with check (assigned_to = auth.uid());
+
+grant all on public.prospects to authenticated;
+
+-- 9c. Table des relances & rappels commerciaux
+create table if not exists public.commercial_followups (
+  id uuid primary key default gen_random_uuid(),
+  prospect_id uuid not null references public.prospects(id) on delete cascade,
+  prospector_id uuid references public.profiles(id) on delete set null,
+  due_date timestamptz not null,
+  priority text not null default 'medium'
+    check (priority in ('low', 'medium', 'high', 'urgent')),
+  status text not null default 'pending'
+    check (status in ('pending', 'completed', 'rescheduled', 'cancelled')),
+  notes text,
+  completed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_followups_due_date on public.commercial_followups(due_date);
+create index if not exists idx_followups_prospect_id on public.commercial_followups(prospect_id);
+
+alter table public.commercial_followups enable row level security;
+
+drop policy if exists "Admins can manage followups" on public.commercial_followups;
+create policy "Admins can manage followups"
+  on public.commercial_followups for all
+  using (public.is_admin())
+  with check (public.is_admin());
+
+drop policy if exists "Prospectors can view and update their followups" on public.commercial_followups;
+create policy "Prospectors can view and update their followups"
+  on public.commercial_followups for all
+  using (prospector_id = auth.uid())
+  with check (prospector_id = auth.uid());
+
+grant all on public.commercial_followups to authenticated;
+
+-- 9d. Table de l'historique d'attribution des prospects
+create table if not exists public.prospect_assignment_history (
+  id uuid primary key default gen_random_uuid(),
+  prospect_id uuid not null references public.prospects(id) on delete cascade,
+  assigned_to uuid references public.profiles(id) on delete set null,
+  assigned_by uuid references public.profiles(id) on delete set null,
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.prospect_assignment_history enable row level security;
+
+drop policy if exists "Admins can manage assignment history" on public.prospect_assignment_history;
+create policy "Admins can manage assignment history"
+  on public.prospect_assignment_history for all
+  using (public.is_admin())
+  with check (public.is_admin());
+
+grant all on public.prospect_assignment_history to authenticated;
+
+-- 9e. Table des commissions des prospecteurs (1 500 DA fixe après paiement réel)
+create table if not exists public.commissions (
+  id uuid primary key default gen_random_uuid(),
+  prospector_id uuid not null references public.profiles(id) on delete cascade,
+  prospect_id uuid references public.prospects(id) on delete set null,
+  merchant_id uuid references public.merchants(id) on delete set null,
+  payment_id uuid references public.subscription_payments(id) on delete set null,
+  amount numeric not null default 1500,
+  client_paid_amount numeric not null default 2500,
+  plan_duration text,
+  status text not null default 'pending'
+    check (status in ('pending', 'approved', 'paid', 'cancelled')),
+  paid_at timestamptz,
+  payment_reference text,
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_commissions_prospector on public.commissions(prospector_id);
+create index if not exists idx_commissions_status on public.commissions(status);
+
+alter table public.commissions enable row level security;
+
+drop policy if exists "Admins can manage commissions" on public.commissions;
+create policy "Admins can manage commissions"
+  on public.commissions for all
+  using (public.is_admin())
+  with check (public.is_admin());
+
+drop policy if exists "Prospectors can view their own commissions" on public.commissions;
+create policy "Prospectors can view their own commissions"
+  on public.commissions for select
+  using (prospector_id = auth.uid());
+
+grant all on public.commissions to authenticated;
+
+-- 9f. Table des versements / règlements effectués aux prospecteurs
+create table if not exists public.commission_payouts (
+  id uuid primary key default gen_random_uuid(),
+  prospector_id uuid not null references public.profiles(id) on delete cascade,
+  amount numeric not null default 0,
+  payment_method text not null default 'cash',
+  reference text not null,
+  paid_at timestamptz not null default now(),
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.commission_payouts enable row level security;
+
+drop policy if exists "Admins can manage commission payouts" on public.commission_payouts;
+create policy "Admins can manage commission payouts"
+  on public.commission_payouts for all
+  using (public.is_admin())
+  with check (public.is_admin());
+
+grant all on public.commission_payouts to authenticated;
+
+-- 9g. Paramètres par défaut pour la prospection
+insert into public.platform_settings (key, value)
+values 
+  ('prospection_trial_days', '7'),
+  ('prospection_commission_amount', '1500'),
+  ('prospection_commission_rule', 'paid_subscription_only')
+on conflict (key) do nothing;
+
 -- =============================================================================
 -- FIN DU SCRIPT
 -- =============================================================================
