@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useMatchRoute, useNavigate } from "@tanstack/react-router";
-import { AlertCircle, ArrowLeft, Gift, LogOut } from "lucide-react";
+import { AlertCircle, ArrowLeft, Clock, Gift, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -7,6 +7,30 @@ import { safeSignOut, type Merchant } from "@/lib/auth";
 import { getMyMerchant } from "@/lib/db/merchants";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
 import { cn } from "@/lib/utils";
+
+interface TimeLeft {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+  totalMs: number;
+  isExpired: boolean;
+}
+
+function calculateTimeLeft(targetDate: string | null): TimeLeft {
+  if (!targetDate) {
+    return { days: 0, hours: 0, minutes: 0, seconds: 0, totalMs: 0, isExpired: true };
+  }
+  const diff = new Date(targetDate).getTime() - Date.now();
+  if (diff <= 0) {
+    return { days: 0, hours: 0, minutes: 0, seconds: 0, totalMs: 0, isExpired: true };
+  }
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  const minutes = Math.floor((diff / (1000 * 60)) % 60);
+  const seconds = Math.floor((diff / 1000) % 60);
+  return { days, hours, minutes, seconds, totalMs: diff, isExpired: false };
+}
 
 export const Route = createFileRoute("/business")({
   component: BusinessLayout,
@@ -18,10 +42,27 @@ function BusinessLayout() {
   const isRoot = matchRoute({ to: "/business" as const });
   const { profile, loading } = useAuthGuard("merchant");
   const [merchant, setMerchant] = useState<Merchant | null>(null);
+  const [timeLeft, setTimeLeft] = useState<TimeLeft>({ days: 0, hours: 0, minutes: 0, seconds: 0, totalMs: 0, isExpired: false });
 
   useEffect(() => {
     getMyMerchant().then(setMerchant);
   }, []);
+
+  // Ticker pour le compte à rebours en direct (seconde par seconde)
+  useEffect(() => {
+    if (!merchant?.subscription_expires_at) return;
+
+    setTimeLeft(calculateTimeLeft(merchant.subscription_expires_at));
+    const timer = setInterval(() => {
+      const left = calculateTimeLeft(merchant.subscription_expires_at);
+      setTimeLeft(left);
+      if (left.isExpired) {
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [merchant?.subscription_expires_at]);
 
   async function handleSignOut() {
     await safeSignOut();
@@ -93,9 +134,17 @@ function BusinessLayout() {
               <Gift className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
             )}
             <span className="truncate">
-              {isSuspended
-                ? "Mode gratuit terminé — Compte désactivé. Contactez l'administrateur pour renouveler."
-                : `Mode Gratuit : ${daysRemaining} jour${(daysRemaining ?? 0) > 1 ? "s" : ""} restant${(daysRemaining ?? 0) > 1 ? "s" : ""}`}
+              {isSuspended ? (
+                "Mode gratuit terminé — Compte désactivé. Contactez l'administrateur pour renouveler."
+              ) : (
+                <span className="inline-flex items-center gap-1.5 font-medium">
+                  <span>Mode Gratuit :</span>
+                  <span className="font-mono font-bold tracking-tight">
+                    {timeLeft.days}j {String(timeLeft.hours).padStart(2, "0")}h {String(timeLeft.minutes).padStart(2, "0")}m {String(timeLeft.seconds).padStart(2, "0")}s
+                  </span>
+                  <span>restants</span>
+                </span>
+              )}
             </span>
           </div>
           <span className="text-[11px] opacity-80 shrink-0 ml-2 hidden sm:inline">

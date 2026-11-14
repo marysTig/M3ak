@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertCircle, CheckCircle2, Gift, IdCard, Settings, UserPlus, Users } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Gift, IdCard, Settings, UserPlus, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -38,12 +38,53 @@ const menuItems = [
   },
 ];
 
+interface TimeLeft {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+  totalMs: number;
+  isExpired: boolean;
+}
+
+function calculateTimeLeft(targetDate: string | null): TimeLeft {
+  if (!targetDate) {
+    return { days: 0, hours: 0, minutes: 0, seconds: 0, totalMs: 0, isExpired: true };
+  }
+  const diff = new Date(targetDate).getTime() - Date.now();
+  if (diff <= 0) {
+    return { days: 0, hours: 0, minutes: 0, seconds: 0, totalMs: 0, isExpired: true };
+  }
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  const minutes = Math.floor((diff / (1000 * 60)) % 60);
+  const seconds = Math.floor((diff / 1000) % 60);
+  return { days, hours, minutes, seconds, totalMs: diff, isExpired: false };
+}
+
 function Overview() {
   const [newCardOpen, setNewCardOpen] = useState(false);
   const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
   const [totalDays, setTotalDays] = useState<number>(30);
   const [expiryFormatted, setExpiryFormatted] = useState<string>("");
+  const [timeLeft, setTimeLeft] = useState<TimeLeft>({ days: 0, hours: 0, minutes: 0, seconds: 0, totalMs: 0, isExpired: false });
+
+  // Ticker pour le compte à rebours en temps réel (seconde par seconde)
+  useEffect(() => {
+    if (!merchant?.subscription_expires_at) return;
+
+    setTimeLeft(calculateTimeLeft(merchant.subscription_expires_at));
+    const timer = setInterval(() => {
+      const left = calculateTimeLeft(merchant.subscription_expires_at);
+      setTimeLeft(left);
+      if (left.isExpired) {
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [merchant?.subscription_expires_at]);
 
   useEffect(() => {
     getMyMerchant().then(async (m) => {
@@ -217,7 +258,56 @@ function Overview() {
         </div>
 
         {merchant?.subscription_expires_at && (
-          <div className="space-y-2 pt-2 border-t border-border/50">
+          <div className="space-y-2.5 pt-2 border-t border-border/50">
+            {/* Compte à rebours en temps réel */}
+            {isTrial && !isSuspended && !timeLeft.isExpired && (
+              <div className="py-2.5 my-1 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3">
+                <div className="flex items-center justify-between text-[11px] font-semibold text-amber-800 dark:text-amber-300 mb-2">
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="size-3.5 text-amber-500 animate-pulse" />
+                    Compte à rebours Mode Gratuit
+                  </span>
+                  <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 bg-amber-500/20 px-1.5 py-0.5 rounded">
+                    Temps réel
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5 sm:gap-2 text-center">
+                  <div className="rounded-lg border border-border/60 bg-surface/80 p-1.5 shadow-xs">
+                    <span className="block font-mono text-lg sm:text-2xl font-black text-amber-700 dark:text-amber-300 leading-tight">
+                      {String(timeLeft.days).padStart(2, "0")}
+                    </span>
+                    <span className="block text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase">
+                      Jours
+                    </span>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-surface/80 p-1.5 shadow-xs">
+                    <span className="block font-mono text-lg sm:text-2xl font-black text-amber-700 dark:text-amber-300 leading-tight">
+                      {String(timeLeft.hours).padStart(2, "0")}
+                    </span>
+                    <span className="block text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase">
+                      Heures
+                    </span>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-surface/80 p-1.5 shadow-xs">
+                    <span className="block font-mono text-lg sm:text-2xl font-black text-amber-700 dark:text-amber-300 leading-tight">
+                      {String(timeLeft.minutes).padStart(2, "0")}
+                    </span>
+                    <span className="block text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase">
+                      Min
+                    </span>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-surface/80 p-1.5 shadow-xs">
+                    <span className="block font-mono text-lg sm:text-2xl font-black text-amber-700 dark:text-amber-300 leading-tight">
+                      {String(timeLeft.seconds).padStart(2, "0")}
+                    </span>
+                    <span className="block text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase">
+                      Sec
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between text-xs">
               <span className={`font-semibold ${isSuspended ? "text-destructive" : (daysRemaining ?? 0) <= 2 ? "text-destructive font-bold" : (daysRemaining ?? 0) <= 7 ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-primary"}`}>
                 {isSuspended
