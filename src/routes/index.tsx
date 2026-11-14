@@ -23,10 +23,10 @@ export const Route = createFileRoute("/")({
 
 type AuthMode = "signin" | "signup";
 
-async function resolveAuthEmail(input: string): Promise<{ email: string; username: string }> {
+function toAuthEmail(input: string): { email: string; username: string } {
   const clean = input.trim();
-  
-  // 1. Si l'utilisateur a saisi une adresse email complète
+
+  // 1. Si l'utilisateur saisit une adresse email complète
   if (clean.includes("@")) {
     return {
       email: clean.toLowerCase(),
@@ -34,28 +34,13 @@ async function resolveAuthEmail(input: string): Promise<{ email: string; usernam
     };
   }
 
+  // 2. Si l'utilisateur saisit un nom d'utilisateur (username)
   const cleanUser = clean
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9_.-]/g, "");
 
-  // 2. Recherche automatique de l'email Supabase associé au username via RPC
-  try {
-    const { data: foundEmail, error } = await supabase.rpc("get_auth_email_by_username", {
-      p_username: cleanUser,
-    });
-    if (!error && foundEmail && typeof foundEmail === "string") {
-      return {
-        email: foundEmail,
-        username: cleanUser,
-      };
-    }
-  } catch {
-    // Si la fonction RPC n'est pas encore présente, poursuivre avec le fallback
-  }
-
-  // 3. Fallback standard M3ak
   return {
     email: `${cleanUser}@m3ak.app`,
     username: cleanUser,
@@ -113,24 +98,12 @@ function AuthPage() {
 
     setLoading(true);
     try {
-      const { email, username: cleanUser } = await resolveAuthEmail(form.username);
+      const { email, username: cleanUser } = toAuthEmail(form.username);
 
-      let { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password: form.password,
       });
-
-      // Si échec avec l'adresse résolue et qu'il s'agissait d'un username, tenter le fallback direct
-      if (error && !form.username.includes("@") && email !== `${cleanUser}@m3ak.app`) {
-        const fallback = await supabase.auth.signInWithPassword({
-          email: `${cleanUser}@m3ak.app`,
-          password: form.password,
-        });
-        if (!fallback.error && fallback.data.user) {
-          data = fallback.data;
-          error = null;
-        }
-      }
 
       if (error) {
         console.error("Supabase Auth Error:", error.message, error);
