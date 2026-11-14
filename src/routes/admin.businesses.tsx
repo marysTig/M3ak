@@ -94,6 +94,7 @@ function formatExpiry(expiresAt: string | null): { label: string; expired: boole
 }
 
 export const Route = createFileRoute("/admin/businesses")({
+  validateSearch: (search: Record<string, unknown>) => search,
   head: () => ({
     meta: [
       { title: "Commerces & Encaissements — M3ak Admin" },
@@ -107,12 +108,24 @@ export const Route = createFileRoute("/admin/businesses")({
 });
 
 function AdminBusinesses() {
+  const search = Route.useSearch() as Record<string, string | undefined>;
   const [rows, setRows] = useState<MerchantRow[]>([]);
   const [payments, setPayments] = useState<SubscriptionPayment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"businesses" | "finances">("businesses");
+  const [activeTab, setActiveTab] = useState<"businesses" | "finances">(
+    search?.tab === "finances" ? "finances" : "businesses"
+  );
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<string>("all");
+  const [filter, setFilter] = useState<string>(search?.filter ?? "all");
+
+  useEffect(() => {
+    if (search?.tab === "finances" || search?.tab === "businesses") {
+      setActiveTab(search.tab);
+    }
+    if (search?.filter) {
+      setFilter(search.filter);
+    }
+  }, [search?.tab, search?.filter]);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [businessToDelete, setBusinessToDelete] = useState<MerchantRow | null>(null);
   const [deleting, setDeleting] = useState(false);

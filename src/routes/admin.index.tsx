@@ -17,6 +17,7 @@ import { getAdminStats } from "@/lib/db/transactions";
 import { getSubscriptionPayments } from "@/lib/db/payments";
 
 export const Route = createFileRoute("/admin/")({
+  validateSearch: (search: Record<string, unknown>) => search,
   head: () => ({
     meta: [
       { title: "Platform Overview — Loyalty Admin" },

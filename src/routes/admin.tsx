@@ -1,20 +1,173 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { LayoutDashboard, Settings, Store } from "lucide-react";
+import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
+import {
+  BarChart3,
+  Building2,
+  CircleDollarSign,
+  LayoutDashboard,
+  Settings,
+  SlidersHorizontal,
+  Store,
+  Target,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 
-import { DashboardShell, type NavItem } from "@/components/app/dashboard-shell";
+import { DashboardShell, type NavSection } from "@/components/app/dashboard-shell";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
 import { safeSignOut } from "@/lib/auth";
-import { useNavigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/admin")({
+  validateSearch: (search: Record<string, unknown>) => search,
   component: AdminLayout,
 });
 
-const items: NavItem[] = [
-  { to: "/admin", label: "Aperçu", icon: LayoutDashboard, exact: true },
-  { to: "/admin/businesses", label: "Commerces", icon: Store },
-  { to: "/admin/settings", label: "Paramètres", icon: Settings },
+const sections: NavSection[] = [
+  {
+    title: "Plateforme",
+    items: [
+      { to: "/admin", label: "Aperçu", icon: LayoutDashboard, exact: true },
+      { to: "/admin/businesses", label: "Commerces", icon: Store },
+      { to: "/admin/settings", label: "Paramètres", icon: Settings },
+    ],
+  },
+  {
+    title: "Prospection",
+    items: [
+      {
+        id: "prospection",
+        label: "Prospection",
+        icon: Target,
+        children: [
+          {
+            id: "prospection-overview",
+            label: "Vue d'ensemble",
+            to: "/admin",
+            search: { view: "prospection" },
+          },
+        ],
+      },
+      {
+        id: "team",
+        label: "Équipe commerciale",
+        icon: Users,
+        children: [
+          {
+            id: "team-all",
+            label: "Tous les prospecteurs",
+            to: "/admin",
+            search: { view: "prospectors" },
+          },
+          {
+            id: "team-add",
+            label: "Ajouter un prospecteur",
+            to: "/admin",
+            search: { view: "new-prospector" },
+          },
+          {
+            id: "team-perf",
+            label: "Performances",
+            to: "/admin",
+            search: { view: "performances" },
+          },
+        ],
+      },
+      {
+        id: "prospects",
+        label: "Gestion des prospects",
+        icon: Building2,
+        children: [
+          {
+            id: "prospects-all",
+            label: "Tous les commerces",
+            to: "/admin/businesses",
+          },
+          {
+            id: "prospects-import",
+            label: "Importer des prospects",
+            to: "/admin/businesses",
+            search: { action: "import" },
+          },
+          {
+            id: "prospects-assign",
+            label: "Attribution des listes",
+            to: "/admin/businesses",
+            search: { action: "assign" },
+          },
+        ],
+      },
+      {
+        id: "pipeline",
+        label: "Suivi commercial",
+        icon: TrendingUp,
+        children: [
+          {
+            id: "pipeline-board",
+            label: "Pipeline commercial",
+            to: "/admin",
+            search: { view: "pipeline" },
+          },
+          {
+            id: "pipeline-trials",
+            label: "Essais gratuits",
+            to: "/admin/businesses",
+            search: { filter: "trial" },
+          },
+          {
+            id: "pipeline-followups",
+            label: "Relances",
+            to: "/admin/businesses",
+            search: { filter: "expired" },
+          },
+          {
+            id: "pipeline-converted",
+            label: "Clients convertis",
+            to: "/admin/businesses",
+            search: { filter: "active" },
+          },
+        ],
+      },
+      {
+        id: "commissions",
+        label: "Commissions",
+        icon: CircleDollarSign,
+        children: [
+          {
+            id: "commissions-overview",
+            label: "Vue générale",
+            to: "/admin/businesses",
+            search: { tab: "finances" },
+          },
+          {
+            id: "commissions-pending",
+            label: "Commissions à payer",
+            to: "/admin/businesses",
+            search: { tab: "finances", status: "pending" },
+          },
+          {
+            id: "commissions-history",
+            label: "Historique des paiements",
+            to: "/admin/businesses",
+            search: { tab: "finances", status: "history" },
+          },
+        ],
+      },
+      {
+        id: "reports",
+        label: "Rapports et statistiques",
+        icon: BarChart3,
+        to: "/admin",
+        search: { view: "reports" },
+      },
+      {
+        id: "prospection-settings",
+        label: "Paramètres de prospection",
+        icon: SlidersHorizontal,
+        to: "/admin/settings",
+        search: { section: "prospection" },
+      },
+    ],
+  },
 ];
 
 function AdminLayout() {
@@ -39,7 +192,7 @@ function AdminLayout() {
     <DashboardShell
       brand="M3ak Admin"
       brandSub="Administration de la plateforme"
-      items={items}
+      sections={sections}
       profile={{
         name: profile?.full_name ?? "Admin",
         sub: `@${profile?.username ?? "admin"} · Administrateur`,

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/admin/settings")({
+  validateSearch: (search: Record<string, unknown>) => search,
   head: () => ({
     meta: [
       { title: "Paramètres de la plateforme — M3ak Admin" },
