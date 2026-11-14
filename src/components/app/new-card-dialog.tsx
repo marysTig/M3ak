@@ -476,7 +476,14 @@ export function NewCardDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="w-[calc(100%-1.25rem)] sm:max-w-xl max-h-[92dvh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
+      <DialogContent
+        className={cn(
+          "w-[calc(100%-1.25rem)] rounded-2xl",
+          step === "created"
+            ? "sm:max-w-md p-3 sm:p-5 max-h-[96dvh] overflow-y-auto"
+            : "sm:max-w-xl p-4 sm:p-6 max-h-[92dvh] overflow-y-auto"
+        )}
+      >
         {/* ========================================================================= */}
         {/* ÉTAPE 1 : SÉLECTION DU TYPE DE FIDÉLITÉ                                   */}
         {/* ========================================================================= */}
@@ -1075,25 +1082,25 @@ export function NewCardDialog({
         )}
 
         {/* ========================================================================= */}
-        {/* ÉTAPE 4 : CARTE CRÉÉE & PARTAGE DU LIEN                                   */}
+        {/* ÉTAPE 4 : CARTE CRÉÉE & PARTAGE DU LIEN (UN SEUL FRAME MOBILE SANS SCROLL) */}
         {/* ========================================================================= */}
         {step === "created" && created && (
-          <div className="space-y-4 pt-1">
-            <DialogHeader className="text-center sm:text-left space-y-1">
-              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-success">
-                <Check className="size-4" /> Carte créée avec succès !
+          <div className="space-y-2 sm:space-y-3 pt-0.5">
+            <DialogHeader className="text-center space-y-0.5">
+              <div className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-success">
+                <Check className="size-3.5" /> Carte créée avec succès !
               </div>
-              <DialogTitle className="text-base sm:text-lg font-bold">
+              <DialogTitle className="text-sm sm:text-base font-bold leading-tight">
                 Partagez la carte de {created.customerName}
               </DialogTitle>
-              <DialogDescription className="text-xs sm:text-sm">
-                Envoyez le lien au client par WhatsApp ou SMS. Il pourra ouvrir sa carte sans télécharger d'application.
+              <DialogDescription className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
+                Envoyez le lien par WhatsApp ou SMS pour activation immédiate.
               </DialogDescription>
             </DialogHeader>
 
-            {/* Aperçu carte */}
-            <div className="flex flex-col items-center py-1">
-              <div className="w-full max-w-[320px]">
+            {/* Aperçu carte compacte adaptée à l'écran mobile */}
+            <div className="flex flex-col items-center py-0.5">
+              <div className="w-full max-w-[270px] sm:max-w-[300px] scale-[0.92] sm:scale-100 origin-center -my-1">
                 <VirtualCard
                   theme={selectedTheme}
                   businessName={merchantName}
@@ -1111,18 +1118,18 @@ export function NewCardDialog({
               </div>
             </div>
 
-            {/* Bloc lien unique */}
-            <div className="rounded-xl border bg-surface-muted p-2.5 sm:p-3 space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+            {/* Bloc lien unique compact */}
+            <div className="rounded-xl border bg-surface-muted p-2 space-y-1">
+              <div className="flex items-center justify-between text-[10px] font-medium text-muted-foreground">
                 <span>Lien unique de la carte</span>
                 {created.phone ? (
-                  <span className="font-mono text-foreground font-semibold text-[11px]">
+                  <span className="font-mono text-foreground font-semibold text-[10px]">
                     {created.phone}
                   </span>
                 ) : null}
               </div>
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <code className="flex-1 truncate rounded-lg bg-background px-2.5 py-1.5 text-xs font-mono select-all">
+              <div className="flex items-center gap-1.5">
+                <code className="flex-1 truncate rounded-lg bg-background px-2 py-1 text-[11px] font-mono select-all">
                   {created.cardLink}
                 </code>
                 <Button
@@ -1130,20 +1137,20 @@ export function NewCardDialog({
                   variant="outline"
                   size="sm"
                   onClick={handleCopyLink}
-                  className="shrink-0 h-8 px-2.5 text-xs rounded-lg"
+                  className="shrink-0 h-7 px-2 text-[11px] rounded-lg"
                 >
-                  {copied ? <Check className="size-3.5 mr-1 text-success" /> : <Copy className="size-3.5 mr-1" />}
+                  {copied ? <Check className="size-3 mr-1 text-success" /> : <Copy className="size-3 mr-1" />}
                   {copied ? "Copié !" : "Copier"}
                 </Button>
               </div>
             </div>
 
             {/* Boutons de partage rapides */}
-            <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
                 onClick={handleShareWhatsApp}
-                className="h-11 rounded-xl bg-[#25D366] hover:bg-[#1ebe59] text-white font-semibold text-xs sm:text-sm shadow-sm active:scale-95 transition-all"
+                className="h-10 rounded-xl bg-[#25D366] hover:bg-[#1ebe59] text-white font-semibold text-xs shadow-sm active:scale-95 transition-all"
               >
                 <MessageCircle className="size-4 mr-1.5 shrink-0" />
                 WhatsApp
@@ -1152,7 +1159,7 @@ export function NewCardDialog({
                 type="button"
                 variant="outline"
                 onClick={handleShareSMS}
-                className="h-11 rounded-xl font-semibold text-xs sm:text-sm active:scale-95 transition-all"
+                className="h-10 rounded-xl font-semibold text-xs active:scale-95 transition-all"
               >
                 <Smartphone className="size-4 mr-1.5 shrink-0" />
                 SMS
@@ -1162,17 +1169,17 @@ export function NewCardDialog({
             {hasNativeShare && (
               <Button
                 type="button"
-                variant="outline"
-                className="w-full h-10 rounded-xl text-xs sm:text-sm active:scale-95 transition-all"
+                variant="ghost"
+                className="w-full h-7 text-[11px] text-muted-foreground hover:text-foreground active:scale-95 transition-all py-0"
                 onClick={handleNativeShare}
               >
-                <Share2 className="size-4 mr-1.5 shrink-0" />
-                Partager via l'appareil
+                <Share2 className="size-3.5 mr-1.5 shrink-0" />
+                Autres options de partage
               </Button>
             )}
 
             <Button
-              className="w-full h-11 rounded-xl text-xs sm:text-sm font-semibold active:scale-95 transition-all"
+              className="w-full h-9 sm:h-10 rounded-xl text-xs sm:text-sm font-semibold active:scale-95 transition-all"
               onClick={() => handleOpenChange(false)}
             >
               Terminer
