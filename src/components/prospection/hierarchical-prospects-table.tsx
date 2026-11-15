@@ -390,8 +390,8 @@ export function HierarchicalProspectsTable({
       {/* Rendu du tableau */}
       <div className="w-full overflow-hidden rounded-2xl border border-border/80 bg-surface/70 shadow-sm backdrop-blur-sm">
         <div className="overflow-x-auto w-full">
-          <Table className="w-full min-w-[950px] table-fixed">
-            <TableHeader className="bg-surface/90">
+          <table className="w-full min-w-[950px] table-fixed caption-bottom text-sm border-collapse">
+            <thead className="bg-surface/90 [&_tr]:border-b">
               <TableRow className="border-b border-border/80">
                 {enableSelection && (
                   <TableHead className="w-12 text-center">
@@ -415,8 +415,8 @@ export function HierarchicalProspectsTable({
                 <TableHead className="min-w-[120px] w-[14%] whitespace-nowrap text-center">6. Statut</TableHead>
                 <TableHead className="min-w-[120px] w-[14%] whitespace-nowrap text-center">7. Finale</TableHead>
               </TableRow>
-            </TableHeader>
-            <TableBody>
+            </thead>
+            <tbody>
               {filteredProspects.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={enableSelection ? (showProspectorColumn ? 9 : 8) : (showProspectorColumn ? 8 : 7)} className="h-36 text-center text-muted">
@@ -434,9 +434,9 @@ export function HierarchicalProspectsTable({
                   const isWilayaExpanded = expandedWilayas[wilayaName] ?? true;
 
                   return (
-                    <tbody key={`w-${wilayaName}`} className="border-b border-border/60">
+                    <React.Fragment key={`w-${wilayaName}`}>
                       {/* LIGNE HEADER WILAYA */}
-                      <tr className="bg-surface/90 hover:bg-surface font-semibold text-foreground text-sm cursor-pointer select-none">
+                      <tr className="bg-surface/90 hover:bg-surface font-semibold text-foreground text-sm cursor-pointer select-none border-b border-border/60">
                         <td
                           colSpan={enableSelection ? (showProspectorColumn ? 9 : 8) : (showProspectorColumn ? 8 : 7)}
                           className="p-3"
@@ -467,9 +467,9 @@ export function HierarchicalProspectsTable({
                           const isCommuneExpanded = expandedCommunes[communeKey] ?? true;
 
                           return (
-                            <tbody key={`c-${communeKey}`}>
+                            <React.Fragment key={`c-${communeKey}`}>
                               {/* LIGNE HEADER COMMUNE */}
-                              <tr className="bg-surface/40 hover:bg-surface/60 text-xs font-medium cursor-pointer select-none">
+                              <tr className="bg-surface/40 hover:bg-surface/60 text-xs font-medium cursor-pointer select-none border-b border-border/40">
                                 <td
                                   colSpan={enableSelection ? (showProspectorColumn ? 9 : 8) : (showProspectorColumn ? 8 : 7)}
                                   className="py-2.5 px-6"
@@ -510,10 +510,10 @@ export function HierarchicalProspectsTable({
                                     indent
                                   />
                                 ))}
-                            </tbody>
+                            </React.Fragment>
                           );
                         })}
-                    </tbody>
+                    </React.Fragment>
                   );
                 })
               ) : (
@@ -533,8 +533,8 @@ export function HierarchicalProspectsTable({
                   />
                 ))
               )}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
 
         {/* Pagination sur vue plate */}
