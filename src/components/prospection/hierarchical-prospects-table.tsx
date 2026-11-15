@@ -379,7 +379,7 @@ export function HierarchicalProspectsTable({
             <button
               type="button"
               onClick={collapseAll}
-              className="text-muted hover:text-foreground hover:underline"
+              className="text-slate-600 dark:text-slate-400 font-medium hover:text-foreground hover:underline transition-colors"
             >
               Tout replier
             </button>

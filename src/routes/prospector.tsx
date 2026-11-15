@@ -99,10 +99,10 @@ function ProspectorLayout() {
               variant="ghost"
               size="sm"
               onClick={handleLogout}
-              className="text-xs text-muted hover:text-rose-500 gap-1.5 h-8"
+              className="text-xs text-slate-700 dark:text-slate-300 font-medium hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 gap-1.5 h-8 transition-colors"
               title="Se déconnecter"
             >
-              <LogOut className="size-3.5" />
+              <LogOut className="size-3.5 text-slate-600 dark:text-slate-400 group-hover:text-rose-600" />
               <span className="hidden sm:inline">Déconnexion</span>
             </Button>
           </div>

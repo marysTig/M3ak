@@ -85,13 +85,13 @@
   --primary-soft: oklch(0.95 0.03 172);
 
   --secondary: oklch(0.965 0.006 160);
-  --secondary-foreground: oklch(0.28 0.02 170);
+  --secondary-foreground: oklch(0.25 0.02 170);
 
   --muted: oklch(0.965 0.006 160);
-  --muted-foreground: oklch(0.53 0.018 170);
+  --muted-foreground: oklch(0.38 0.02 170);
 
   --accent: oklch(0.955 0.012 165);
-  --accent-foreground: oklch(0.28 0.02 170);
+  --accent-foreground: oklch(0.25 0.02 170);
 
   --brand-amber: oklch(0.72 0.14 66);
   --brand-amber-soft: oklch(0.955 0.04 80);
@@ -182,6 +182,10 @@
     font-family: var(--font-display);
     letter-spacing: -0.02em;
   }
+}
+
+@utility text-muted {
+  color: var(--color-muted-foreground);
 }
 
 @utility card-surface {

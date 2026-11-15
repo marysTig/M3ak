@@ -538,7 +538,7 @@ export function NewCardDialog({
                     </span>
                   </div>
                 </div>
-                <ArrowRight className="hidden sm:block size-5 text-muted-foreground/40 group-hover:text-amber-500 group-hover:translate-x-1 transition-all shrink-0" />
+                <ArrowRight className="hidden sm:block size-5 text-slate-500 group-hover:text-amber-500 group-hover:translate-x-1 transition-all shrink-0" />
               </button>
 
               {/* CARTE 2 : POINTS */}
@@ -574,7 +574,7 @@ export function NewCardDialog({
                     </span>
                   </div>
                 </div>
-                <ArrowRight className="hidden sm:block size-5 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
+                <ArrowRight className="hidden sm:block size-5 text-slate-500 group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
               </button>
 
               {/* CARTE 3 : TAMPONS */}
@@ -610,7 +610,7 @@ export function NewCardDialog({
                     </span>
                   </div>
                 </div>
-                <ArrowRight className="hidden sm:block size-5 text-muted-foreground/40 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all shrink-0" />
+                <ArrowRight className="hidden sm:block size-5 text-slate-500 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all shrink-0" />
               </button>
             </div>
 
