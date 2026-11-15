@@ -389,12 +389,12 @@ export function HierarchicalProspectsTable({
 
       {/* Rendu du tableau */}
       <div className="w-full overflow-hidden rounded-2xl border border-border/80 bg-surface/70 shadow-sm backdrop-blur-sm">
-        <div className="overflow-x-auto w-full">
-          <table className="w-full min-w-[950px] table-fixed caption-bottom text-sm border-collapse">
+        <div className="w-full overflow-x-auto">
+          <table className="w-full min-w-[820px] table-fixed caption-bottom text-sm border-collapse">
             <thead className="bg-surface/90 [&_tr]:border-b">
               <TableRow className="border-b border-border/80">
                 {enableSelection && (
-                  <TableHead className="w-12 text-center">
+                  <TableHead className="w-12 text-center shrink-0">
                     <Checkbox
                       checked={
                         filteredProspects.length > 0 &&
@@ -404,16 +404,16 @@ export function HierarchicalProspectsTable({
                     />
                   </TableHead>
                 )}
-                <TableHead className="min-w-[220px] w-[26%]">1. Nom du prospect</TableHead>
-                <TableHead className="min-w-[120px] w-[13%] whitespace-nowrap">2. Wilaya</TableHead>
-                <TableHead className="min-w-[130px] w-[14%] whitespace-nowrap">3. Commune</TableHead>
-                <TableHead className="min-w-[130px] w-[14%] whitespace-nowrap">4. Téléphone</TableHead>
-                <TableHead className="min-w-[140px] w-[15%]">5. Activité</TableHead>
+                <TableHead className="min-w-[190px] w-[24%]">1. Nom du prospect</TableHead>
+                <TableHead className="min-w-[105px] w-[12%] whitespace-nowrap">2. Wilaya</TableHead>
+                <TableHead className="min-w-[110px] w-[13%] whitespace-nowrap">3. Commune</TableHead>
+                <TableHead className="min-w-[120px] w-[13%] whitespace-nowrap">4. Téléphone</TableHead>
+                <TableHead className="min-w-[125px] w-[14%] whitespace-nowrap">5. Activité</TableHead>
                 {showProspectorColumn && (
-                  <TableHead className="min-w-[130px] w-[14%] whitespace-nowrap">Commercial</TableHead>
+                  <TableHead className="min-w-[120px] w-[12%] whitespace-nowrap">Commercial</TableHead>
                 )}
-                <TableHead className="min-w-[120px] w-[14%] whitespace-nowrap text-center">6. Statut</TableHead>
-                <TableHead className="min-w-[120px] w-[14%] whitespace-nowrap text-center">7. Finale</TableHead>
+                <TableHead className="min-w-[115px] w-[12%] whitespace-nowrap text-center">6. Statut</TableHead>
+                <TableHead className="min-w-[115px] w-[12%] whitespace-nowrap text-center">7. Finale</TableHead>
               </TableRow>
             </thead>
             <tbody>
@@ -656,19 +656,19 @@ function ProspectRow({
       </TableCell>
 
       {/* 5. Activité */}
-      <TableCell className="min-w-[140px]">
-        <span className="text-muted-foreground font-medium truncate block max-w-[140px]" title={prospect.category || "Commerce"}>
+      <TableCell className="min-w-[125px] whitespace-nowrap">
+        <span className="text-muted-foreground font-medium truncate block max-w-[160px] whitespace-nowrap" title={prospect.category || "Commerce"}>
           {prospect.category || "Commerce"}
         </span>
       </TableCell>
 
       {/* Commercial assigné */}
       {showProspectorColumn && (
-        <TableCell className="min-w-[130px] whitespace-nowrap">
+        <TableCell className="min-w-[120px] whitespace-nowrap">
           {prospect.prospector ? (
-            <Badge variant="outline" className="text-[11px] gap-1 border-primary/20 text-primary whitespace-nowrap">
-              <UserCheck className="size-2.5" />
-              {prospect.prospector.full_name}
+            <Badge variant="outline" className="text-[11px] gap-1 border-primary/20 text-primary whitespace-nowrap max-w-[140px] truncate">
+              <UserCheck className="size-2.5 shrink-0" />
+              <span className="truncate">{prospect.prospector.full_name}</span>
             </Badge>
           ) : (
             <span className="text-muted italic text-[11px] whitespace-nowrap">Non assigné</span>
@@ -677,7 +677,7 @@ function ProspectRow({
       )}
 
       {/* 6. STATUT (Géré exclusivement par le prospecteur) */}
-      <TableCell className="min-w-[120px] whitespace-nowrap text-center">
+      <TableCell className="min-w-[115px] whitespace-nowrap text-center">
         {canEditStatus ? (
           <Select
             value={prospect.status}
@@ -685,7 +685,7 @@ function ProspectRow({
             disabled={updatingStatus}
           >
             <SelectTrigger
-              className={`h-7 w-full min-w-[110px] text-[11px] font-semibold rounded-full border shadow-2xs ${
+              className={`h-7 w-full min-w-[105px] max-w-[130px] mx-auto text-[11px] font-semibold rounded-full border shadow-2xs whitespace-nowrap ${
                 PROSPECT_STATUS_COLORS[prospect.status] || ""
               }`}
             >
@@ -701,7 +701,7 @@ function ProspectRow({
           </Select>
         ) : (
           <span
-            className={`inline-flex items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap border shadow-2xs ${
+            className={`inline-flex items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap border shadow-2xs max-w-[130px] truncate ${
               PROSPECT_STATUS_COLORS[prospect.status] || ""
             }`}
           >
@@ -711,7 +711,7 @@ function ProspectRow({
       </TableCell>
 
       {/* 7. FINALE (Géré exclusivement par l'administrateur) */}
-      <TableCell className="min-w-[120px] whitespace-nowrap text-center">
+      <TableCell className="min-w-[115px] whitespace-nowrap text-center">
         {canEditFinale ? (
           <Select
             value={prospect.finale || "none"}
@@ -719,7 +719,7 @@ function ProspectRow({
             disabled={updatingFinale}
           >
             <SelectTrigger
-              className={`h-7 w-full min-w-[110px] text-[11px] font-semibold rounded-full border shadow-2xs ${
+              className={`h-7 w-full min-w-[105px] max-w-[130px] mx-auto text-[11px] font-semibold rounded-full border shadow-2xs whitespace-nowrap ${
                 PROSPECT_FINALE_COLORS[prospect.finale || "none"]
               }`}
             >
@@ -738,7 +738,7 @@ function ProspectRow({
         ) : (
           <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
             <span
-              className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold border shadow-2xs ${
+              className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold border shadow-2xs whitespace-nowrap ${
                 PROSPECT_FINALE_COLORS[prospect.finale || "none"]
               }`}
             >
