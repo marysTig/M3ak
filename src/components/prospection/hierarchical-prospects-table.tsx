@@ -14,8 +14,7 @@ import {
   Sparkles,
   UserCheck,
 } from "lucide-react";
-import * as React from "react";
-import { useMemo, useState } from "react";
+import React, { Fragment, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -435,7 +434,7 @@ export function HierarchicalProspectsTable({
                   const isWilayaExpanded = expandedWilayas[wilayaName] ?? true;
 
                   return (
-                    <React.Fragment key={`w-${wilayaName}`}>
+                    <Fragment key={`w-${wilayaName}`}>
                       {/* LIGNE HEADER WILAYA */}
                       <tr className="bg-surface/90 hover:bg-surface font-semibold text-foreground text-sm cursor-pointer select-none border-b border-border/60">
                         <td
@@ -468,7 +467,7 @@ export function HierarchicalProspectsTable({
                           const isCommuneExpanded = expandedCommunes[communeKey] ?? true;
 
                           return (
-                            <React.Fragment key={`c-${communeKey}`}>
+                            <Fragment key={`c-${communeKey}`}>
                               {/* LIGNE HEADER COMMUNE */}
                               <tr className="bg-surface/40 hover:bg-surface/60 text-xs font-medium cursor-pointer select-none border-b border-border/40">
                                 <td
@@ -511,10 +510,10 @@ export function HierarchicalProspectsTable({
                                     indent
                                   />
                                 ))}
-                            </React.Fragment>
+                            </Fragment>
                           );
                         })}
-                    </React.Fragment>
+                    </Fragment>
                   );
                 })
               ) : (
