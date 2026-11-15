@@ -118,39 +118,11 @@ export async function createProspector(payload: {
     });
 
     if (rpcError) {
-      // Fallback si la fonction RPC n'a pas encore été créée dans Supabase
-      if (rpcError.message.includes("function") && rpcError.message.includes("does not exist")) {
-        const authEmail = `${username}@m3ak.app`;
-        const { data: authData, error: authErr } = await supabase.auth.signUp({
-          email: authEmail,
-          password: payload.password,
-          options: {
-            data: {
-              full_name: payload.full_name.trim(),
-              username: username,
-              role: "prospector",
-              phone: payload.phone.trim(),
-              wilaya: payload.wilaya,
-              commune: payload.commune?.trim() || null,
-            },
-          },
-        });
-        if (authErr) return { success: false, error: authErr.message };
-        const newId = authData.user?.id;
-        if (!newId) return { success: false, error: "Échec de création du compte commercial." };
-        await supabase.from("profiles").upsert({
-          id: newId,
-          full_name: payload.full_name.trim(),
-          username: username,
-          role: "prospector",
-          phone: payload.phone.trim(),
-          wilaya: payload.wilaya,
-          commune: payload.commune?.trim() || null,
-          status: "active",
-        });
-      } else {
-        return { success: false, error: rpcError.message };
-      }
+      console.error("[admin_create_prospector] Erreur RPC:", rpcError);
+      return { 
+        success: false, 
+        error: `Erreur lors de la création du prospecteur : ${rpcError.message}. Assurez-vous d'avoir exécuté la fonction SQL "admin_create_prospector" dans Supabase.` 
+      };
     }
 
     // Récupérer le profil nouvellement créé
