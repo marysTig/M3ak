@@ -106,57 +106,78 @@ export async function createProspector(payload: {
       return { success: false, error: `Le nom d'utilisateur "${username}" est déjà utilisé.` };
     }
 
-    // 2. Générer l'email interne M3ak pour l'authentification Supabase (transparent pour l'utilisateur)
-    const authEmail = `${username}@m3ak.app`;
-    const cleanPhone = payload.phone.trim();
-
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: authEmail,
-      password: payload.password,
-      options: {
-        data: {
-          full_name: payload.full_name.trim(),
-          username: username,
-          role: "prospector",
-          phone: cleanPhone,
-          wilaya: payload.wilaya,
-          commune: payload.commune?.trim() || null,
-        },
-      },
+    // 2. Création directe par RPC Admin (sans limite d'envoi d'emails ni déconnexion de session)
+    const { data: rpcRes, error: rpcError } = await supabase.rpc("admin_create_prospector", {
+      p_username: username,
+      p_password: payload.password,
+      p_full_name: payload.full_name.trim(),
+      p_phone: payload.phone.trim(),
+      p_wilaya: payload.wilaya,
+      p_commune: payload.commune?.trim() || null,
+      p_notes: payload.notes?.trim() || null,
     });
 
-    if (authError) {
-      return { success: false, error: authError.message };
-    }
-
-    const userId = authData.user?.id;
-    if (!userId) {
-      return { success: false, error: "Échec de création du compte commercial." };
-    }
-
-    // 3. Upsert dans la table profiles
-    const { data: profile, error: profError } = await supabase
-      .from("profiles")
-      .upsert(
-        {
-          id: userId,
+    if (rpcError) {
+      // Fallback si la fonction RPC n'a pas encore été créée dans Supabase
+      if (rpcError.message.includes("function") && rpcError.message.includes("does not exist")) {
+        const authEmail = `${username}@m3ak.app`;
+        const { data: authData, error: authErr } = await supabase.auth.signUp({
+          email: authEmail,
+          password: payload.password,
+          options: {
+            data: {
+              full_name: payload.full_name.trim(),
+              username: username,
+              role: "prospector",
+              phone: payload.phone.trim(),
+              wilaya: payload.wilaya,
+              commune: payload.commune?.trim() || null,
+            },
+          },
+        });
+        if (authErr) return { success: false, error: authErr.message };
+        const newId = authData.user?.id;
+        if (!newId) return { success: false, error: "Échec de création du compte commercial." };
+        await supabase.from("profiles").upsert({
+          id: newId,
           full_name: payload.full_name.trim(),
           username: username,
           role: "prospector",
-          phone: cleanPhone,
+          phone: payload.phone.trim(),
           wilaya: payload.wilaya,
           commune: payload.commune?.trim() || null,
           status: "active",
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "id" }
-      )
-      .select()
-      .single();
-
-    if (profError) {
-      return { success: false, error: profError.message };
+        });
+      } else {
+        return { success: false, error: rpcError.message };
+      }
     }
+
+    // Récupérer le profil nouvellement créé
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, full_name, username, phone, wilaya, commune, status, created_at")
+      .eq("username", username)
+      .maybeSingle();
+
+    return {
+      success: true,
+      prospector: profile
+        ? {
+            id: profile.id,
+            full_name: profile.full_name,
+            username: profile.username || username,
+            phone: profile.phone || payload.phone,
+            wilaya: profile.wilaya || payload.wilaya,
+            commune: profile.commune || null,
+            status: (profile.status as Prospector["status"]) || "active",
+            assigned_prospects_count: 0,
+            trials_count: 0,
+            conversions_count: 0,
+            created_at: profile.created_at,
+          }
+        : undefined,
+    };
 
     return {
       success: true,
