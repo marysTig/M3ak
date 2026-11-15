@@ -21,7 +21,7 @@ export async function getProspects(filters?: {
       .from("prospects")
       .select(`
         *,
-        prospector:profiles!prospects_assigned_to_fkey(id, full_name, username, phone, wilaya)
+        prospector:profiles(id, full_name, username, phone, wilaya)
       `)
       .order("created_at", { ascending: false });
 
@@ -52,10 +52,19 @@ export async function getProspects(filters?: {
       }
     }
 
-    const { data, error } = await q;
+    let { data, error } = await q;
     if (error) {
-      console.warn("Erreur lecture prospects :", error.message);
-      return [];
+      console.warn("Erreur lecture prospects avec jointure, tentative sans jointure :", error.message);
+      let fallbackQ = supabase.from("prospects").select("*").order("created_at", { ascending: false });
+      if (filters?.prospectorId && filters.prospectorId !== "all") {
+        fallbackQ = fallbackQ.eq("assigned_to", filters.prospectorId);
+      }
+      const fallbackRes = await fallbackQ;
+      if (fallbackRes.error) {
+        console.error("Erreur fallback prospects :", fallbackRes.error.message);
+        return [];
+      }
+      data = fallbackRes.data;
     }
 
     let list = (data ?? []) as unknown as Prospect[];
