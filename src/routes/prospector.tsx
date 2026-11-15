@@ -61,7 +61,7 @@ function ProspectorLayout() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Barre de navigation supérieure Prospecteur */}
       <header className="sticky top-0 z-30 border-b border-border/80 bg-surface/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link to="/prospector" className="flex items-center gap-2.5">
               <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-black text-base shadow-sm">
@@ -110,7 +110,7 @@ function ProspectorLayout() {
       </header>
 
       {/* Contenu principal */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+      <main className="flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <Outlet />
       </main>
 

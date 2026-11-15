@@ -388,150 +388,154 @@ export function HierarchicalProspectsTable({
       </div>
 
       {/* Rendu du tableau */}
-      <div className="overflow-hidden rounded-2xl border border-border/80 bg-surface/70 shadow-sm backdrop-blur-sm">
-        <Table>
-          <TableHeader className="bg-surface/90">
-            <TableRow>
-              {enableSelection && (
-                <TableHead className="w-10">
-                  <Checkbox
-                    checked={
-                      filteredProspects.length > 0 &&
-                      selectedIds.length === filteredProspects.length
-                    }
-                    onCheckedChange={handleSelectAll}
-                  />
-                </TableHead>
-              )}
-              <TableHead>1. Nom du prospect</TableHead>
-              <TableHead>2. Wilaya</TableHead>
-              <TableHead>3. Commune</TableHead>
-              <TableHead>4. Téléphone</TableHead>
-              <TableHead>5. Activité</TableHead>
-              {showProspectorColumn && <TableHead>Commercial</TableHead>}
-              <TableHead className="w-36">6. Statut</TableHead>
-              <TableHead className="w-36">7. Finale</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredProspects.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={9} className="h-36 text-center text-muted">
-                  Aucun prospect ne correspond aux critères de recherche.
-                </TableCell>
+      <div className="w-full overflow-hidden rounded-2xl border border-border/80 bg-surface/70 shadow-sm backdrop-blur-sm">
+        <div className="overflow-x-auto w-full">
+          <Table className="w-full min-w-[950px] table-fixed">
+            <TableHeader className="bg-surface/90">
+              <TableRow className="border-b border-border/80">
+                {enableSelection && (
+                  <TableHead className="w-12 text-center">
+                    <Checkbox
+                      checked={
+                        filteredProspects.length > 0 &&
+                        selectedIds.length === filteredProspects.length
+                      }
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
+                )}
+                <TableHead className="min-w-[220px] w-[26%]">1. Nom du prospect</TableHead>
+                <TableHead className="min-w-[120px] w-[13%] whitespace-nowrap">2. Wilaya</TableHead>
+                <TableHead className="min-w-[130px] w-[14%] whitespace-nowrap">3. Commune</TableHead>
+                <TableHead className="min-w-[130px] w-[14%] whitespace-nowrap">4. Téléphone</TableHead>
+                <TableHead className="min-w-[140px] w-[15%]">5. Activité</TableHead>
+                {showProspectorColumn && (
+                  <TableHead className="min-w-[130px] w-[14%] whitespace-nowrap">Commercial</TableHead>
+                )}
+                <TableHead className="min-w-[120px] w-[14%] whitespace-nowrap text-center">6. Statut</TableHead>
+                <TableHead className="min-w-[120px] w-[14%] whitespace-nowrap text-center">7. Finale</TableHead>
               </TableRow>
-            ) : isHierarchicalView ? (
-              // ─── VUE HIÉRARCHIQUE (Wilaya -> Commune -> Prospects) ───
-              Object.keys(hierarchicalTree).map((wilayaName) => {
-                const communesMap = hierarchicalTree[wilayaName];
-                const totalInWilaya = Object.values(communesMap).reduce(
-                  (sum, list) => sum + list.length,
-                  0
-                );
-                const isWilayaExpanded = expandedWilayas[wilayaName] ?? true;
+            </TableHeader>
+            <TableBody>
+              {filteredProspects.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={enableSelection ? (showProspectorColumn ? 9 : 8) : (showProspectorColumn ? 8 : 7)} className="h-36 text-center text-muted">
+                    Aucun prospect ne correspond aux critères de recherche.
+                  </TableCell>
+                </TableRow>
+              ) : isHierarchicalView ? (
+                // ─── VUE HIÉRARCHIQUE (Wilaya -> Commune -> Prospects) ───
+                Object.keys(hierarchicalTree).map((wilayaName) => {
+                  const communesMap = hierarchicalTree[wilayaName];
+                  const totalInWilaya = Object.values(communesMap).reduce(
+                    (sum, list) => sum + list.length,
+                    0
+                  );
+                  const isWilayaExpanded = expandedWilayas[wilayaName] ?? true;
 
-                return (
-                  <tbody key={`w-${wilayaName}`} className="border-b border-border/60">
-                    {/* LIGNE HEADER WILAYA */}
-                    <tr className="bg-surface/90 hover:bg-surface font-semibold text-foreground text-sm cursor-pointer select-none">
-                      <td
-                        colSpan={enableSelection ? 9 : 8}
-                        className="p-3"
-                        onClick={() => toggleWilaya(wilayaName)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            {isWilayaExpanded ? (
-                              <ChevronDown className="size-4 text-primary" />
-                            ) : (
-                              <ChevronRight className="size-4 text-muted" />
-                            )}
-                            <MapPin className="size-4 text-primary shrink-0" />
-                            <span>Wilaya : {wilayaName}</span>
+                  return (
+                    <tbody key={`w-${wilayaName}`} className="border-b border-border/60">
+                      {/* LIGNE HEADER WILAYA */}
+                      <tr className="bg-surface/90 hover:bg-surface font-semibold text-foreground text-sm cursor-pointer select-none">
+                        <td
+                          colSpan={enableSelection ? (showProspectorColumn ? 9 : 8) : (showProspectorColumn ? 8 : 7)}
+                          className="p-3"
+                          onClick={() => toggleWilaya(wilayaName)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {isWilayaExpanded ? (
+                                <ChevronDown className="size-4 text-primary shrink-0" />
+                              ) : (
+                                <ChevronRight className="size-4 text-muted shrink-0" />
+                              )}
+                              <MapPin className="size-4 text-primary shrink-0" />
+                              <span className="whitespace-nowrap">Wilaya : {wilayaName}</span>
+                            </div>
+                            <Badge variant="secondary" className="font-mono text-xs whitespace-nowrap">
+                              {totalInWilaya} prospect(s)
+                            </Badge>
                           </div>
-                          <Badge variant="secondary" className="font-mono text-xs">
-                            {totalInWilaya} prospect(s)
-                          </Badge>
-                        </div>
-                      </td>
-                    </tr>
+                        </td>
+                      </tr>
 
-                    {/* COMMUNES SOUS CETTE WILAYA */}
-                    {isWilayaExpanded &&
-                      Object.keys(communesMap).map((communeName) => {
-                        const communeProspects = communesMap[communeName];
-                        const communeKey = `${wilayaName}__${communeName}`;
-                        const isCommuneExpanded = expandedCommunes[communeKey] ?? true;
+                      {/* COMMUNES SOUS CETTE WILAYA */}
+                      {isWilayaExpanded &&
+                        Object.keys(communesMap).map((communeName) => {
+                          const communeProspects = communesMap[communeName];
+                          const communeKey = `${wilayaName}__${communeName}`;
+                          const isCommuneExpanded = expandedCommunes[communeKey] ?? true;
 
-                        return (
-                          <tbody key={`c-${communeKey}`}>
-                            {/* LIGNE HEADER COMMUNE */}
-                            <tr className="bg-surface/40 hover:bg-surface/60 text-xs font-medium cursor-pointer select-none">
-                              <td
-                                colSpan={enableSelection ? 9 : 8}
-                                className="py-2 px-8"
-                                onClick={() => toggleCommune(communeKey)}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    {isCommuneExpanded ? (
-                                      <ChevronDown className="size-3.5 text-muted" />
-                                    ) : (
-                                      <ChevronRight className="size-3.5 text-muted" />
-                                    )}
-                                    <span className="text-foreground">
-                                      Commune : {communeName}
+                          return (
+                            <tbody key={`c-${communeKey}`}>
+                              {/* LIGNE HEADER COMMUNE */}
+                              <tr className="bg-surface/40 hover:bg-surface/60 text-xs font-medium cursor-pointer select-none">
+                                <td
+                                  colSpan={enableSelection ? (showProspectorColumn ? 9 : 8) : (showProspectorColumn ? 8 : 7)}
+                                  className="py-2.5 px-6"
+                                  onClick={() => toggleCommune(communeKey)}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      {isCommuneExpanded ? (
+                                        <ChevronDown className="size-3.5 text-muted shrink-0" />
+                                      ) : (
+                                        <ChevronRight className="size-3.5 text-muted shrink-0" />
+                                      )}
+                                      <span className="text-foreground whitespace-nowrap font-semibold">
+                                        Commune : {communeName}
+                                      </span>
+                                    </div>
+                                    <span className="text-[11px] text-muted whitespace-nowrap font-medium">
+                                      {communeProspects.length} prospect(s)
                                     </span>
                                   </div>
-                                  <span className="text-[11px] text-muted">
-                                    {communeProspects.length} prospect(s)
-                                  </span>
-                                </div>
-                              </td>
-                            </tr>
+                                </td>
+                              </tr>
 
-                            {/* PROSPECTS DE LA COMMUNE */}
-                            {isCommuneExpanded &&
-                              communeProspects.map((p) => (
-                                <ProspectRow
-                                  key={p.id}
-                                  prospect={p}
-                                  enableSelection={enableSelection}
-                                  isSelected={selectedIds.includes(p.id)}
-                                  onToggleSelect={() => handleToggleSelectOne(p.id)}
-                                  canEditStatus={canEditStatus}
-                                  canEditFinale={canEditFinale}
-                                  onStatusChange={onStatusChange}
-                                  onFinaleChange={onFinaleChange}
-                                  showProspectorColumn={showProspectorColumn}
-                                  indent
-                                />
-                              ))}
-                          </tbody>
-                        );
-                      })}
-                  </tbody>
-                );
-              })
-            ) : (
-              // ─── VUE PLATE SIMPLE AVEC PAGINATION ───
-              paginatedProspects.map((p) => (
-                <ProspectRow
-                  key={p.id}
-                  prospect={p}
-                  enableSelection={enableSelection}
-                  isSelected={selectedIds.includes(p.id)}
-                  onToggleSelect={() => handleToggleSelectOne(p.id)}
-                  canEditStatus={canEditStatus}
-                  canEditFinale={canEditFinale}
-                  onStatusChange={onStatusChange}
-                  onFinaleChange={onFinaleChange}
-                  showProspectorColumn={showProspectorColumn}
-                />
-              ))
-            )}
-          </TableBody>
-        </Table>
+                              {/* PROSPECTS DE LA COMMUNE */}
+                              {isCommuneExpanded &&
+                                communeProspects.map((p) => (
+                                  <ProspectRow
+                                    key={p.id}
+                                    prospect={p}
+                                    enableSelection={enableSelection}
+                                    isSelected={selectedIds.includes(p.id)}
+                                    onToggleSelect={() => handleToggleSelectOne(p.id)}
+                                    canEditStatus={canEditStatus}
+                                    canEditFinale={canEditFinale}
+                                    onStatusChange={onStatusChange}
+                                    onFinaleChange={onFinaleChange}
+                                    showProspectorColumn={showProspectorColumn}
+                                    indent
+                                  />
+                                ))}
+                            </tbody>
+                          );
+                        })}
+                    </tbody>
+                  );
+                })
+              ) : (
+                // ─── VUE PLATE SIMPLE AVEC PAGINATION ───
+                paginatedProspects.map((p) => (
+                  <ProspectRow
+                    key={p.id}
+                    prospect={p}
+                    enableSelection={enableSelection}
+                    isSelected={selectedIds.includes(p.id)}
+                    onToggleSelect={() => handleToggleSelectOne(p.id)}
+                    canEditStatus={canEditStatus}
+                    canEditFinale={canEditFinale}
+                    onStatusChange={onStatusChange}
+                    onFinaleChange={onFinaleChange}
+                    showProspectorColumn={showProspectorColumn}
+                  />
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
 
         {/* Pagination sur vue plate */}
         {!isHierarchicalView && filteredProspects.length > pageSize && (
@@ -614,56 +618,66 @@ function ProspectRow({
   };
 
   return (
-    <TableRow className={`hover:bg-surface/90 text-xs ${isSelected ? "bg-primary/5" : ""}`}>
+    <TableRow className={`hover:bg-surface/90 text-xs transition-colors ${isSelected ? "bg-primary/5" : ""}`}>
       {enableSelection && (
-        <TableCell>
+        <TableCell className="w-12 text-center">
           <Checkbox checked={isSelected} onCheckedChange={onToggleSelect} />
         </TableCell>
       )}
 
       {/* 1. Nom du prospect */}
-      <TableCell className={indent ? "pl-12" : ""}>
-        <div className="font-semibold text-foreground">{prospect.business_name}</div>
+      <TableCell className={`min-w-[220px] ${indent ? "pl-10" : ""}`}>
+        <div className="font-semibold text-foreground leading-snug break-words">
+          {prospect.business_name}
+        </div>
         {prospect.notes && (
-          <div className="text-[11px] text-muted truncate max-w-xs">{prospect.notes}</div>
+          <div className="text-[11px] text-muted truncate max-w-[200px]" title={prospect.notes}>
+            {prospect.notes}
+          </div>
         )}
       </TableCell>
 
       {/* 2. Wilaya */}
-      <TableCell>{prospect.wilaya}</TableCell>
+      <TableCell className="min-w-[120px] whitespace-nowrap font-medium text-foreground">
+        {prospect.wilaya}
+      </TableCell>
 
       {/* 3. Commune */}
-      <TableCell>{prospect.commune || "—"}</TableCell>
+      <TableCell className="min-w-[130px] whitespace-nowrap text-muted-foreground">
+        {prospect.commune || "—"}
+      </TableCell>
 
       {/* 4. Téléphone */}
-      <TableCell>
-        <div className="flex items-center gap-1.5 font-mono text-foreground">
-          <Phone className="size-3 text-muted" />
+      <TableCell className="min-w-[130px] whitespace-nowrap">
+        <div className="flex items-center gap-1.5 font-mono text-foreground font-medium">
+          <Phone className="size-3 text-muted shrink-0" />
           <span>{prospect.phone}</span>
         </div>
       </TableCell>
 
       {/* 5. Activité */}
-      <TableCell>
-        <span className="text-muted-foreground">{prospect.category || "Commerce"}</span>
+      <TableCell className="min-w-[140px]">
+        <span className="text-muted-foreground font-medium truncate block max-w-[140px]" title={prospect.category || "Commerce"}>
+          {prospect.category || "Commerce"}
+        </span>
       </TableCell>
 
       {/* Commercial assigné */}
       {showProspectorColumn && (
-        <TableCell>
+        <TableCell className="min-w-[130px] whitespace-nowrap">
           {prospect.prospector ? (
-            <Badge variant="outline" className="text-[11px] gap-1 border-primary/20 text-primary">
+            <Badge variant="outline" className="text-[11px] gap-1 border-primary/20 text-primary whitespace-nowrap">
               <UserCheck className="size-2.5" />
               {prospect.prospector.full_name}
             </Badge>
           ) : (
-            <span className="text-muted italic text-[11px]">Non assigné</span>
+            <span className="text-muted italic text-[11px] whitespace-nowrap">Non assigné</span>
           )}
         </TableCell>
       )}
 
       {/* 6. STATUT (Géré exclusivement par le prospecteur) */}
-      <TableCell>
+      <TableCell className="min-w-[120px] whitespace-nowrap text-center">
         {canEditStatus ? (
           <Select
             value={prospect.status}
@@ -671,7 +685,7 @@ function ProspectRow({
             disabled={updatingStatus}
           >
             <SelectTrigger
-              className={`h-7 text-[11px] font-medium rounded-full ${
+              className={`h-7 w-full min-w-[110px] text-[11px] font-semibold rounded-full border shadow-2xs ${
                 PROSPECT_STATUS_COLORS[prospect.status] || ""
               }`}
             >
@@ -687,7 +701,7 @@ function ProspectRow({
           </Select>
         ) : (
           <span
-            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
+            className={`inline-flex items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap border shadow-2xs ${
               PROSPECT_STATUS_COLORS[prospect.status] || ""
             }`}
           >
@@ -697,7 +711,7 @@ function ProspectRow({
       </TableCell>
 
       {/* 7. FINALE (Géré exclusivement par l'administrateur) */}
-      <TableCell>
+      <TableCell className="min-w-[120px] whitespace-nowrap text-center">
         {canEditFinale ? (
           <Select
             value={prospect.finale || "none"}
@@ -705,7 +719,7 @@ function ProspectRow({
             disabled={updatingFinale}
           >
             <SelectTrigger
-              className={`h-7 text-[11px] font-medium rounded-full ${
+              className={`h-7 w-full min-w-[110px] text-[11px] font-semibold rounded-full border shadow-2xs ${
                 PROSPECT_FINALE_COLORS[prospect.finale || "none"]
               }`}
             >
@@ -722,9 +736,9 @@ function ProspectRow({
             </SelectContent>
           </Select>
         ) : (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
             <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
+              className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold border shadow-2xs ${
                 PROSPECT_FINALE_COLORS[prospect.finale || "none"]
               }`}
             >
