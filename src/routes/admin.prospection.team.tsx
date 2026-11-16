@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   AlertCircle,
   Award,
+  BadgeCheck,
   CheckCircle2,
   Copy,
   Eye,
@@ -345,7 +346,7 @@ function ProspectorsTeamPage() {
       />
 
       {/* Cartes KPI globales de l'équipe */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <StatCard
           label="Prospecteurs actifs"
           value={`${prospectors.filter((p) => p.status === "active").length} / ${prospectors.length}`}
@@ -360,6 +361,11 @@ function ProspectorsTeamPage() {
           label="Essais 7j lancés"
           value={prospectors.reduce((acc, p) => acc + (p.active_trials_count || 0), 0).toLocaleString()}
           icon={TrendingUp}
+        />
+        <StatCard
+          label="Clients payés (Total)"
+          value={prospectors.reduce((acc, p) => acc + (p.conversions_count || 0), 0).toLocaleString()}
+          icon={BadgeCheck}
         />
         <StatCard
           label="Commissions versées"
@@ -436,7 +442,7 @@ function ProspectorsTeamPage() {
                   <TableHead>Statut</TableHead>
                   <TableHead className="text-center">Prospects</TableHead>
                   <TableHead className="text-center">Essais 7j</TableHead>
-                  <TableHead className="text-center">Conversions</TableHead>
+                  <TableHead className="text-center font-bold text-emerald-700 dark:text-emerald-400">Clients Payés</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -496,8 +502,11 @@ function ProspectorsTeamPage() {
                       <TableCell className="text-center text-purple-600 font-semibold">
                         {p.active_trials_count || 0}
                       </TableCell>
-                      <TableCell className="text-center text-emerald-600 font-bold">
-                        {p.conversions_count || 0}
+                      <TableCell className="text-center">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-2xs">
+                          <BadgeCheck className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                          {p.conversions_count || 0}
+                        </span>
                       </TableCell>
 
                       <TableCell className="text-right">

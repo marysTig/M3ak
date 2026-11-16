@@ -113,7 +113,7 @@ function ProspectorDashboardPage() {
   const toCallbackCount = prospects.filter((p) => p.status === "callback").length;
   const freeTrialCount = prospects.filter((p) => p.status === "trial").length;
   const rejectedCount = prospects.filter((p) => p.status === "rejected").length;
-  const paidCount = prospects.filter((p) => p.finale === "paid").length;
+  const paidCount = prospects.filter((p) => p.finale === "paid" || p.status === "converted").length;
   const unpaidCount = prospects.filter((p) => p.finale === "unpaid").length;
 
   return (
@@ -149,9 +149,12 @@ function ProspectorDashboardPage() {
           <div className="text-[10px] text-purple-700 dark:text-purple-300 font-medium truncate">Essais 7j</div>
           <div className="text-base font-extrabold text-purple-600">{freeTrialCount}</div>
         </div>
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-2 text-center">
-          <div className="text-[10px] text-emerald-700 dark:text-emerald-300 font-medium truncate">Payés</div>
-          <div className="text-base font-extrabold text-emerald-600">{paidCount}</div>
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/15 p-2 text-center ring-1 ring-emerald-500/30 shadow-xs">
+          <div className="text-[10px] text-emerald-800 dark:text-emerald-200 font-bold truncate">Clients Payés</div>
+          <div className="text-base font-black text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1">
+            <CheckCircle2 className="size-3.5 text-emerald-600" />
+            {paidCount}
+          </div>
         </div>
         <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-2 text-center">
           <div className="text-[10px] text-rose-700 dark:text-rose-300 font-medium truncate">Refusés</div>
