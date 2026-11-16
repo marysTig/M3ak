@@ -480,7 +480,7 @@ export function NewCardDialog({
         className={cn(
           "w-[calc(100%-1.25rem)] rounded-2xl",
           step === "created"
-            ? "sm:max-w-md p-3 sm:p-5 max-h-[96dvh] overflow-y-auto"
+            ? "sm:max-w-md p-0 max-h-[96dvh] flex flex-col overflow-hidden"
             : step === "configure"
             ? "sm:max-w-lg p-0 max-h-[96dvh] flex flex-col overflow-hidden"
             : "sm:max-w-xl p-4 sm:p-6 max-h-[92dvh] overflow-y-auto"
@@ -1037,105 +1037,113 @@ export function NewCardDialog({
         {/* ÉTAPE 4 : CARTE CRÉÉE & PARTAGE DU LIEN (UN SEUL FRAME MOBILE SANS SCROLL) */}
         {/* ========================================================================= */}
         {step === "created" && created && (
-          <div className="space-y-2 sm:space-y-3 pt-0.5">
-            <DialogHeader className="text-center space-y-0.5">
+          <div className="flex flex-col min-h-0 flex-1 p-3 sm:p-4 gap-0">
+            {/* En-tête fixe */}
+            <div className="shrink-0 text-center pb-2 border-b space-y-0.5">
               <div className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-success">
                 <Check className="size-3.5" /> Carte créée avec succès !
               </div>
-              <DialogTitle className="text-sm sm:text-base font-bold leading-tight">
-                Partagez la carte de {created.customerName}
-              </DialogTitle>
-              <DialogDescription className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
-                Envoyez le lien par WhatsApp ou SMS pour activation immédiate.
-              </DialogDescription>
-            </DialogHeader>
+              <DialogHeader className="space-y-0">
+                <DialogTitle className="text-sm sm:text-base font-bold leading-tight">
+                  Partagez la carte de {created.customerName}
+                </DialogTitle>
+                <DialogDescription className="text-[11px] text-muted-foreground leading-snug">
+                  Envoyez le lien par WhatsApp ou SMS pour activation immédiate.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
 
-            {/* Aperçu carte compacte adaptée à l'écran mobile */}
-            <div className="flex flex-col items-center py-0.5">
-              <div className="w-full max-w-[270px] sm:max-w-[300px] scale-[0.92] sm:scale-100 origin-center -my-1">
-                <VirtualCard
-                  theme={selectedTheme}
-                  businessName={merchantName}
-                  customerName={created.customerName}
-                  cardType={created.cardType}
-                  cardName={created.cardName}
-                  points={created.points}
-                  stampsCount={created.stampsCount}
-                  stampsTarget={created.stampsTarget}
-                  stampReward={created.stampReward}
-                  vipTier={created.vipTier}
-                  vipSpent={created.vipSpent}
-                  compact
-                />
+            {/* Zone scrollable : carte + lien */}
+            <div className="flex-1 overflow-y-auto min-h-0 py-2 space-y-2">
+              {/* Carte compacte */}
+              <div className="flex justify-center">
+                <div className="w-full max-w-[260px]">
+                  <VirtualCard
+                    theme={selectedTheme}
+                    businessName={merchantName}
+                    customerName={created.customerName}
+                    cardType={created.cardType}
+                    cardName={created.cardName}
+                    points={created.points}
+                    stampsCount={created.stampsCount}
+                    stampsTarget={created.stampsTarget}
+                    stampReward={created.stampReward}
+                    vipTier={created.vipTier}
+                    vipSpent={created.vipSpent}
+                    compact
+                  />
+                </div>
+              </div>
+
+              {/* Lien unique */}
+              <div className="rounded-xl border bg-surface-muted p-2 space-y-1">
+                <div className="flex items-center justify-between text-[10px] font-medium text-muted-foreground">
+                  <span>Lien unique de la carte</span>
+                  {created.phone ? (
+                    <span className="font-mono text-foreground font-semibold text-[10px]">
+                      {created.phone}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <code className="flex-1 truncate rounded-lg bg-background px-2 py-1 text-[11px] font-mono select-all">
+                    {created.cardLink}
+                  </code>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopyLink}
+                    className="shrink-0 h-7 px-2 text-[11px] rounded-lg"
+                  >
+                    {copied ? <Check className="size-3 mr-1 text-success" /> : <Copy className="size-3 mr-1" />}
+                    {copied ? "Copié !" : "Copier"}
+                  </Button>
+                </div>
               </div>
             </div>
 
-            {/* Bloc lien unique compact */}
-            <div className="rounded-xl border bg-surface-muted p-2 space-y-1">
-              <div className="flex items-center justify-between text-[10px] font-medium text-muted-foreground">
-                <span>Lien unique de la carte</span>
-                {created.phone ? (
-                  <span className="font-mono text-foreground font-semibold text-[10px]">
-                    {created.phone}
-                  </span>
-                ) : null}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <code className="flex-1 truncate rounded-lg bg-background px-2 py-1 text-[11px] font-mono select-all">
-                  {created.cardLink}
-                </code>
+            {/* Boutons de partage — fixés en bas */}
+            <div className="shrink-0 pt-2 border-t space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  onClick={handleShareWhatsApp}
+                  className="h-9 rounded-xl bg-[#25D366] hover:bg-[#1ebe59] text-white font-semibold text-xs shadow-sm active:scale-95 transition-all"
+                >
+                  <MessageCircle className="size-4 mr-1.5 shrink-0" />
+                  WhatsApp
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
-                  onClick={handleCopyLink}
-                  className="shrink-0 h-7 px-2 text-[11px] rounded-lg"
+                  onClick={handleShareSMS}
+                  className="h-9 rounded-xl font-semibold text-xs active:scale-95 transition-all"
                 >
-                  {copied ? <Check className="size-3 mr-1 text-success" /> : <Copy className="size-3 mr-1" />}
-                  {copied ? "Copié !" : "Copier"}
+                  <Smartphone className="size-4 mr-1.5 shrink-0" />
+                  SMS
                 </Button>
               </div>
-            </div>
 
-            {/* Boutons de partage rapides */}
-            <div className="grid grid-cols-2 gap-2">
+              {hasNativeShare && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full h-7 text-[11px] text-muted-foreground hover:text-foreground active:scale-95 transition-all py-0"
+                  onClick={handleNativeShare}
+                >
+                  <Share2 className="size-3.5 mr-1.5 shrink-0" />
+                  Autres options de partage
+                </Button>
+              )}
+
               <Button
-                type="button"
-                onClick={handleShareWhatsApp}
-                className="h-10 rounded-xl bg-[#25D366] hover:bg-[#1ebe59] text-white font-semibold text-xs shadow-sm active:scale-95 transition-all"
+                className="w-full h-9 rounded-xl text-xs font-semibold active:scale-95 transition-all"
+                onClick={() => handleOpenChange(false)}
               >
-                <MessageCircle className="size-4 mr-1.5 shrink-0" />
-                WhatsApp
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleShareSMS}
-                className="h-10 rounded-xl font-semibold text-xs active:scale-95 transition-all"
-              >
-                <Smartphone className="size-4 mr-1.5 shrink-0" />
-                SMS
+                Terminer
               </Button>
             </div>
-
-            {hasNativeShare && (
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full h-7 text-[11px] text-muted-foreground hover:text-foreground active:scale-95 transition-all py-0"
-                onClick={handleNativeShare}
-              >
-                <Share2 className="size-3.5 mr-1.5 shrink-0" />
-                Autres options de partage
-              </Button>
-            )}
-
-            <Button
-              className="w-full h-9 sm:h-10 rounded-xl text-xs sm:text-sm font-semibold active:scale-95 transition-all"
-              onClick={() => handleOpenChange(false)}
-            >
-              Terminer
-            </Button>
           </div>
         )}
       </DialogContent>
