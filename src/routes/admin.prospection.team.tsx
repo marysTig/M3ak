@@ -14,6 +14,7 @@ import {
   Search,
   ShieldCheck,
   TrendingUp,
+  Trash2,
   User,
   UserCheck,
   UserPlus,
@@ -21,6 +22,7 @@ import {
   UserX,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   Bar,
   BarChart,
@@ -67,6 +69,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ALGERIA_WILAYAS } from "@/lib/constants/algeria-wilayas";
 import {
   createProspector,
+  deleteProspector,
   getProspectors,
   resetProspectorPassword,
   updateProspectorStatus,
@@ -184,6 +187,21 @@ function ProspectorsTeamPage() {
       setProspectors((prev) =>
         prev.map((p) => (p.id === id ? { ...p, status: nextStatus as "active" | "suspended" } : p))
       );
+    }
+  };
+
+  const handleDeleteProspector = async (id: string, name: string) => {
+    const conf = window.confirm(
+      `Êtes-vous sûr de vouloir supprimer définitivement le prospecteur "${name}" ?\n\nTous les commerces qui lui étaient assignés redeviendront non-assignés.`
+    );
+    if (!conf) return;
+
+    const res = await deleteProspector(id);
+    if (res.success) {
+      setProspectors((prev) => prev.filter((p) => p.id !== id));
+      toast.success(`Le prospecteur "${name}" a été supprimé avec succès.`);
+    } else {
+      toast.error(res.error || "Impossible de supprimer ce prospecteur.");
     }
   };
 
@@ -511,6 +529,16 @@ function ProspectorsTeamPage() {
                             ) : (
                               <UserCheck className="size-3.5" />
                             )}
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 gap-1"
+                            onClick={() => handleDeleteProspector(p.id, p.full_name)}
+                            title="Supprimer définitivement le prospecteur"
+                          >
+                            <Trash2 className="size-3.5" />
                           </Button>
                         </div>
                       </TableCell>

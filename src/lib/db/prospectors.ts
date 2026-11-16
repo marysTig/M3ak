@@ -186,6 +186,51 @@ export async function updateProspectorStatus(
   return true;
 }
 
+export async function deleteProspector(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    // 1. Tenter la suppression via RPC admin sécurisée
+    const { error: rpcError } = await supabase.rpc("admin_delete_prospector", {
+      p_user_id: id,
+    });
+
+    if (rpcError) {
+      console.warn("[deleteProspector] Fallback direct deletion:", rpcError.message);
+      // Désassigner les prospects d'abord
+      await supabase
+        .from("prospects")
+        .update({ assigned_to: null, assigned_at: null })
+        .eq("assigned_to", id);
+
+      // Nettoyer les assignations et activités
+      try {
+        await supabase
+          .from("prospect_assignments")
+          .delete()
+          .eq("prospector_id", id);
+      } catch (_) {}
+
+      try {
+        await supabase
+          .from("prospect_activities")
+          .delete()
+          .eq("user_id", id);
+      } catch (_) {}
+
+      // Supprimer le profil
+      const { error: profError } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", id);
+
+      if (profError) throw new Error(profError.message);
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Erreur lors de la suppression." };
+  }
+}
+
 export async function resetProspectorPassword(
   username: string,
   newPassword: string

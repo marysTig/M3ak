@@ -177,3 +177,32 @@ GRANT ALL ON public.prospects TO authenticated;
 GRANT ALL ON public.prospect_assignments TO authenticated;
 GRANT ALL ON public.prospect_activities TO authenticated;
 
+-- 10. Fonction de suppression définitive d'un prospecteur par un administrateur
+CREATE OR REPLACE FUNCTION public.admin_delete_prospector(p_user_id uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  -- Vérifier que l'utilisateur exécutant est un admin
+  IF (SELECT role FROM public.profiles WHERE id = auth.uid()) != 'admin' THEN
+    RAISE EXCEPTION 'Action non autorisée. Seul un administrateur peut supprimer un prospecteur.';
+  END IF;
+
+  -- 1. Désassigner les prospects du prospecteur
+  UPDATE public.prospects
+  SET assigned_to = NULL,
+      assigned_at = NULL
+  WHERE assigned_to = p_user_id;
+
+  -- 2. Supprimer les assignations et activités associées
+  DELETE FROM public.prospect_assignments WHERE prospector_id = p_user_id;
+  DELETE FROM public.prospect_activities WHERE user_id = p_user_id;
+
+  -- 3. Supprimer le profil public
+  DELETE FROM public.profiles WHERE id = p_user_id;
+
+  -- 4. Supprimer le compte d'authentification
+  DELETE FROM auth.users WHERE id = p_user_id;
+END; $$;
+
+GRANT EXECUTE ON FUNCTION public.admin_delete_prospector TO authenticated;
+
+
