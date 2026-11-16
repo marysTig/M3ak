@@ -1037,9 +1037,9 @@ export function NewCardDialog({
         {/* ÉTAPE 4 : CARTE CRÉÉE & PARTAGE DU LIEN (UN SEUL FRAME MOBILE SANS SCROLL) */}
         {/* ========================================================================= */}
         {step === "created" && created && (
-          <div className="flex flex-col min-h-0 flex-1 p-3 sm:p-4 gap-0">
-            {/* En-tête fixe */}
-            <div className="shrink-0 text-center pb-2 border-b space-y-0.5">
+          <div className="flex flex-col min-h-0 flex-1 p-3 sm:p-4 justify-between gap-3">
+            {/* En-tête */}
+            <div className="text-center space-y-0.5 shrink-0">
               <div className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-success">
                 <Check className="size-3.5" /> Carte créée avec succès !
               </div>
@@ -1053,30 +1053,30 @@ export function NewCardDialog({
               </DialogHeader>
             </div>
 
-            {/* Zone scrollable : carte + lien */}
-            <div className="flex-1 overflow-y-auto min-h-0 py-2 space-y-2">
-              {/* Carte compacte */}
-              <div className="flex justify-center">
-                <div className="w-full max-w-[260px]">
-                  <VirtualCard
-                    theme={selectedTheme}
-                    businessName={merchantName}
-                    customerName={created.customerName}
-                    cardType={created.cardType}
-                    cardName={created.cardName}
-                    points={created.points}
-                    stampsCount={created.stampsCount}
-                    stampsTarget={created.stampsTarget}
-                    stampReward={created.stampReward}
-                    vipTier={created.vipTier}
-                    vipSpent={created.vipSpent}
-                    compact
-                  />
-                </div>
+            {/* Carte compacte — centré, grandit pour remplir */}
+            <div className="flex justify-center flex-1 items-center py-1">
+              <div className="w-full max-w-[300px]">
+                <VirtualCard
+                  theme={selectedTheme}
+                  businessName={merchantName}
+                  customerName={created.customerName}
+                  cardType={created.cardType}
+                  cardName={created.cardName}
+                  points={created.points}
+                  stampsCount={created.stampsCount}
+                  stampsTarget={created.stampsTarget}
+                  stampReward={created.stampReward}
+                  vipTier={created.vipTier}
+                  vipSpent={created.vipSpent}
+                  compact
+                />
               </div>
+            </div>
 
-              {/* Lien unique */}
-              <div className="rounded-xl border bg-surface-muted p-2 space-y-1">
+            {/* Lien unique + boutons — fixés en bas */}
+            <div className="shrink-0 space-y-2">
+              {/* Lien — retour à la ligne */}
+              <div className="rounded-xl border bg-surface-muted p-2.5 space-y-1.5">
                 <div className="flex items-center justify-between text-[10px] font-medium text-muted-foreground">
                   <span>Lien unique de la carte</span>
                   {created.phone ? (
@@ -1085,31 +1085,27 @@ export function NewCardDialog({
                     </span>
                   ) : null}
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <code className="flex-1 truncate rounded-lg bg-background px-2 py-1 text-[11px] font-mono select-all">
-                    {created.cardLink}
-                  </code>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCopyLink}
-                    className="shrink-0 h-7 px-2 text-[11px] rounded-lg"
-                  >
-                    {copied ? <Check className="size-3 mr-1 text-success" /> : <Copy className="size-3 mr-1" />}
-                    {copied ? "Copié !" : "Copier"}
-                  </Button>
-                </div>
+                <code className="block w-full rounded-lg bg-background px-2 py-1.5 text-[11px] font-mono select-all break-all leading-relaxed">
+                  {created.cardLink}
+                </code>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopyLink}
+                  className="w-full h-8 text-xs rounded-lg"
+                >
+                  {copied ? <Check className="size-3 mr-1.5 text-success" /> : <Copy className="size-3 mr-1.5" />}
+                  {copied ? "Lien copié !" : "Copier le lien"}
+                </Button>
               </div>
-            </div>
 
-            {/* Boutons de partage — fixés en bas */}
-            <div className="shrink-0 pt-2 border-t space-y-2">
+              {/* Boutons de partage */}
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   type="button"
                   onClick={handleShareWhatsApp}
-                  className="h-9 rounded-xl bg-[#25D366] hover:bg-[#1ebe59] text-white font-semibold text-xs shadow-sm active:scale-95 transition-all"
+                  className="h-10 rounded-xl bg-[#25D366] hover:bg-[#1ebe59] text-white font-semibold text-xs shadow-sm active:scale-95 transition-all"
                 >
                   <MessageCircle className="size-4 mr-1.5 shrink-0" />
                   WhatsApp
@@ -1118,7 +1114,7 @@ export function NewCardDialog({
                   type="button"
                   variant="outline"
                   onClick={handleShareSMS}
-                  className="h-9 rounded-xl font-semibold text-xs active:scale-95 transition-all"
+                  className="h-10 rounded-xl font-semibold text-xs active:scale-95 transition-all"
                 >
                   <Smartphone className="size-4 mr-1.5 shrink-0" />
                   SMS
@@ -1138,7 +1134,7 @@ export function NewCardDialog({
               )}
 
               <Button
-                className="w-full h-9 rounded-xl text-xs font-semibold active:scale-95 transition-all"
+                className="w-full h-10 rounded-xl text-xs font-semibold active:scale-95 transition-all"
                 onClick={() => handleOpenChange(false)}
               >
                 Terminer
