@@ -128,5 +128,192 @@ FROM public.merchants m
 WHERE NOT EXISTS (SELECT 1 FROM public.loyalty_programs lp WHERE lp.merchant_id = m.id)
 ON CONFLICT (merchant_id) DO NOTHING;
 
--- ─── 7. Confirmation ──────────────────────────────────────────────────────────
-SELECT 'Fix appliqué avec succès !' AS resultat;
+-- ─── 7. Fonction RPC admin_create_prospector (Création directe sans 429 ni duplicate key) ───
+CREATE OR REPLACE FUNCTION public.admin_create_prospector(
+  p_username text,
+  p_password text,
+  p_full_name text,
+  p_phone text,
+  p_wilaya text,
+  p_commune text DEFAULT NULL,
+  p_notes text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, extensions
+AS $$
+DECLARE
+  v_user_id     uuid;
+  v_email       text;
+  v_caller_role text;
+BEGIN
+  -- 1. Vérifier que l'utilisateur qui appelle est bien administrateur
+  SELECT role INTO v_caller_role FROM public.profiles WHERE id = auth.uid();
+  IF v_caller_role IS DISTINCT FROM 'admin' THEN
+    RAISE EXCEPTION 'Action réservée aux administrateurs.';
+  END IF;
+
+  -- 2. Nettoyer et valider le username
+  p_username := lower(trim(p_username));
+  IF length(p_username) < 3 THEN
+    RAISE EXCEPTION 'Le nom d''utilisateur doit comporter au moins 3 caractères.';
+  END IF;
+
+  v_email := p_username || '@m3ak.app';
+
+  IF EXISTS (SELECT 1 FROM public.profiles WHERE lower(username) = p_username) THEN
+    RAISE EXCEPTION 'Le nom d''utilisateur "%" est déjà utilisé.', p_username;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM auth.users WHERE lower(email) = lower(v_email)) THEN
+    RAISE EXCEPTION 'Un compte avec l''adresse "%" existe déjà dans le système d''authentification.', v_email;
+  END IF;
+
+  v_user_id := gen_random_uuid();
+
+  -- 3. Insérer dans auth.users avec mot de passe crypté et email confirmé
+  INSERT INTO auth.users (
+    id,
+    instance_id,
+    email,
+    encrypted_password,
+    email_confirmed_at,
+    raw_app_meta_data,
+    raw_user_meta_data,
+    role,
+    aud,
+    created_at,
+    updated_at
+  )
+  VALUES (
+    v_user_id,
+    '00000000-0000-0000-0000-000000000000',
+    v_email,
+    extensions.crypt(p_password, extensions.gen_salt('bf', 10)),
+    NOW(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    jsonb_build_object(
+      'full_name', p_full_name,
+      'username', p_username,
+      'role', 'prospector',
+      'phone', p_phone,
+      'wilaya', p_wilaya,
+      'commune', p_commune
+    ),
+    'authenticated',
+    'authenticated',
+    NOW(),
+    NOW()
+  );
+
+  -- 4. Insérer dans auth.identities
+  INSERT INTO auth.identities (
+    id,
+    user_id,
+    provider_id,
+    provider,
+    identity_data,
+    last_sign_in_at,
+    created_at,
+    updated_at
+  )
+  VALUES (
+    v_user_id,
+    v_user_id,
+    v_email,
+    'email',
+    jsonb_build_object(
+      'sub', v_user_id,
+      'email', v_email,
+      'email_verified', true
+    ),
+    NOW(),
+    NOW(),
+    NOW()
+  )
+  ON CONFLICT (provider, provider_id) DO NOTHING;
+
+  -- 5. Insérer ou mettre à jour dans public.profiles
+  -- IMPORTANT : Utilise ON CONFLICT (id) car le trigger handle_new_user() insère déjà une ligne
+  -- lors du INSERT auth.users ci-dessus. Cela élimine définitivement l'erreur duplicate key "profiles_pkey".
+  INSERT INTO public.profiles (
+    id,
+    full_name,
+    username,
+    role,
+    phone,
+    wilaya,
+    commune,
+    notes,
+    status,
+    created_at,
+    updated_at
+  )
+  VALUES (
+    v_user_id,
+    p_full_name,
+    p_username,
+    'prospector',
+    p_phone,
+    p_wilaya,
+    p_commune,
+    p_notes,
+    'active',
+    NOW(),
+    NOW()
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    full_name  = EXCLUDED.full_name,
+    username   = EXCLUDED.username,
+    role       = 'prospector',
+    phone      = EXCLUDED.phone,
+    wilaya     = EXCLUDED.wilaya,
+    commune    = EXCLUDED.commune,
+    notes      = EXCLUDED.notes,
+    status     = 'active',
+    updated_at = NOW();
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'user_id', v_user_id,
+    'username', p_username
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_create_prospector TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_create_prospector TO service_role;
+
+-- ─── 8. Fonction RPC admin_delete_prospector (Suppression propre en cascade) ───
+CREATE OR REPLACE FUNCTION public.admin_delete_prospector(p_user_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  v_caller_role text;
+BEGIN
+  SELECT role INTO v_caller_role FROM public.profiles WHERE id = auth.uid();
+  IF v_caller_role IS DISTINCT FROM 'admin' THEN
+    RAISE EXCEPTION 'Action réservée aux administrateurs.';
+  END IF;
+
+  DELETE FROM public.prospect_assignments WHERE prospector_id = p_user_id;
+  UPDATE public.prospects SET assigned_to = NULL, assigned_at = NULL WHERE assigned_to = p_user_id;
+  UPDATE public.prospect_activities SET prospector_id = NULL WHERE prospector_id = p_user_id;
+  DELETE FROM public.commissions WHERE prospector_id = p_user_id;
+  DELETE FROM public.profiles WHERE id = p_user_id;
+  DELETE FROM auth.identities WHERE user_id = p_user_id;
+  DELETE FROM auth.users WHERE id = p_user_id;
+
+  RETURN jsonb_build_object('success', true, 'deleted_id', p_user_id);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_delete_prospector TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_delete_prospector TO service_role;
+
+-- ─── 9. Confirmation ──────────────────────────────────────────────────────────
+SELECT 'Fix appliqué avec succès ! admin_create_prospector et admin_delete_prospector sont opérationnels.' AS resultat;

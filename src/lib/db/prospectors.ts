@@ -150,24 +150,6 @@ export async function createProspector(payload: {
           }
         : undefined,
     };
-
-    return {
-      success: true,
-      prospector: {
-        id: profile.id,
-        full_name: profile.full_name,
-        username: profile.username || username,
-        phone: profile.phone,
-        wilaya: profile.wilaya,
-        commune: profile.commune,
-        status: "active",
-        created_at: profile.created_at,
-        assigned_count: 0,
-        active_trials_count: 0,
-        conversions_count: 0,
-        total_commission_da: 0,
-      },
-    };
   } catch (err: any) {
     return { success: false, error: err?.message || "Erreur inattendue" };
   }
