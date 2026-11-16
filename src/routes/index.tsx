@@ -30,7 +30,7 @@ function toAuthEmail(input: string): { email: string; username: string } {
   if (clean.includes("@")) {
     return {
       email: clean.toLowerCase(),
-      username: clean.split("@")[0].toLowerCase(),
+      username: (clean.split("@")[0] ?? clean).toLowerCase(),
     };
   }
 
@@ -131,7 +131,7 @@ function AuthPage() {
         .eq("id", userId)
         .maybeSingle();
 
-      const role = profile?.role ?? (data.user?.user_metadata?.role as string) ?? "customer";
+      const role = profile?.["role"] ?? (data.user?.user_metadata?.["role"] as string) ?? "customer";
       if (role === "admin") {
         navigate({ to: "/admin" });
       } else if (role === "prospector") {
@@ -200,46 +200,73 @@ function AuthPage() {
       });
 
       if (signUpError) {
-        if (signUpError.message.includes("already registered")) {
+        // Erreur "rate limit" sur l'envoi d'email : ignorée silencieusement,
+        // on tente de continuer avec une connexion directe (l'utilisateur a déjà été créé).
+        const isRateLimit =
+          signUpError.message.toLowerCase().includes("rate limit") ||
+          (signUpError as { code?: string }).code === "over_email_send_rate_limit";
+
+        if (isRateLimit) {
+          // Ne pas bloquer l'inscription — tenter une connexion directe
+          console.warn("[handleSignUp] Rate limit email ignoré, tentative de connexion directe.");
+        } else if (
+          signUpError.message.includes("already registered") ||
+          signUpError.message.includes("User already registered")
+        ) {
           toast.error("Nom d'utilisateur déjà pris", {
-            description: "Choisissez un autre nom d'utilisateur.",
+            description: "Cet identifiant existe déjà. Choisissez un autre nom d'utilisateur ou connectez-vous.",
           });
-        } else if (signUpError.message.includes("disabled") || (signUpError as { code?: string }).code === "email_provider_disabled") {
-          toast.error("Authentification désactivée dans Supabase", {
-            description: "Activez le provider 'Email' dans Supabase Dashboard > Authentication > Providers > Email pour permettre l'inscription par mot de passe.",
+          return;
+        } else if (
+          signUpError.message.includes("disabled") ||
+          (signUpError as { code?: string }).code === "email_provider_disabled"
+        ) {
+          toast.error("Authentification désactivée", {
+            description: "Contactez l'administrateur pour activer les inscriptions.",
           });
-        } else if (signUpError.message.includes("rate limit")) {
-          toast.error("Trop de tentatives", {
-            description: "Veuillez patienter quelques instants avant de réessayer.",
-          });
+          return;
         } else {
-          toast.error(signUpError.message);
+          // Toute autre erreur réelle : on tente quand même une connexion directe
+          // (l'utilisateur peut déjà exister si le compte a été créé lors d'un appel précédent)
+          console.warn("[handleSignUp] Erreur inattendue :", signUpError.message, "— tentative de connexion directe.");
         }
-        return;
       }
 
-      const userId = data.user?.id;
-      if (!userId) {
-        toast.error("Erreur lors de la création du compte.");
-        return;
-      }
+      // Récupérer l'userId (depuis signUp ou via connexion directe si l'utilisateur existait déjà)
+      let userId = data?.user?.id;
+      let activeSession = data?.session;
 
-      // 2. Établir la session authentifiée de manière garantie
-      let activeSession = data.session;
-      if (!activeSession) {
+      // Si pas de session ou pas d'userId (cas du rate limit ou utilisateur pré-existant)
+      if (!activeSession || !userId) {
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password: form.password,
         });
 
         if (signInError) {
-          console.error("[handleSignUp] Échec connexion post-signup:", signInError.message);
-          toast.error("Compte créé mais erreur de connexion automatique", {
-            description: signInError.message,
-          });
+          // Si l'utilisateur n'existe pas vraiment (rate limit bloquant)
+          if (
+            signInError.message.includes("Invalid login credentials") ||
+            signInError.message.includes("invalid_credentials")
+          ) {
+            toast.error("Inscription échouée", {
+              description: "Impossible de créer votre compte pour le moment. Réessayez dans quelques instants.",
+            });
+          } else {
+            toast.error("Erreur de connexion", {
+              description: signInError.message,
+            });
+          }
           return;
         }
+
         activeSession = signInData.session;
+        userId = signInData.user?.id;
+      }
+
+      if (!userId) {
+        toast.error("Erreur lors de la création du compte.");
+        return;
       }
 
       const authUserId = activeSession?.user?.id || userId;
