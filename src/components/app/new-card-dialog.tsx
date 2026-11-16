@@ -481,6 +481,8 @@ export function NewCardDialog({
           "w-[calc(100%-1.25rem)] rounded-2xl",
           step === "created"
             ? "sm:max-w-md p-3 sm:p-5 max-h-[96dvh] overflow-y-auto"
+            : step === "configure"
+            ? "sm:max-w-lg p-3 sm:p-4 max-h-[96dvh] overflow-hidden"
             : "sm:max-w-xl p-4 sm:p-6 max-h-[92dvh] overflow-y-auto"
         )}
       >
