@@ -338,6 +338,8 @@ GRANT EXECUTE ON FUNCTION public.admin_create_prospector TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_create_prospector TO service_role;
 
 -- ─── 8. Fonction RPC admin_delete_prospector (Suppression propre en cascade) ───
+-- DROP requis si le type de retour a changé depuis l'ancienne version
+DROP FUNCTION IF EXISTS public.admin_delete_prospector(uuid);
 CREATE OR REPLACE FUNCTION public.admin_delete_prospector(p_user_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
