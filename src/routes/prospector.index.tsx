@@ -120,8 +120,8 @@ function ProspectorDashboardPage() {
     <div className="space-y-8">
       <PageHeader
         title={`Bienvenue, ${profile?.full_name || "Commercial"}`}
-        description="Retrouvez l'ensemble des commerces qui vous sont attribués. Mettez à jour vos statuts de contact et suivez la validation finale par l'administration."
-        action={
+        subtitle="Retrouvez l'ensemble des commerces qui vous sont attribués. Mettez à jour vos statuts de contact et suivez la validation finale par l'administration."
+        actions={
           <Button
             variant="outline"
             size="sm"

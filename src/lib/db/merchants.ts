@@ -139,7 +139,7 @@ export async function getMyMerchant(): Promise<Merchant | null> {
         const slug = `${baseSlug}-${user.id.slice(0, 5)}`;
         let inserted = null;
         try {
-          const res = await supabase
+          let res = await supabase
             .from("merchants")
             .insert({
               owner_id: user.id,
@@ -153,9 +153,26 @@ export async function getMyMerchant(): Promise<Merchant | null> {
             })
             .select()
             .maybeSingle();
+
+          // Si l'insertion échoue (par exemple colonne is_trial manquante dans le schéma SQL)
+          if (res.error) {
+            console.warn("[getMyMerchant] Erreur premier insert, fallback minimal :", res.error.message);
+            res = await supabase
+              .from("merchants")
+              .insert({
+                owner_id: user.id,
+                name,
+                slug,
+                status: "active",
+                plan: "starter",
+              })
+              .select()
+              .maybeSingle();
+          }
+
           if (res.data) inserted = res.data;
-        } catch {
-          // Conflit 409 ignoré : on relit ci-dessous
+        } catch (e: any) {
+          console.warn("[getMyMerchant] Exception insert commerce:", e?.message);
         }
 
         if (inserted) {

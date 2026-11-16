@@ -155,13 +155,20 @@ function AuthPage() {
             role: "merchant",
           }, { onConflict: "id" });
 
-          await supabase.from("merchants").insert({
+          // Insérer le commerce avec toutes les colonnes requises
+          const { error: merchantErr } = await supabase.from("merchants").insert({
             owner_id: userId,
             name: mName,
-            slug: `${baseSlug}-${userId.slice(0, 5)}`,
+            slug: `${baseSlug}-${(userId ?? "").slice(0, 5)}`,
             status: "active",
             plan: "starter",
+            subscription_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+            is_trial: true,
           });
+
+          if (merchantErr) {
+            console.error("[handleSignIn] Erreur création commerce:", merchantErr.message);
+          }
         }
 
         navigate({ to: "/business" });
@@ -304,7 +311,7 @@ function AuthPage() {
         }, { onConflict: "id" });
 
         const uniqueSlug = `${baseSlug}-${authUserId.slice(0, 5)}`;
-        const { data: inserted } = await supabase
+        let insertRes = await supabase
           .from("merchants")
           .insert({
             owner_id: authUserId,
@@ -319,7 +326,23 @@ function AuthPage() {
           .select()
           .maybeSingle();
 
-        if (inserted) mRow = inserted;
+        if (insertRes.error) {
+          console.warn("[handleSignUp] Erreur insertion complète commerce, tentative fallback basique :", insertRes.error.message);
+          insertRes = await supabase
+            .from("merchants")
+            .insert({
+              owner_id: authUserId,
+              name: cleanBusinessName,
+              phone: cleanPhone,
+              slug: uniqueSlug,
+              status: "active",
+              plan: "starter",
+            })
+            .select()
+            .maybeSingle();
+        }
+
+        if (insertRes.data) mRow = insertRes.data;
       }
 
       if (mRow) {

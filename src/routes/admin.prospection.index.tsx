@@ -109,8 +109,8 @@ function ProspectionOverviewPage() {
   const performanceData = prospectors.map((pr) => ({
     name: pr.full_name.split(" ")[0] || pr.full_name,
     attribues: pr.assigned_count || 0,
-    convertis: pr.converted_count || 0,
-    essais: pr.trial_count || 0,
+    convertis: pr.conversions_count || 0,
+    essais: pr.active_trials_count || 0,
   }));
 
   // Essais gratuits arrivant à expiration (≤ 2 jours)
@@ -136,23 +136,23 @@ function ProspectionOverviewPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Prospects Enregistrés"
-          value={kpis?.totalProspects.toLocaleString() ?? "0"}
-          hint={`${kpis?.newProspects ?? 0} nouveaux à contacter`}
+          value={kpis?.total_leads.toLocaleString() ?? "0"}
+          hint="Total commerces ciblés"
         />
         <StatCard
           label="Essais Gratuits (7j)"
-          value={kpis?.trialsActive.toLocaleString() ?? "0"}
+          value={kpis?.active_trials.toLocaleString() ?? "0"}
           hint="En phase de test actif"
         />
         <StatCard
           label="Clients Convertis"
-          value={kpis?.convertedTotal.toLocaleString() ?? "0"}
-          hint={`Taux de conversion : ${kpis?.conversionRate ?? 0}%`}
+          value={kpis?.conversions.toLocaleString() ?? "0"}
+          hint={`Taux de conversion : ${kpis?.conversion_rate ?? 0}%`}
         />
         <StatCard
           label="Commissions en Attente"
-          value={`${(kpis?.totalCommissionsDue ?? 0).toLocaleString()} DA`}
-          hint="1 500 DA par conversion confirmée"
+          value={`${(kpis?.commissions_pending_da ?? 0).toLocaleString()} DA`}
+          hint="Commissions à valider / payer"
         />
       </div>
 
@@ -170,7 +170,7 @@ function ProspectionOverviewPage() {
             </div>
             <Link
               to="/admin/prospection/team"
-              search={{ tab: "perf" }}
+              search={{ tab: "perf", prospectorId: undefined }}
               className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
             >
               Détails équipe <ArrowRight className="size-3" />
@@ -257,7 +257,7 @@ function ProspectionOverviewPage() {
               search={{ tab: "trials" }}
               className="text-xs font-semibold text-primary hover:underline"
             >
-              Voir tous ({kpis?.trialsActive ?? 0}) →
+              Voir tous ({kpis?.active_trials ?? 0}) →
             </Link>
           </div>
 
@@ -315,7 +315,7 @@ function ProspectionOverviewPage() {
             </div>
             <Link
               to="/admin/prospection/commissions"
-              search={{ tab: "pending" }}
+              search={{ tab: "pending", prospectorId: undefined }}
               className="text-xs font-semibold text-primary hover:underline"
             >
               Gérer ({commissions.length}) →
@@ -340,10 +340,10 @@ function ProspectionOverviewPage() {
                 <TableBody>
                   {commissions.slice(0, 5).map((c) => (
                     <TableRow key={c.id}>
-                      <TableCell className="text-xs font-semibold">{c.prospector_name}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{c.prospect_name || c.merchant_name || "Abonnement"}</TableCell>
+                      <TableCell className="text-xs font-semibold">{c.prospector?.full_name || "Commercial"}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{c.prospect?.business_name || c.merchant?.business_name || "Abonnement"}</TableCell>
                       <TableCell className="text-xs font-bold text-emerald-600">
-                        {c.amount.toLocaleString()} DA
+                        {(c.amount_da || 1500).toLocaleString()} DA
                       </TableCell>
                       <TableCell className="text-right">
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400">
