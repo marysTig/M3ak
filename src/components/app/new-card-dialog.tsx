@@ -482,7 +482,7 @@ export function NewCardDialog({
           step === "created"
             ? "sm:max-w-md p-3 sm:p-5 max-h-[96dvh] overflow-y-auto"
             : step === "configure"
-            ? "sm:max-w-lg p-3 sm:p-4 max-h-[96dvh] overflow-hidden"
+            ? "sm:max-w-lg p-0 max-h-[96dvh] flex flex-col overflow-hidden"
             : "sm:max-w-xl p-4 sm:p-6 max-h-[92dvh] overflow-y-auto"
         )}
       >
@@ -633,8 +633,8 @@ export function NewCardDialog({
         {/* ÉTAPE 2 : CONFIGURATION SPÉCIFIQUE                                        */}
         {/* ========================================================================= */}
         {step === "configure" && (
-          <div className="flex flex-col h-full" style={{ maxHeight: "calc(96dvh - 2rem)" }}>
-            {/* Top bar */}
+          <div className="flex flex-col min-h-0 flex-1 p-3 sm:p-4 gap-0">
+            {/* Top bar — fixe */}
             <div className="flex items-center justify-between pb-2 border-b shrink-0">
               <button
                 type="button"
@@ -654,7 +654,8 @@ export function NewCardDialog({
               </div>
             </div>
 
-            <form onSubmit={handleProceedToPreview} className="flex flex-col flex-1 overflow-y-auto gap-2 pt-2 pb-1">
+            {/* Zone scrollable */}
+            <div className="flex-1 overflow-y-auto min-h-0 py-2 space-y-2">
               {/* Informations client — grille 2 colonnes */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
@@ -697,8 +698,6 @@ export function NewCardDialog({
                     <Crown className="size-3.5 text-amber-500" />
                     <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">Paliers VIP</span>
                   </div>
-
-                  {/* Nom du programme */}
                   <div className="flex items-center gap-2">
                     <Label htmlFor="vip-card-name" className="text-[11px] text-muted-foreground shrink-0 w-24">Nom programme</Label>
                     <Input
@@ -709,39 +708,25 @@ export function NewCardDialog({
                       className="h-7 text-xs bg-background flex-1"
                     />
                   </div>
-
-                  {/* Paliers compacts */}
                   <VipTierEditor
-                    emoji="🥉"
-                    label="Niveau Bronze"
-                    sublabel="Niveau de départ"
+                    emoji="🥉" label="Niveau Bronze" sublabel="Niveau de départ"
                     labelColor="text-amber-700 dark:text-amber-400"
-                    threshold={bronzeThreshold}
-                    onThresholdChange={setBronzeThreshold}
-                    info={bronzeInfo}
-                    onInfoChange={setBronzeInfo}
+                    threshold={bronzeThreshold} onThresholdChange={setBronzeThreshold}
+                    info={bronzeInfo} onInfoChange={setBronzeInfo}
                     infoPlaceholder="ex: -5% de réduction"
                   />
                   <VipTierEditor
-                    emoji="🥈"
-                    label="Niveau Silver"
-                    sublabel="Client régulier"
+                    emoji="🥈" label="Niveau Silver" sublabel="Client régulier"
                     labelColor="text-slate-700 dark:text-slate-300"
-                    threshold={silverThreshold}
-                    onThresholdChange={setSilverThreshold}
-                    info={silverInfo}
-                    onInfoChange={setSilverInfo}
+                    threshold={silverThreshold} onThresholdChange={setSilverThreshold}
+                    info={silverInfo} onInfoChange={setSilverInfo}
                     infoPlaceholder="ex: -10% de réduction"
                   />
                   <VipTierEditor
-                    emoji="🥇"
-                    label="Niveau Gold"
-                    sublabel="Meilleur client"
+                    emoji="🥇" label="Niveau Gold" sublabel="Meilleur client"
                     labelColor="text-yellow-600 dark:text-yellow-400"
-                    threshold={goldThreshold}
-                    onThresholdChange={setGoldThreshold}
-                    info={goldInfo}
-                    onInfoChange={setGoldInfo}
+                    threshold={goldThreshold} onThresholdChange={setGoldThreshold}
+                    info={goldInfo} onInfoChange={setGoldInfo}
                     infoPlaceholder="ex: -15% de réduction"
                   />
                 </div>
@@ -775,8 +760,6 @@ export function NewCardDialog({
                     <Ticket className="size-3.5 text-emerald-600 dark:text-emerald-400" />
                     <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">Paramètres tampons</span>
                   </div>
-
-                  {/* Nom + Tampons requis sur 2 colonnes */}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
                       <Label htmlFor="stamp-card-name" className="text-[11px] text-muted-foreground">Nom de la carte</Label>
@@ -817,8 +800,6 @@ export function NewCardDialog({
                       </div>
                     </div>
                   </div>
-
-                  {/* Récompense + Conditions sur 2 colonnes */}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
                       <Label htmlFor="stamp-reward" className="text-[11px] text-muted-foreground">
@@ -873,9 +854,11 @@ export function NewCardDialog({
                   ))}
                 </div>
               </div>
+            </div>
 
-              {/* Boutons d'action */}
-              <div className="flex gap-2 shrink-0">
+            {/* Boutons — fixés en bas */}
+            <form onSubmit={handleProceedToPreview} className="shrink-0 pt-2 border-t">
+              <div className="flex gap-2">
                 <Button
                   type="button"
                   variant="outline"
