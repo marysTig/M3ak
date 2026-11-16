@@ -125,33 +125,33 @@ function VipTierEditor({
   infoPlaceholder = "ex: -5% de réduction, boisson offerte...",
 }: VipTierEditorProps) {
   return (
-    <div className="rounded-lg border bg-background p-3 space-y-2.5">
+    <div className="rounded-lg border bg-background px-2.5 py-2 space-y-1.5">
       <div className="flex items-center justify-between">
-        <span className={cn("text-xs font-bold", labelColor)}>{emoji} {label}</span>
+        <span className={cn("text-[11px] font-bold", labelColor)}>{emoji} {label}</span>
         <span className="text-[10px] text-muted-foreground">{sublabel}</span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
+      <div className="grid grid-cols-2 gap-1.5">
         {/* Seuil d'accès (DA) */}
         <div>
-          <Label className="text-[10px] text-muted-foreground">Seuil d'accès (DA)</Label>
+          <Label className="text-[10px] text-muted-foreground">Seuil (DA)</Label>
           <Input
             type="number"
             value={threshold}
             onChange={(e) => onThresholdChange(e.target.value)}
-            className="h-9 sm:h-8 text-xs font-mono mt-1"
+            className="h-7 text-xs font-mono mt-0.5"
             placeholder="ex: 15000"
           />
         </div>
 
         {/* Information personnalisée */}
         <div>
-          <Label className="text-[10px] text-muted-foreground">Information personnalisée</Label>
+          <Label className="text-[10px] text-muted-foreground">Avantage</Label>
           <Input
             type="text"
             value={info}
             onChange={(e) => onInfoChange(e.target.value)}
-            className="h-9 sm:h-8 text-xs mt-1"
+            className="h-7 text-xs mt-0.5"
             placeholder={infoPlaceholder}
           />
         </div>
@@ -749,134 +749,125 @@ export function NewCardDialog({
 
               {/* Configuration POINTS */}
               {cardType === "points" && (
-                <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-3.5">
-                  <div className="flex items-center gap-2">
-                    <Coins className="size-4 text-primary" />
-                    <p className="text-xs font-bold uppercase tracking-wider text-foreground">
-                      Paramètres des points
-                    </p>
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-2.5">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Coins className="size-3.5 text-primary" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">Points de bienvenue</span>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="initial-points" className="text-xs">
-                      Points de bienvenue offerts
-                    </Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="initial-points" className="text-[11px] text-muted-foreground shrink-0">Points offerts</Label>
                     <Input
                       id="initial-points"
                       type="number"
                       placeholder="0"
                       value={initialPoints}
                       onChange={(e) => setInitialPoints(e.target.value)}
-                      className="h-9 text-xs sm:text-sm bg-background"
+                      className="h-7 text-xs bg-background flex-1"
                     />
-                    <p className="text-[11px] text-muted-foreground">
-                      Solde initial crédité dès la création (ex: 20 points de bienvenue).
-                    </p>
                   </div>
                 </div>
               )}
 
               {/* Configuration TAMPONS */}
               {cardType === "stamps" && (
-                <div className="space-y-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3.5">
-                  <div className="flex items-center gap-2">
-                    <Ticket className="size-4 text-emerald-600 dark:text-emerald-400" />
-                    <p className="text-xs font-bold uppercase tracking-wider text-foreground">
-                      Paramètres des tampons
-                    </p>
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-2.5 space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <Ticket className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">Paramètres tampons</span>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="stamp-card-name" className="text-xs">
-                      Nom de la carte à tampons
-                    </Label>
-                    <Input
-                      id="stamp-card-name"
-                      placeholder="Carte Café & Délices"
-                      value={stampCardName}
-                      onChange={(e) => setStampCardName(e.target.value)}
-                      className="h-9 text-xs sm:text-sm bg-background"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Nombre de tampons requis pour le cadeau</Label>
-                    <div className="flex items-center gap-2">
-                      {[6, 8, 10, 12].map((num) => (
-                        <button
-                          key={num}
-                          type="button"
-                          onClick={() => setStampsTarget(num)}
-                          className={cn(
-                            "flex-1 h-9 rounded-lg text-xs font-bold border transition-all",
-                            stampsTarget === num
-                              ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                              : "bg-background text-foreground border-border hover:bg-surface-muted"
-                          )}
-                        >
-                          {num}
-                        </button>
-                      ))}
+                  {/* Nom + Tampons requis sur 2 colonnes */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="stamp-card-name" className="text-[11px] text-muted-foreground">Nom de la carte</Label>
                       <Input
-                        type="number"
-                        min={2}
-                        max={50}
-                        value={stampsTarget}
-                        onChange={(e) => setStampsTarget(Number(e.target.value) || 10)}
-                        className="w-16 h-9 text-xs font-mono text-center bg-background"
+                        id="stamp-card-name"
+                        placeholder="Carte Café"
+                        value={stampCardName}
+                        onChange={(e) => setStampCardName(e.target.value)}
+                        className="h-7 text-xs bg-background"
                       />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-muted-foreground">Tampons requis</Label>
+                      <div className="flex items-center gap-1">
+                        {[6, 8, 10, 12].map((num) => (
+                          <button
+                            key={num}
+                            type="button"
+                            onClick={() => setStampsTarget(num)}
+                            className={cn(
+                              "flex-1 h-7 rounded text-[11px] font-bold border transition-all",
+                              stampsTarget === num
+                                ? "bg-emerald-600 text-white border-emerald-600"
+                                : "bg-background text-foreground border-border hover:bg-surface-muted"
+                            )}
+                          >
+                            {num}
+                          </button>
+                        ))}
+                        <Input
+                          type="number"
+                          min={2}
+                          max={50}
+                          value={stampsTarget}
+                          onChange={(e) => setStampsTarget(Number(e.target.value) || 10)}
+                          className="w-10 h-7 text-[11px] font-mono text-center bg-background px-1"
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="stamp-reward" className="text-xs">
-                      Récompense offerte au dernier passage <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="stamp-reward"
-                      placeholder="1 produit offert au 10ème passage"
-                      value={stampReward}
-                      onChange={(e) => setStampReward(e.target.value)}
-                      className="h-9 text-xs sm:text-sm bg-background"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="stamp-conditions" className="text-xs">
-                      Conditions particulières <span className="text-muted-foreground font-normal">(optionnel)</span>
-                    </Label>
-                    <Input
-                      id="stamp-conditions"
-                      placeholder="Ex: Valable 6 mois, hors promotions"
-                      value={stampConditions}
-                      onChange={(e) => setStampConditions(e.target.value)}
-                      className="h-9 text-xs sm:text-sm bg-background"
-                    />
+                  {/* Récompense + Conditions sur 2 colonnes */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="stamp-reward" className="text-[11px] text-muted-foreground">
+                        Récompense <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="stamp-reward"
+                        placeholder="1 café offert"
+                        value={stampReward}
+                        onChange={(e) => setStampReward(e.target.value)}
+                        className="h-7 text-xs bg-background"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="stamp-conditions" className="text-[11px] text-muted-foreground">
+                        Conditions <span className="text-[10px] font-normal">(opt.)</span>
+                      </Label>
+                      <Input
+                        id="stamp-conditions"
+                        placeholder="Ex: Valable 6 mois"
+                        value={stampConditions}
+                        onChange={(e) => setStampConditions(e.target.value)}
+                        className="h-7 text-xs bg-background"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Personnalisation visuelle (Thème) */}
-              <div className="space-y-2 rounded-xl border p-3">
-                <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  Thème visuel de la carte
-                </Label>
-                <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+              {/* Thème visuel — ligne compacte */}
+              <div className="flex items-center gap-2 rounded-xl border p-2">
+                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide shrink-0">Thème</Label>
+                <div className="flex gap-1.5 flex-wrap">
                   {themes.map((t) => (
                     <button
                       key={t.id}
                       type="button"
                       onClick={() => setThemeId(t.id)}
                       className={cn(
-                        "h-8 rounded-lg border-2 transition-all relative overflow-hidden flex items-center justify-center",
+                        "size-6 rounded-full border-2 transition-all relative overflow-hidden flex items-center justify-center",
                         themeId === t.id
-                          ? "border-primary ring-2 ring-primary/40 scale-105"
+                          ? "border-primary ring-2 ring-primary/40 scale-110"
                           : "border-transparent opacity-80 hover:opacity-100"
                       )}
                       style={{ background: t.mesh }}
                       title={t.label}
                     >
                       {themeId === t.id && (
-                        <Check className="size-3.5 text-white drop-shadow" />
+                        <Check className="size-2.5 text-white drop-shadow" />
                       )}
                     </button>
                   ))}
@@ -884,22 +875,22 @@ export function NewCardDialog({
               </div>
 
               {/* Boutons d'action */}
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2 shrink-0">
                 <Button
                   type="button"
                   variant="outline"
-                  className="flex-1 h-10 sm:h-11 rounded-xl text-xs sm:text-sm"
+                  className="flex-1 h-9 rounded-xl text-xs font-semibold"
                   onClick={() => setStep("type_selection")}
                 >
-                  <ArrowLeft className="size-4 mr-1.5" />
+                  <ArrowLeft className="size-3.5 mr-1" />
                   Précédent
                 </Button>
                 <Button
                   type="submit"
-                  className="flex-1 h-10 sm:h-11 rounded-xl text-xs sm:text-sm font-semibold"
+                  className="flex-1 h-9 rounded-xl text-xs font-semibold"
                 >
                   Continuer vers l'aperçu
-                  <ArrowRight className="size-4 ml-1.5" />
+                  <ArrowRight className="size-3.5 ml-1" />
                 </Button>
               </div>
             </form>
