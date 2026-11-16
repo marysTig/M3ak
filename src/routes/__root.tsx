@@ -81,14 +81,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" },
       { name: "theme-color", content: "#ffffff" },
-      { title: "Application Lovable" },
-      { name: "description", content: "Projet généré par Lovable" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Application Lovable" },
-      { property: "og:description", content: "Projet généré par Lovable" },
+      { title: "M3AK" },
+      { name: "description", content: "M3AK — Solution de fidélité et CRM commercial" },
+      { name: "author", content: "M3AK" },
+      { property: "og:title", content: "M3AK" },
+      { property: "og:description", content: "M3AK — Solution de fidélité et CRM commercial" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:site", content: "@M3AK" },
     ],
     links: [
       {
@@ -112,7 +112,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="fr">
       <head>
         <HeadContent />
       </head>
