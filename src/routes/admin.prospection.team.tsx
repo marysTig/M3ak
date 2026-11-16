@@ -15,6 +15,8 @@ import {
   ShieldCheck,
   TrendingUp,
   Trash2,
+  Trophy,
+  Medal,
   User,
   UserCheck,
   UserPlus,
@@ -150,6 +152,23 @@ function ProspectorsTeamPage() {
       (w) => w.name.toLowerCase().includes(s) || w.code.includes(s)
     );
   }, [wilayaSearch]);
+
+  // Classement officiel des prospecteurs (ordonné par conversions/payés, puis essais gratuits, puis total assigné)
+  const rankedProspectors = useMemo(() => {
+    return [...prospectors].sort((a, b) => {
+      const convA = a.conversions_count || 0;
+      const convB = b.conversions_count || 0;
+      if (convB !== convA) return convB - convA;
+
+      const trialA = a.active_trials_count || 0;
+      const trialB = b.active_trials_count || 0;
+      if (trialB !== trialA) return trialB - trialA;
+
+      const assA = a.assigned_count || 0;
+      const assB = b.assigned_count || 0;
+      return assB - assA;
+    });
+  }, [prospectors]);
 
   async function loadData() {
     setLoading(true);
@@ -747,33 +766,388 @@ function ProspectorsTeamPage() {
           </div>
         </TabsContent>
 
-        {/* TAB 3: PERFORMANCES */}
+        {/* TAB 3: PERFORMANCES & CLASSEMENT */}
         <TabsContent value="perf" className="space-y-6">
+          {/* EN-TÊTE DE LA SECTION PERFORMANCES */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="font-bold text-xl text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Trophy className="size-5 text-amber-500" />
+                Classement & Performances de l'Équipe Commerciale
+              </h3>
+              <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">
+                Classement officiel basé sur les commerces payés (clients convertis), les essais gratuits 7 jours et le total attribué.
+              </p>
+            </div>
+          </div>
+
+          {/* PODIUM / TOP 3 */}
+          {rankedProspectors.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* 1ère Place */}
+              {rankedProspectors[0] && (
+                <div className="relative overflow-hidden rounded-2xl border-2 border-amber-400/50 bg-gradient-to-b from-amber-500/10 via-surface/80 to-surface p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500 text-white shadow-sm">
+                      <Trophy className="size-3.5" /> 1ère Place (Leader)
+                    </span>
+                    <span className="text-2xl">🥇</span>
+                  </div>
+                  <div className="mt-4 flex items-center gap-3">
+                    <Avatar className="size-12 border-2 border-amber-400">
+                      <AvatarFallback className="bg-amber-100 text-amber-800 font-bold text-base">
+                        {rankedProspectors[0].full_name.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <div className="font-bold text-base text-slate-900 dark:text-slate-100 truncate">
+                        {rankedProspectors[0].full_name}
+                      </div>
+                      <div className="text-xs text-primary font-mono font-medium">
+                        @{rankedProspectors[0].username}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-2 pt-3 border-t border-border/60 text-center">
+                    <div className="rounded-xl bg-surface/80 p-2 border border-border/50">
+                      <div className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">
+                        {rankedProspectors[0].conversions_count || 0}
+                      </div>
+                      <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                        Payés
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-surface/80 p-2 border border-border/50">
+                      <div className="text-lg font-extrabold text-purple-600 dark:text-purple-400">
+                        {rankedProspectors[0].active_trials_count || 0}
+                      </div>
+                      <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                        Essais 7j
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-surface/80 p-2 border border-border/50">
+                      <div className="text-lg font-extrabold text-blue-600 dark:text-blue-400">
+                        {rankedProspectors[0].assigned_count || 0}
+                      </div>
+                      <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                        Attribués
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 2ème Place */}
+              {rankedProspectors[1] && (
+                <div className="relative overflow-hidden rounded-2xl border border-slate-300 dark:border-slate-700 bg-gradient-to-b from-slate-200/40 dark:from-slate-800/40 via-surface/80 to-surface p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-500 text-white shadow-sm">
+                      <Medal className="size-3.5" /> 2ème Place
+                    </span>
+                    <span className="text-2xl">🥈</span>
+                  </div>
+                  <div className="mt-4 flex items-center gap-3">
+                    <Avatar className="size-12 border-2 border-slate-400">
+                      <AvatarFallback className="bg-slate-200 text-slate-800 font-bold text-base">
+                        {rankedProspectors[1].full_name.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <div className="font-bold text-base text-slate-900 dark:text-slate-100 truncate">
+                        {rankedProspectors[1].full_name}
+                      </div>
+                      <div className="text-xs text-primary font-mono font-medium">
+                        @{rankedProspectors[1].username}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-2 pt-3 border-t border-border/60 text-center">
+                    <div className="rounded-xl bg-surface/80 p-2 border border-border/50">
+                      <div className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">
+                        {rankedProspectors[1].conversions_count || 0}
+                      </div>
+                      <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                        Payés
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-surface/80 p-2 border border-border/50">
+                      <div className="text-lg font-extrabold text-purple-600 dark:text-purple-400">
+                        {rankedProspectors[1].active_trials_count || 0}
+                      </div>
+                      <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                        Essais 7j
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-surface/80 p-2 border border-border/50">
+                      <div className="text-lg font-extrabold text-blue-600 dark:text-blue-400">
+                        {rankedProspectors[1].assigned_count || 0}
+                      </div>
+                      <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                        Attribués
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 3ème Place */}
+              {rankedProspectors[2] && (
+                <div className="relative overflow-hidden rounded-2xl border border-amber-600/30 bg-gradient-to-b from-amber-700/10 via-surface/80 to-surface p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-700 text-white shadow-sm">
+                      <Medal className="size-3.5" /> 3ème Place
+                    </span>
+                    <span className="text-2xl">🥉</span>
+                  </div>
+                  <div className="mt-4 flex items-center gap-3">
+                    <Avatar className="size-12 border-2 border-amber-600">
+                      <AvatarFallback className="bg-amber-200 text-amber-900 font-bold text-base">
+                        {rankedProspectors[2].full_name.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <div className="font-bold text-base text-slate-900 dark:text-slate-100 truncate">
+                        {rankedProspectors[2].full_name}
+                      </div>
+                      <div className="text-xs text-primary font-mono font-medium">
+                        @{rankedProspectors[2].username}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-2 pt-3 border-t border-border/60 text-center">
+                    <div className="rounded-xl bg-surface/80 p-2 border border-border/50">
+                      <div className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">
+                        {rankedProspectors[2].conversions_count || 0}
+                      </div>
+                      <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                        Payés
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-surface/80 p-2 border border-border/50">
+                      <div className="text-lg font-extrabold text-purple-600 dark:text-purple-400">
+                        {rankedProspectors[2].active_trials_count || 0}
+                      </div>
+                      <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                        Essais 7j
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-surface/80 p-2 border border-border/50">
+                      <div className="text-lg font-extrabold text-blue-600 dark:text-blue-400">
+                        {rankedProspectors[2].assigned_count || 0}
+                      </div>
+                      <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                        Attribués
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TABLEAU COMPLET DU CLASSEMENT */}
+          <div className="rounded-2xl border border-border/80 bg-surface/70 shadow-sm backdrop-blur-sm overflow-hidden">
+            <div className="p-4 border-b border-border/60 bg-surface/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h4 className="font-bold text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <Award className="size-4 text-primary" />
+                  Tableau de Classement Détaillé
+                </h4>
+                <p className="text-xs text-slate-700 dark:text-slate-300 font-medium">
+                  Liste ordonnée de tous les prospecteurs avec le nombre d'essais gratuits et de commerces payés dans leur liste.
+                </p>
+              </div>
+            </div>
+
+            <div className="w-full overflow-x-auto">
+              <Table className="min-w-[800px]">
+                <TableHeader className="bg-surface/90">
+                  <TableRow>
+                    <TableHead className="w-16 text-center font-bold text-slate-900 dark:text-slate-100">Rang</TableHead>
+                    <TableHead className="font-bold text-slate-900 dark:text-slate-100">Nom & Prénom</TableHead>
+                    <TableHead className="font-bold text-slate-900 dark:text-slate-100">Wilaya</TableHead>
+                    <TableHead className="text-center font-bold text-slate-900 dark:text-slate-100">Dans sa liste</TableHead>
+                    <TableHead className="text-center font-bold text-slate-900 dark:text-slate-100">Essais Gratuits</TableHead>
+                    <TableHead className="text-center font-bold text-slate-900 dark:text-slate-100">Payés (Convertis)</TableHead>
+                    <TableHead className="text-center font-bold text-slate-900 dark:text-slate-100">Taux Réussite</TableHead>
+                    <TableHead className="text-right font-bold text-slate-900 dark:text-slate-100">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-32 text-center text-slate-700 dark:text-slate-300">
+                        <RefreshCw className="size-5 animate-spin mx-auto mb-2 text-primary" />
+                        Chargement du classement...
+                      </TableCell>
+                    </TableRow>
+                  ) : rankedProspectors.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-32 text-center text-slate-700 dark:text-slate-300">
+                        Aucun commercial enregistré pour le moment.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    rankedProspectors.map((p, index) => {
+                      const rank = index + 1;
+                      const conversionRate =
+                        (p.assigned_count || 0) > 0
+                          ? (((p.conversions_count || 0) / (p.assigned_count || 1)) * 100).toFixed(1)
+                          : "0.0";
+
+                      return (
+                        <TableRow
+                          key={p.id}
+                          className={`hover:bg-surface/90 text-xs transition-colors ${
+                            rank === 1
+                              ? "bg-amber-500/5 font-medium"
+                              : rank === 2
+                              ? "bg-slate-400/5 font-medium"
+                              : rank === 3
+                              ? "bg-amber-700/5 font-medium"
+                              : ""
+                          }`}
+                        >
+                          {/* Rang */}
+                          <TableCell className="text-center font-bold">
+                            {rank === 1 ? (
+                              <span className="inline-flex items-center justify-center size-7 rounded-full bg-amber-500 text-white font-extrabold text-xs shadow-sm">
+                                🥇
+                              </span>
+                            ) : rank === 2 ? (
+                              <span className="inline-flex items-center justify-center size-7 rounded-full bg-slate-400 text-white font-extrabold text-xs shadow-sm">
+                                🥈
+                              </span>
+                            ) : rank === 3 ? (
+                              <span className="inline-flex items-center justify-center size-7 rounded-full bg-amber-700 text-white font-extrabold text-xs shadow-sm">
+                                🥉
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center justify-center size-7 rounded-full bg-surface border border-border text-slate-800 dark:text-slate-200 font-bold text-xs">
+                                #{rank}
+                              </span>
+                            )}
+                          </TableCell>
+
+                          {/* Nom et Prénom */}
+                          <TableCell>
+                            <div className="flex items-center gap-2.5">
+                              <Avatar className="size-8 border border-border/80">
+                                <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+                                  {p.full_name.slice(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                                  {p.full_name}
+                                </div>
+                                <code className="text-[11px] text-primary font-mono font-medium">
+                                  @{p.username}
+                                </code>
+                              </div>
+                            </div>
+                          </TableCell>
+
+                          {/* Wilaya */}
+                          <TableCell>
+                            <div className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200 font-medium">
+                              <MapPin className="size-3 text-muted shrink-0" />
+                              <span>{p.wilaya || "Algérie"}</span>
+                              {p.commune && <span className="text-muted text-[11px]">({p.commune})</span>}
+                            </div>
+                          </TableCell>
+
+                          {/* Total dans sa liste */}
+                          <TableCell className="text-center">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                              {p.assigned_count || 0}
+                            </span>
+                          </TableCell>
+
+                          {/* Essais gratuits */}
+                          <TableCell className="text-center">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                              {p.active_trials_count || 0}
+                            </span>
+                          </TableCell>
+
+                          {/* Payés */}
+                          <TableCell className="text-center">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                              {p.conversions_count || 0}
+                            </span>
+                          </TableCell>
+
+                          {/* Taux de réussite */}
+                          <TableCell className="text-center font-bold text-slate-800 dark:text-slate-200">
+                            {conversionRate}%
+                          </TableCell>
+
+                          {/* Action */}
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 text-xs gap-1 text-primary hover:text-primary hover:bg-primary/10"
+                              asChild
+                              title={`Voir la liste de ${p.full_name}`}
+                            >
+                              <Link
+                                to="/admin/prospection/prospects"
+                                search={{ tab: "all", prospectorId: p.id }}
+                              >
+                                <Eye className="size-3.5" />
+                                Voir sa liste
+                              </Link>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          {/* GRAPHIQUE COMPARATIF VISUEL */}
           <div className="rounded-2xl border border-border/80 bg-surface/70 p-6 shadow-sm backdrop-blur-sm space-y-4">
-            <h3 className="font-semibold text-lg">Performances Comparatives</h3>
-            <p className="text-sm text-muted">
-              Suivi des volumes de prospects confiés, des essais 7 jours activés et des commerçants payants.
+            <h3 className="font-bold text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <TrendingUp className="size-4 text-primary" />
+              Graphique Comparatif des Volumes
+            </h3>
+            <p className="text-xs text-slate-700 dark:text-slate-300 font-medium">
+              Comparaison graphique des commerces attribués, essais gratuits et payés par commercial.
             </p>
 
             <div className="h-80 w-full pt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={prospectors.map((p) => ({
-                    name: p.full_name.split(" ")[0],
+                  data={rankedProspectors.map((p) => ({
+                    name: p.full_name,
                     prospects: p.assigned_count || 0,
                     essais: p.active_trials_count || 0,
                     conversions: p.conversions_count || 0,
                   }))}
-                  margin={{ top: 10, right: 30, left: 0, bottom: 20 }}
+                  margin={{ top: 10, right: 30, left: 0, bottom: 40 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
-                  <XAxis dataKey="name" stroke="var(--color-muted)" tickLine={false} />
+                  <XAxis
+                    dataKey="name"
+                    stroke="var(--color-muted)"
+                    tickLine={false}
+                    interval={0}
+                    angle={-20}
+                    textAnchor="end"
+                    height={50}
+                    fontSize={11}
+                  />
                   <YAxis stroke="var(--color-muted)" tickLine={false} />
                   <Tooltip contentStyle={tooltipStyle} />
-                  <Legend />
-                  <Bar dataKey="prospects" fill="#3b82f6" name="Prospects" radius={[4, 4, 0, 0]} />
+                  <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: "10px" }} />
+                  <Bar dataKey="prospects" fill="#3b82f6" name="Commerces dans sa liste" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="essais" fill="#8b5cf6" name="Essais gratuits" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="conversions" fill="#10b981" name="Clients payants" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="conversions" fill="#10b981" name="Payés (Clients convertis)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
