@@ -24,13 +24,13 @@ export const PROSPECT_STATUS_LABELS: Record<ProspectStatus, string> = {
 };
 
 export const PROSPECT_STATUS_COLORS: Record<string, string> = {
-  callback: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20",
-  trial: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20",
-  rejected: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20",
-  new: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20",
-  contacted: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20",
-  interested: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20",
-  converted: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20",
+  callback: "bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-700/50",
+  trial: "bg-purple-100 text-purple-900 border border-purple-300 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-700/50",
+  rejected: "bg-rose-100 text-rose-900 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-700/50",
+  new: "bg-blue-100 text-blue-900 border border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-700/50",
+  contacted: "bg-indigo-100 text-indigo-900 border border-indigo-300 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-700/50",
+  interested: "bg-cyan-100 text-cyan-900 border border-cyan-300 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-700/50",
+  converted: "bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-700/50",
 };
 
 export type ProspectFinale = "paid" | "unpaid" | null;
@@ -42,9 +42,9 @@ export const PROSPECT_FINALE_LABELS: Record<string, string> = {
 };
 
 export const PROSPECT_FINALE_COLORS: Record<string, string> = {
-  paid: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30",
-  unpaid: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30",
-  none: "bg-muted/40 text-muted-foreground border border-border/50",
+  paid: "bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-700/50",
+  unpaid: "bg-rose-100 text-rose-900 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-700/50",
+  none: "bg-slate-100 text-slate-800 border border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700",
 };
 
 export interface Prospect {

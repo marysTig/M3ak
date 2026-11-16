@@ -111,13 +111,17 @@ function ProspectorLoginPage() {
       <div className="w-full max-w-md space-y-6">
         {/* En-tête */}
         <div className="text-center space-y-2">
-          <div className="inline-flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-2 shadow-sm border border-primary/20">
-            <ShieldCheck className="size-8" />
+          <div className="inline-flex size-16 items-center justify-center rounded-2xl bg-white shadow-md border border-border/60 p-2 mb-2">
+            <img
+              src="/ChatGPT_Image_27_sept._2026__16_31_22-removebg-preview (1).png"
+              alt="M3ak Logo"
+              className="size-full object-contain"
+            />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Espace Prospecteur M3ak
           </h1>
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             Connectez-vous à votre CRM commercial avec votre nom d'utilisateur.
           </p>
         </div>

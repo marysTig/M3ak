@@ -339,28 +339,28 @@ export function HierarchicalProspectsTable({
               setCurrentPage(1);
             }}
           >
-            <SelectTrigger className="h-8 text-xs bg-surface">
+            <SelectTrigger className="h-8 text-xs bg-surface font-medium text-slate-800 dark:text-slate-200">
               <SelectValue placeholder="Résultat Finale" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Toutes (Finale)</SelectItem>
-              <SelectItem value="paid">Payé</SelectItem>
-              <SelectItem value="unpaid">Non payé</SelectItem>
-              <SelectItem value="none">En attente (Vide)</SelectItem>
+              <SelectItem value="paid" className="text-emerald-700 font-semibold">Payé</SelectItem>
+              <SelectItem value="unpaid" className="text-rose-700 font-semibold">Non payé</SelectItem>
+              <SelectItem value="none" className="text-slate-700 font-medium">En attente (Vide)</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
       {/* Barre d'état & actions de groupe */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted px-1">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-slate-700 dark:text-slate-300 px-1 font-medium">
         <div className="flex items-center gap-2">
           <span>
-            Total : <strong>{filteredProspects.length}</strong> prospect(s) affiché(s) sur{" "}
-            {prospects.length}
+            Total : <strong className="font-bold text-foreground">{filteredProspects.length}</strong> prospect(s) affiché(s) sur{" "}
+            <strong className="font-bold text-foreground">{prospects.length}</strong>
           </span>
           {enableSelection && selectedIds.length > 0 && (
-            <span className="font-semibold text-primary">
+            <span className="font-bold text-primary">
               • {selectedIds.length} sélectionné(s)
             </span>
           )}
@@ -371,15 +371,15 @@ export function HierarchicalProspectsTable({
             <button
               type="button"
               onClick={expandAll}
-              className="text-primary hover:underline"
+              className="text-primary font-semibold hover:underline"
             >
               Tout déplier
             </button>
-            <span>•</span>
+            <span className="text-slate-400">•</span>
             <button
               type="button"
               onClick={collapseAll}
-              className="text-slate-600 dark:text-slate-400 font-medium hover:text-foreground hover:underline transition-colors"
+              className="text-slate-700 dark:text-slate-300 font-semibold hover:text-foreground hover:underline transition-colors"
             >
               Tout replier
             </button>
@@ -478,15 +478,15 @@ export function HierarchicalProspectsTable({
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                       {isCommuneExpanded ? (
-                                        <ChevronDown className="size-3.5 text-muted shrink-0" />
+                                        <ChevronDown className="size-3.5 text-slate-700 dark:text-slate-300 shrink-0" />
                                       ) : (
-                                        <ChevronRight className="size-3.5 text-muted shrink-0" />
+                                        <ChevronRight className="size-3.5 text-slate-700 dark:text-slate-300 shrink-0" />
                                       )}
-                                      <span className="text-foreground whitespace-nowrap font-semibold">
+                                      <span className="text-foreground whitespace-nowrap font-bold text-slate-800 dark:text-slate-100">
                                         Commune : {communeName}
                                       </span>
                                     </div>
-                                    <span className="text-[11px] text-muted whitespace-nowrap font-medium">
+                                    <span className="text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap font-semibold">
                                       {communeProspects.length} prospect(s)
                                     </span>
                                   </div>
@@ -648,16 +648,16 @@ function ProspectRow({
       </TableCell>
 
       {/* 4. Téléphone */}
-      <TableCell className="min-w-[130px] whitespace-nowrap">
-        <div className="flex items-center gap-1.5 font-mono text-foreground font-medium">
-          <Phone className="size-3 text-muted shrink-0" />
+      <TableCell className="min-w-[120px] whitespace-nowrap">
+        <div className="flex items-center gap-1.5 font-mono text-slate-800 dark:text-slate-100 font-semibold text-xs">
+          <Phone className="size-3 text-slate-500 shrink-0" />
           <span>{prospect.phone}</span>
         </div>
       </TableCell>
 
       {/* 5. Activité */}
       <TableCell className="min-w-[125px] whitespace-nowrap">
-        <span className="text-muted-foreground font-medium truncate block max-w-[160px] whitespace-nowrap" title={prospect.category || "Commerce"}>
+        <span className="text-slate-700 dark:text-slate-300 font-semibold text-xs truncate block max-w-[160px] whitespace-nowrap" title={prospect.category || "Commerce"}>
           {prospect.category || "Commerce"}
         </span>
       </TableCell>
