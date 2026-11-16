@@ -45,7 +45,11 @@ function ProspectorLayout() {
 
   const handleLogout = async () => {
     await safeSignOut();
-    navigate({ to: "/prospector/login" });
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    } else {
+      navigate({ to: "/" });
+    }
   };
 
   const initials = profile?.full_name
