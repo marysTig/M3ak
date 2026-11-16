@@ -129,9 +129,10 @@ WHERE NOT EXISTS (SELECT 1 FROM public.loyalty_programs lp WHERE lp.merchant_id 
 ON CONFLICT (merchant_id) DO NOTHING;
 
 -- ─── 7. Fonction RPC admin_create_prospector (Création directe sans 429 ni duplicate key) ───
--- CORRECTIF "Database error querying schema" (500) :
--- GoTrue requiert plusieurs colonnes que l'INSERT basique ne renseignait pas :
--- is_super_admin, banned_until, is_sso_user, deleted_at, is_anonymous, confirmation_token, etc.
+-- Auto-réparatrice : si le compte auth existait déjà suite à un échec précédent (ex: "liza"),
+-- elle met à jour le mot de passe, restaure toutes les colonnes GoTrue et complète public.profiles !
+DROP FUNCTION IF EXISTS public.admin_create_prospector(text, text, text, text, text, text, text);
+
 CREATE OR REPLACE FUNCTION public.admin_create_prospector(
   p_username text,
   p_password text,
@@ -165,130 +166,186 @@ BEGIN
 
   v_email := p_username || '@m3ak.app';
 
-  IF EXISTS (SELECT 1 FROM public.profiles WHERE lower(username) = p_username) THEN
-    RAISE EXCEPTION 'Le nom d''utilisateur "%" est déjà utilisé.', p_username;
+  -- 3. Vérifier si l'utilisateur existe déjà dans auth.users
+  SELECT id INTO v_user_id FROM auth.users WHERE lower(email) = lower(v_email) LIMIT 1;
+
+  IF v_user_id IS NOT NULL THEN
+    -- Utilisateur existant (ex: tentative antérieure interrompue) :
+    -- Mettre à jour le mot de passe, confirmer le compte et synchroniser toutes les colonnes requises par GoTrue
+    UPDATE auth.users
+    SET encrypted_password           = extensions.crypt(p_password, extensions.gen_salt('bf', 10)),
+        email_confirmed_at           = COALESCE(email_confirmed_at, NOW()),
+        confirmation_token           = '',
+        recovery_token               = '',
+        email_change_token_new       = '',
+        phone_change_token           = '',
+        phone_change                 = '',
+        email_change                 = '',
+        email_change_confirm_status  = 0,
+        reauthentication_token       = '',
+        raw_app_meta_data            = '{"provider":"email","providers":["email"]}'::jsonb,
+        raw_user_meta_data           = jsonb_build_object(
+          'full_name', p_full_name,
+          'username', p_username,
+          'role', 'prospector',
+          'phone', p_phone,
+          'wilaya', p_wilaya,
+          'commune', p_commune
+        ),
+        is_super_admin               = FALSE,
+        is_sso_user                  = FALSE,
+        is_anonymous                 = FALSE,
+        banned_until                 = NULL,
+        deleted_at                   = NULL,
+        role                         = 'authenticated',
+        aud                          = 'authenticated',
+        updated_at                   = NOW()
+    WHERE id = v_user_id;
+
+    -- S'assurer que l'identité existe
+    INSERT INTO auth.identities (
+      id,
+      user_id,
+      provider_id,
+      provider,
+      identity_data,
+      last_sign_in_at,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      v_user_id,
+      v_user_id,
+      v_email,
+      'email',
+      jsonb_build_object(
+        'sub', v_user_id::text,
+        'email', v_email,
+        'email_verified', true,
+        'provider', 'email'
+      ),
+      NOW(),
+      NOW(),
+      NOW()
+    )
+    ON CONFLICT (provider, provider_id) DO UPDATE SET
+      identity_data = EXCLUDED.identity_data,
+      updated_at    = NOW();
+
+  ELSE
+    -- Nouvel utilisateur : insérer dans auth.users avec TOUTES les colonnes requises par GoTrue
+    v_user_id := gen_random_uuid();
+
+    INSERT INTO auth.users (
+      id,
+      instance_id,
+      email,
+      encrypted_password,
+      email_confirmed_at,
+      invited_at,
+      confirmation_token,
+      confirmation_sent_at,
+      recovery_token,
+      recovery_sent_at,
+      email_change_token_new,
+      email_change,
+      email_change_sent_at,
+      last_sign_in_at,
+      raw_app_meta_data,
+      raw_user_meta_data,
+      is_super_admin,
+      created_at,
+      updated_at,
+      phone,
+      phone_confirmed_at,
+      phone_change,
+      phone_change_token,
+      phone_change_sent_at,
+      email_change_token_current,
+      email_change_confirm_status,
+      banned_until,
+      reauthentication_token,
+      reauthentication_sent_at,
+      is_sso_user,
+      deleted_at,
+      is_anonymous,
+      role,
+      aud
+    )
+    VALUES (
+      v_user_id,
+      '00000000-0000-0000-0000-000000000000',
+      v_email,
+      extensions.crypt(p_password, extensions.gen_salt('bf', 10)),
+      NOW(),
+      NULL,
+      '',
+      NULL,
+      '',
+      NULL,
+      '',
+      '',
+      NULL,
+      NULL,
+      '{"provider":"email","providers":["email"]}'::jsonb,
+      jsonb_build_object(
+        'full_name', p_full_name,
+        'username', p_username,
+        'role', 'prospector',
+        'phone', p_phone,
+        'wilaya', p_wilaya,
+        'commune', p_commune
+      ),
+      FALSE,
+      NOW(),
+      NOW(),
+      NULL,
+      NULL,
+      '',
+      '',
+      NULL,
+      '',
+      0,
+      NULL,
+      '',
+      NULL,
+      FALSE,
+      NULL,
+      FALSE,
+      'authenticated',
+      'authenticated'
+    );
+
+    -- Insérer dans auth.identities
+    INSERT INTO auth.identities (
+      id,
+      user_id,
+      provider_id,
+      provider,
+      identity_data,
+      last_sign_in_at,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      v_user_id,
+      v_user_id,
+      v_email,
+      'email',
+      jsonb_build_object(
+        'sub', v_user_id::text,
+        'email', v_email,
+        'email_verified', true,
+        'provider', 'email'
+      ),
+      NOW(),
+      NOW(),
+      NOW()
+    )
+    ON CONFLICT (provider, provider_id) DO NOTHING;
   END IF;
 
-  IF EXISTS (SELECT 1 FROM auth.users WHERE lower(email) = lower(v_email)) THEN
-    RAISE EXCEPTION 'Un compte avec l''adresse "%" existe déjà dans le système d''authentification.', v_email;
-  END IF;
-
-  v_user_id := gen_random_uuid();
-
-  -- 3. Insérer dans auth.users avec TOUTES les colonnes nécessaires à GoTrue
-  --    (absence de is_super_admin, is_sso_user, is_anonymous, banned_until, deleted_at,
-  --     confirmation_token, recovery_token, email_change_token_new, phone_change_token
-  --     provoque l'erreur 500 "Database error querying schema")
-  INSERT INTO auth.users (
-    id,
-    instance_id,
-    email,
-    encrypted_password,
-    email_confirmed_at,
-    invited_at,
-    confirmation_token,
-    confirmation_sent_at,
-    recovery_token,
-    recovery_sent_at,
-    email_change_token_new,
-    email_change,
-    email_change_sent_at,
-    last_sign_in_at,
-    raw_app_meta_data,
-    raw_user_meta_data,
-    is_super_admin,
-    created_at,
-    updated_at,
-    phone,
-    phone_confirmed_at,
-    phone_change,
-    phone_change_token,
-    phone_change_sent_at,
-    email_change_token_current,
-    email_change_confirm_status,
-    banned_until,
-    reauthentication_token,
-    reauthentication_sent_at,
-    is_sso_user,
-    deleted_at,
-    is_anonymous,
-    role,
-    aud
-  )
-  VALUES (
-    v_user_id,
-    '00000000-0000-0000-0000-000000000000',
-    v_email,
-    extensions.crypt(p_password, extensions.gen_salt('bf', 10)),
-    NOW(),           -- email_confirmed_at : compte confirmé dès la création
-    NULL,            -- invited_at
-    '',              -- confirmation_token (vide = confirmé)
-    NULL,            -- confirmation_sent_at
-    '',              -- recovery_token
-    NULL,            -- recovery_sent_at
-    '',              -- email_change_token_new
-    '',              -- email_change
-    NULL,            -- email_change_sent_at
-    NULL,            -- last_sign_in_at
-    '{"provider":"email","providers":["email"]}'::jsonb,
-    jsonb_build_object(
-      'full_name', p_full_name,
-      'username', p_username,
-      'role', 'prospector',
-      'phone', p_phone,
-      'wilaya', p_wilaya,
-      'commune', p_commune
-    ),
-    FALSE,           -- is_super_admin
-    NOW(),           -- created_at
-    NOW(),           -- updated_at
-    NULL,            -- phone
-    NULL,            -- phone_confirmed_at
-    '',              -- phone_change
-    '',              -- phone_change_token
-    NULL,            -- phone_change_sent_at
-    '',              -- email_change_token_current
-    0,               -- email_change_confirm_status
-    NULL,            -- banned_until
-    '',              -- reauthentication_token
-    NULL,            -- reauthentication_sent_at
-    FALSE,           -- is_sso_user
-    NULL,            -- deleted_at
-    FALSE,           -- is_anonymous
-    'authenticated', -- role
-    'authenticated'  -- aud
-  );
-
-  -- 4. Insérer dans auth.identities (nécessaire pour que GoTrue reconnaisse le provider "email")
-  INSERT INTO auth.identities (
-    id,
-    user_id,
-    provider_id,
-    provider,
-    identity_data,
-    last_sign_in_at,
-    created_at,
-    updated_at
-  )
-  VALUES (
-    v_user_id,
-    v_user_id,
-    v_email,
-    'email',
-    jsonb_build_object(
-      'sub', v_user_id::text,
-      'email', v_email,
-      'email_verified', true,
-      'provider', 'email'
-    ),
-    NOW(),
-    NOW(),
-    NOW()
-  )
-  ON CONFLICT (provider, provider_id) DO NOTHING;
-
-  -- 5. Insérer ou mettre à jour dans public.profiles
-  --    ON CONFLICT (id) gère le cas où le trigger handle_new_user() a déjà inséré une ligne
+  -- 4. Insérer ou mettre à jour dans public.profiles (avec ON CONFLICT pour éviter tout doublon)
   INSERT INTO public.profiles (
     id,
     full_name,
