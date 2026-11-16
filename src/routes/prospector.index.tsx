@@ -173,11 +173,11 @@ function ProspectorDashboardPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-semibold text-lg text-foreground">
+            <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100">
               Mes Listes de Commerces Attribués
             </h3>
-            <p className="text-xs text-muted">
-              Organisées par Wilaya et Commune. Vous pouvez modifier la colonne <strong>Statut</strong>. La colonne <strong>Finale</strong> est gérée par l'administration.
+            <p className="text-xs text-slate-700 dark:text-slate-300 font-medium mt-0.5">
+              Organisées par Wilaya et Commune. Vous pouvez modifier la colonne <strong className="text-slate-900 dark:text-slate-100 font-bold">Statut</strong>. La colonne <strong className="text-slate-900 dark:text-slate-100 font-bold">Finale</strong> est gérée par l'administration.
             </p>
           </div>
         </div>
