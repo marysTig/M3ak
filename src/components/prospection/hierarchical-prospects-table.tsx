@@ -68,7 +68,7 @@ export function HierarchicalProspectsTable({
   onSelectChange,
   enableSelection = false,
   showProspectorColumn = true,
-  defaultHierarchical = true,
+  defaultHierarchical = false,
 }: HierarchicalProspectsTableProps) {
   // Filtres
   const [searchTerm, setSearchTerm] = useState("");

@@ -421,7 +421,7 @@ function ProspectsManagementPage() {
             selectedIds={selectedIds}
             onSelectChange={setSelectedIds}
             showProspectorColumn={true}
-            defaultHierarchical={true}
+            defaultHierarchical={false}
           />
         </TabsContent>
 
@@ -574,7 +574,7 @@ function ProspectsManagementPage() {
                   canEditStatus={false}
                   canEditFinale={false}
                   showProspectorColumn={false}
-                  defaultHierarchical={true}
+                  defaultHierarchical={false}
                 />
               </div>
             )}

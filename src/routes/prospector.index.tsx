@@ -197,7 +197,7 @@ function ProspectorDashboardPage() {
             onStatusChange={handleStatusChange}
             enableSelection={false}
             showProspectorColumn={false}
-            defaultHierarchical={true}
+            defaultHierarchical={false}
           />
         )}
       </div>
