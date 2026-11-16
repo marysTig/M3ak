@@ -633,46 +633,33 @@ export function NewCardDialog({
         {/* ÉTAPE 2 : CONFIGURATION SPÉCIFIQUE                                        */}
         {/* ========================================================================= */}
         {step === "configure" && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between pb-1 border-b">
+          <div className="flex flex-col h-full" style={{ maxHeight: "calc(96dvh - 2rem)" }}>
+            {/* Top bar */}
+            <div className="flex items-center justify-between pb-2 border-b shrink-0">
               <button
                 type="button"
                 onClick={() => setStep("type_selection")}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
               >
-                <ArrowLeft className="size-3.5" /> Changer de type
+                <ArrowLeft className="size-3" /> Changer de type
               </button>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
-                Étape 2 sur 3
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-foreground">
+                  Configuration ·{" "}
+                  {cardType === "vip" ? "VIP" : cardType === "stamps" ? "Tampons" : "Points"}
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+                  2/3
+                </span>
+              </div>
             </div>
 
-            <DialogHeader className="text-center sm:text-left space-y-1">
-              <div className="flex items-center gap-2">
-                <DialogTitle className="text-base sm:text-lg font-bold">
-                  Configuration :{" "}
-                  {cardType === "vip"
-                    ? "Carte VIP"
-                    : cardType === "stamps"
-                    ? "Carte à Tampons"
-                    : "Carte à Points"}
-                </DialogTitle>
-              </div>
-              <DialogDescription className="text-xs sm:text-sm">
-                Renseignez les détails du client et personnalisez les paramètres de la carte.
-              </DialogDescription>
-            </DialogHeader>
-
-            <form onSubmit={handleProceedToPreview} className="space-y-4 pt-1">
-              {/* Informations client (communes) */}
-              <div className="rounded-xl border bg-surface-muted/50 p-3 sm:p-3.5 space-y-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Informations client
-                </p>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="customer-name" className="text-xs sm:text-sm">
-                    Nom complet du client <span className="text-destructive">*</span>
+            <form onSubmit={handleProceedToPreview} className="flex flex-col flex-1 overflow-y-auto gap-2 pt-2 pb-1">
+              {/* Informations client — grille 2 colonnes */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="customer-name" className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                    Nom client <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="customer-name"
@@ -680,17 +667,16 @@ export function NewCardDialog({
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     autoComplete="off"
-                    className="h-10 text-sm bg-background"
+                    className="h-8 text-xs bg-background"
                   />
-                  {nameError && <p className="text-xs text-destructive">{nameError}</p>}
+                  {nameError && <p className="text-[10px] text-destructive leading-none">{nameError}</p>}
                 </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="customer-phone" className="text-xs sm:text-sm">
-                    Numéro de téléphone <span className="text-muted-foreground font-normal">(optionnel)</span>
+                <div className="space-y-1">
+                  <Label htmlFor="customer-phone" className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                    Téléphone <span className="text-[10px] font-normal">(opt.)</span>
                   </Label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Phone className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       id="customer-phone"
                       type="tel"
@@ -698,43 +684,39 @@ export function NewCardDialog({
                       value={phone}
                       onChange={(e) => setPhone(normalizeLocalPhone(e.target.value))}
                       autoComplete="off"
-                      className="pl-9 h-10 text-sm font-mono bg-background"
+                      className="pl-7 h-8 text-xs font-mono bg-background"
                     />
                   </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Format : 07XXXXXXXX, 05XXXXXXXX, 06XXXXXXXX
-                  </p>
                 </div>
               </div>
 
               {/* Configuration VIP */}
               {cardType === "vip" && (
-                <div className="space-y-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3.5">
-                  <div className="flex items-center gap-2">
-                    <Crown className="size-4 text-amber-500" />
-                    <p className="text-xs font-bold uppercase tracking-wider text-foreground">
-                      Paliers & Avantages VIP
-                    </p>
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-2.5 space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <Crown className="size-3.5 text-amber-500" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">Paliers VIP</span>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="vip-card-name" className="text-xs">
-                      Nom du programme VIP
-                    </Label>
+                  {/* Nom du programme */}
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="vip-card-name" className="text-[11px] text-muted-foreground shrink-0 w-24">Nom programme</Label>
                     <Input
                       id="vip-card-name"
                       placeholder="Club VIP"
                       value={vipCardName}
                       onChange={(e) => setVipCardName(e.target.value)}
-                      className="h-9 text-xs sm:text-sm bg-background"
+                      className="h-7 text-xs bg-background flex-1"
                     />
                   </div>
 
-                  {/* Bronze */}
-                  <VipTierEditor
-                    emoji="🥉"
-                    label="Niveau Bronze"
-                    sublabel="Niveau de départ"
+                  {/* Tableau compact des paliers */}
+                  <div className="space-y-1.5">
+                    {/* Bronze */}
+                    <VipTierEditor
+                      emoji="🥉"
+                      label="Niveau Bronze"
+                      sublabel="Niveau de départ"
                     labelColor="text-amber-700 dark:text-amber-400"
                     threshold={bronzeThreshold}
                     onThresholdChange={setBronzeThreshold}
