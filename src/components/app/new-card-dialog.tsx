@@ -710,13 +710,11 @@ export function NewCardDialog({
                     />
                   </div>
 
-                  {/* Tableau compact des paliers */}
-                  <div className="space-y-1.5">
-                    {/* Bronze */}
-                    <VipTierEditor
-                      emoji="🥉"
-                      label="Niveau Bronze"
-                      sublabel="Niveau de départ"
+                  {/* Paliers compacts */}
+                  <VipTierEditor
+                    emoji="🥉"
+                    label="Niveau Bronze"
+                    sublabel="Niveau de départ"
                     labelColor="text-amber-700 dark:text-amber-400"
                     threshold={bronzeThreshold}
                     onThresholdChange={setBronzeThreshold}
@@ -724,8 +722,6 @@ export function NewCardDialog({
                     onInfoChange={setBronzeInfo}
                     infoPlaceholder="ex: -5% de réduction"
                   />
-
-                  {/* Silver */}
                   <VipTierEditor
                     emoji="🥈"
                     label="Niveau Silver"
@@ -737,8 +733,6 @@ export function NewCardDialog({
                     onInfoChange={setSilverInfo}
                     infoPlaceholder="ex: -10% de réduction"
                   />
-
-                  {/* Gold */}
                   <VipTierEditor
                     emoji="🥇"
                     label="Niveau Gold"
