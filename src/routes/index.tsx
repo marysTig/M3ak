@@ -200,21 +200,29 @@ function AuthPage() {
       });
 
       if (signUpError) {
-        // Erreur "rate limit" sur l'envoi d'email : ignorée silencieusement,
-        // on tente de continuer avec une connexion directe (l'utilisateur a déjà été créé).
+        // Vérifier si c'est une erreur de rate limit HTTP 429 ou email
+        const errStatus = (signUpError as { status?: number }).status;
         const isRateLimit =
+          errStatus === 429 ||
           signUpError.message.toLowerCase().includes("rate limit") ||
+          signUpError.message.toLowerCase().includes("too many") ||
           (signUpError as { code?: string }).code === "over_email_send_rate_limit";
 
         if (isRateLimit) {
-          // Ne pas bloquer l'inscription — tenter une connexion directe
-          console.warn("[handleSignUp] Rate limit email ignoré, tentative de connexion directe.");
+          // Supabase a rejeté la requête (limite API dépassée).
+          // L'utilisateur n'a pas été créé → afficher un message propre en français.
+          toast.error("Trop d'inscriptions en peu de temps", {
+            description:
+              "Le service est momentanément saturé. Attendez 1 à 2 minutes puis réessayez.",
+          });
+          return;
         } else if (
           signUpError.message.includes("already registered") ||
           signUpError.message.includes("User already registered")
         ) {
           toast.error("Nom d'utilisateur déjà pris", {
-            description: "Cet identifiant existe déjà. Choisissez un autre nom d'utilisateur ou connectez-vous.",
+            description:
+              "Cet identifiant existe déjà. Choisissez un autre nom d'utilisateur ou connectez-vous.",
           });
           return;
         } else if (
@@ -226,9 +234,13 @@ function AuthPage() {
           });
           return;
         } else {
-          // Toute autre erreur réelle : on tente quand même une connexion directe
+          // Autre erreur inattendue : on tente quand même une connexion directe
           // (l'utilisateur peut déjà exister si le compte a été créé lors d'un appel précédent)
-          console.warn("[handleSignUp] Erreur inattendue :", signUpError.message, "— tentative de connexion directe.");
+          console.warn(
+            "[handleSignUp] Erreur inattendue :",
+            signUpError.message,
+            "— tentative de connexion directe."
+          );
         }
       }
 
