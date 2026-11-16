@@ -23,6 +23,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { PageHeader } from "@/components/app/page-header";
 import { HierarchicalProspectsTable } from "@/components/prospection/hierarchical-prospects-table";
+import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -130,10 +131,31 @@ function ProspectsManagementPage() {
     rejected: number;
   } | null>(null);
 
+  // Compteurs totaux pour les filtres et boutons déroulants de prospecteurs
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [unassignedCount, setUnassignedCount] = useState<number>(0);
+
+  const currentProspectorId = searchParams.prospectorId || "all";
+  const activeProspector = useMemo(() => {
+    if (!searchParams.prospectorId || searchParams.prospectorId === "all" || searchParams.prospectorId === "unassigned") {
+      return null;
+    }
+    return prospectors.find((p) => p.id === searchParams.prospectorId) || null;
+  }, [prospectors, searchParams.prospectorId]);
+
+  const handleSelectProspector = (id: string) => {
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        prospectorId: id === "all" ? undefined : id,
+      }),
+    });
+  };
+
   async function loadData() {
     setLoading(true);
     try {
-      const [pList, prList] = await Promise.all([
+      const [pList, prList, totalCountRes, unassignedCountRes] = await Promise.all([
         getProspects({
           status: searchParams.status,
           finale: searchParams.finale,
@@ -141,9 +163,17 @@ function ProspectsManagementPage() {
           prospectorId: searchParams.prospectorId,
         }),
         getProspectors(),
+        supabase.from("prospects").select("*", { count: "exact", head: true }),
+        supabase.from("prospects").select("*", { count: "exact", head: true }).is("assigned_to", null),
       ]);
       setProspects(pList);
       setProspectors(prList);
+      if (totalCountRes.count !== null && totalCountRes.count !== undefined) {
+        setTotalCount(totalCountRes.count);
+      }
+      if (unassignedCountRes.count !== null && unassignedCountRes.count !== undefined) {
+        setUnassignedCount(unassignedCountRes.count);
+      }
     } catch (err) {
       console.error("Erreur chargement prospects :", err);
     } finally {
@@ -369,6 +399,172 @@ function ProspectsManagementPage() {
 
         {/* TAB 1: TOUS LES COMMERCES AVEC TABLEAU HIÉRARCHIQUE */}
         <TabsContent value="all" className="space-y-4">
+          {/* BARRE DÉFILANTE (SCROLL) & MENU DÉROULANT DES PROSPECTEURS */}
+          <div className="rounded-2xl border border-border/80 bg-surface/80 p-3.5 backdrop-blur-sm space-y-3 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Users className="size-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <span>Prospecteurs ({prospectors.length})</span>
+                    <span className="text-[10px] font-normal text-muted-foreground hidden md:inline">
+                      — Cliquez sur un prospecteur pour afficher directement sa liste attribuée
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground">
+                    Sélecteur instantané incrémenté automatiquement à chaque ajout de commercial
+                  </p>
+                </div>
+              </div>
+
+              {/* Bouton Menu Déroulant (Dropdown Select avec liste scrollable) */}
+              <div className="w-full sm:w-72">
+                <Select
+                  value={currentProspectorId}
+                  onValueChange={handleSelectProspector}
+                >
+                  <SelectTrigger className="h-8 text-xs bg-surface border-border font-medium shadow-2xs">
+                    <SelectValue placeholder="Choisir un prospecteur..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-80 overflow-y-auto">
+                    <SelectItem value="all" className="font-bold text-primary">
+                      🏢 Tous les commerces ({totalCount || prospects.length})
+                    </SelectItem>
+                    <SelectItem value="unassigned" className="text-amber-600 dark:text-amber-400 font-semibold">
+                      ⏳ Non attribués ({unassignedCount})
+                    </SelectItem>
+                    <div className="my-1 border-t border-border/60" />
+                    {prospectors.map((pr) => (
+                      <SelectItem key={pr.id} value={pr.id} className="text-xs">
+                        <div className="flex items-center justify-between gap-3 w-full">
+                          <span className="font-semibold text-slate-900 dark:text-slate-100">{pr.full_name}</span>
+                          <span className="text-[11px] text-muted-foreground font-mono">
+                            @{pr.username} ({pr.assigned_count || 0})
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Barre de boutons à défilement horizontal (Scroll) */}
+            <div className="relative">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 pt-0.5 scrollbar-thin">
+                {/* Bouton Tous */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectProspector("all")}
+                  className={`inline-flex shrink-0 items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    currentProspectorId === "all"
+                      ? "bg-primary text-primary-foreground shadow-xs ring-2 ring-primary/30"
+                      : "bg-surface hover:bg-surface-muted text-muted-foreground hover:text-foreground border border-border/80"
+                  }`}
+                >
+                  <Building2 className="size-3.5" />
+                  <span>Tous</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    currentProspectorId === "all" ? "bg-white/20 text-white" : "bg-surface-muted text-foreground"
+                  }`}>
+                    {totalCount || prospects.length}
+                  </span>
+                </button>
+
+                {/* Bouton Non Attribués */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectProspector("unassigned")}
+                  className={`inline-flex shrink-0 items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    currentProspectorId === "unassigned"
+                      ? "bg-amber-600 text-white shadow-xs ring-2 ring-amber-500/40"
+                      : "bg-surface hover:bg-surface-muted text-amber-700 dark:text-amber-400 border border-amber-500/30"
+                  }`}
+                >
+                  <span>⏳ Non attribués</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    currentProspectorId === "unassigned" ? "bg-white/20 text-white" : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                  }`}>
+                    {unassignedCount}
+                  </span>
+                </button>
+
+                {/* Séparateur vertical */}
+                <div className="h-5 w-[1px] bg-border/60 mx-1 shrink-0" />
+
+                {/* Boutons défilants pour chaque prospecteur ajouté */}
+                {prospectors.map((pr) => {
+                  const isSelected = currentProspectorId === pr.id;
+                  return (
+                    <button
+                      key={pr.id}
+                      type="button"
+                      onClick={() => handleSelectProspector(pr.id)}
+                      className={`inline-flex shrink-0 items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                        isSelected
+                          ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm ring-2 ring-slate-900/20 dark:ring-white/20"
+                          : "bg-surface hover:bg-surface-muted text-slate-800 dark:text-slate-200 border border-border/80"
+                      }`}
+                    >
+                      <span className={`size-2 rounded-full ${isSelected ? "bg-emerald-400" : "bg-emerald-500"}`} />
+                      <span>{pr.full_name}</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                        isSelected
+                          ? "bg-white/20 text-white dark:bg-slate-900/20 dark:text-slate-900"
+                          : "bg-surface-muted text-muted-foreground"
+                      }`}>
+                        {pr.assigned_count || 0}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Bannière d'état actif du filtre prospecteur */}
+            {activeProspector && (
+              <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-3.5 py-2 text-xs">
+                <div className="flex items-center gap-2 text-primary font-medium">
+                  <UserCheck className="size-4 shrink-0" />
+                  <span>
+                    Affichage direct de la liste attribuée à <strong>{activeProspector.full_name}</strong> (@{activeProspector.username}
+                    {activeProspector.wilaya ? ` · ${activeProspector.wilaya}` : ""}) :{" "}
+                    <strong>{prospects.length}</strong> commerce(s) attribué(s)
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs text-primary hover:text-primary gap-1"
+                  onClick={() => handleSelectProspector("all")}
+                >
+                  <X className="size-3.5" />
+                  Afficher tout
+                </Button>
+              </div>
+            )}
+
+            {currentProspectorId === "unassigned" && (
+              <div className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-xs text-amber-800 dark:text-amber-200">
+                <div className="flex items-center gap-2 font-medium">
+                  <span>
+                    Affichage des commerces <strong>non attribués</strong> : <strong>{prospects.length}</strong> commerce(s) sans commercial affecté
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs text-amber-800 dark:text-amber-200 hover:text-amber-900 gap-1"
+                  onClick={() => handleSelectProspector("all")}
+                >
+                  <X className="size-3.5" />
+                  Afficher tout
+                </Button>
+              </div>
+            )}
+          </div>
           {/* Action groupée si sélection */}
           {selectedIds.length > 0 && (
             <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-xs">

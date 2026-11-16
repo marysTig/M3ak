@@ -77,6 +77,7 @@ export function HierarchicalProspectsTable({
   const [selectedActivity, setSelectedActivity] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedFinale, setSelectedFinale] = useState("all");
+  const [selectedProspector, setSelectedProspector] = useState("all");
   const [isHierarchicalView, setIsHierarchicalView] = useState(defaultHierarchical);
 
   // Groupes dépliés
@@ -106,6 +107,19 @@ export function HierarchicalProspectsTable({
     return Array.from(set).sort();
   }, [prospects]);
 
+  const availableProspectors = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>();
+    prospects.forEach((p) => {
+      if (p.assigned_to && p.prospector) {
+        map.set(p.assigned_to, {
+          id: p.assigned_to,
+          name: p.prospector.full_name || p.prospector.username || "Commercial",
+        });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [prospects]);
+
   // Filtrage
   const filteredProspects = useMemo(() => {
     return prospects.filter((p) => {
@@ -126,7 +140,11 @@ export function HierarchicalProspectsTable({
       else if (selectedFinale === "unpaid") matchFinale = p.finale === "unpaid";
       else if (selectedFinale === "none") matchFinale = !p.finale;
 
-      return matchSearch && matchWilaya && matchCommune && matchActivity && matchStatus && matchFinale;
+      const matchProspector =
+        selectedProspector === "all" ||
+        (selectedProspector === "unassigned" ? !p.assigned_to : p.assigned_to === selectedProspector);
+
+      return matchSearch && matchWilaya && matchCommune && matchActivity && matchStatus && matchFinale && matchProspector;
     });
   }, [
     prospects,
@@ -136,6 +154,7 @@ export function HierarchicalProspectsTable({
     selectedActivity,
     selectedStatus,
     selectedFinale,
+    selectedProspector,
   ]);
 
   // Arbre hiérarchique : Wilaya -> Commune -> Prospects
@@ -349,6 +368,30 @@ export function HierarchicalProspectsTable({
               <SelectItem value="none" className="text-slate-700 font-medium">En attente (Vide)</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Prospecteur */}
+          {showProspectorColumn && availableProspectors.length > 0 && (
+            <Select
+              value={selectedProspector}
+              onValueChange={(v) => {
+                setSelectedProspector(v);
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="h-8 text-xs bg-surface font-medium text-slate-800 dark:text-slate-200">
+                <SelectValue placeholder="Prospecteur..." />
+              </SelectTrigger>
+              <SelectContent className="max-h-60 overflow-y-auto">
+                <SelectItem value="all">Tous prospecteurs</SelectItem>
+                <SelectItem value="unassigned" className="text-amber-600 font-medium">Non assignés</SelectItem>
+                {availableProspectors.map((pr) => (
+                  <SelectItem key={pr.id} value={pr.id}>
+                    {pr.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
 

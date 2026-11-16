@@ -57,7 +57,11 @@ export async function getProspects(filters?: {
       console.warn("Erreur lecture prospects avec jointure, tentative sans jointure :", error.message);
       let fallbackQ = supabase.from("prospects").select("*").order("created_at", { ascending: false });
       if (filters?.prospectorId && filters.prospectorId !== "all") {
-        fallbackQ = fallbackQ.eq("assigned_to", filters.prospectorId);
+        if (filters.prospectorId === "unassigned") {
+          fallbackQ = fallbackQ.is("assigned_to", null);
+        } else {
+          fallbackQ = fallbackQ.eq("assigned_to", filters.prospectorId);
+        }
       }
       const fallbackRes = await fallbackQ;
       if (fallbackRes.error) {
