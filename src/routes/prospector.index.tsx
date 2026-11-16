@@ -135,8 +135,36 @@ function ProspectorDashboardPage() {
         }
       />
 
-      {/* Cartes KPI requises dans les spécifications */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      {/* KPI Mobile : Compact 3 colonnes pour tenir dans 1 seul écran */}
+      <div className="grid grid-cols-3 gap-1.5 sm:hidden">
+        <div className="rounded-xl border border-border/70 bg-surface/80 p-2 text-center">
+          <div className="text-[10px] text-muted-foreground truncate">Total</div>
+          <div className="text-base font-extrabold text-foreground">{totalAttributed}</div>
+        </div>
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-2 text-center">
+          <div className="text-[10px] text-amber-700 dark:text-amber-300 font-medium truncate">À rappeler</div>
+          <div className="text-base font-extrabold text-amber-600">{toCallbackCount}</div>
+        </div>
+        <div className="rounded-xl border border-purple-500/20 bg-purple-500/10 p-2 text-center">
+          <div className="text-[10px] text-purple-700 dark:text-purple-300 font-medium truncate">Essais 7j</div>
+          <div className="text-base font-extrabold text-purple-600">{freeTrialCount}</div>
+        </div>
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-2 text-center">
+          <div className="text-[10px] text-emerald-700 dark:text-emerald-300 font-medium truncate">Payés</div>
+          <div className="text-base font-extrabold text-emerald-600">{paidCount}</div>
+        </div>
+        <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-2 text-center">
+          <div className="text-[10px] text-rose-700 dark:text-rose-300 font-medium truncate">Refusés</div>
+          <div className="text-base font-extrabold text-rose-600">{rejectedCount}</div>
+        </div>
+        <div className="rounded-xl border border-slate-500/20 bg-slate-500/10 p-2 text-center">
+          <div className="text-[10px] text-muted-foreground truncate">Non payés</div>
+          <div className="text-base font-extrabold text-slate-700 dark:text-slate-300">{unpaidCount}</div>
+        </div>
+      </div>
+
+      {/* Cartes KPI pour grand écran */}
+      <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <StatCard
           label="Total attribués"
           value={totalAttributed.toString()}

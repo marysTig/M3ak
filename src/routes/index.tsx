@@ -367,7 +367,7 @@ function AuthPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-3.5 sm:px-4 py-8 sm:py-12">
+    <div className="relative flex min-h-dvh flex-col items-center justify-center bg-background px-3 py-2 sm:px-4 sm:py-12 overflow-x-hidden">
 
       {/* Fond décoratif */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -376,14 +376,14 @@ function AuthPage() {
         <div className="absolute left-1/2 top-1/2 size-[300px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/4 blur-2xl" />
       </div>
 
-      <div className="relative z-10 w-full max-w-[400px] space-y-5 sm:space-y-6">
+      <div className="relative z-10 w-full max-w-[420px] space-y-3 sm:space-y-6 my-auto">
 
         {/* Logo */}
-        <div className="flex flex-col items-center gap-2.5 sm:gap-3">
+        <div className="flex flex-col items-center gap-1.5 sm:gap-3">
           <img
             src="/ChatGPT_Image_27_sept._2026__16_31_22-removebg-preview (1).png"
             alt="M3ak Logo"
-            className="h-12 sm:h-14 w-auto object-contain drop-shadow-lg"
+            className="h-10 sm:h-14 w-auto object-contain drop-shadow-lg"
           />
           <p className="text-xs sm:text-sm text-muted-foreground text-center">
             {mode === "signin" ? "Connectez-vous à votre espace" : "Créez votre programme de fidélité"}
@@ -391,12 +391,12 @@ function AuthPage() {
         </div>
 
         {/* Card formulaire */}
-        <div className="rounded-2xl border border-border bg-surface/80 p-5 sm:p-7 shadow-[0_8px_32px_rgba(0,0,0,0.12)] backdrop-blur-xl">
+        <div className="rounded-2xl border border-border bg-surface/90 p-4 sm:p-7 shadow-[0_8px_32px_rgba(0,0,0,0.12)] backdrop-blur-xl">
 
           {/* Onglets Sign In / Sign Up */}
-          <div className="mb-6 flex rounded-xl bg-surface-muted p-1">
+          <div className="mb-3 sm:mb-6 flex rounded-xl bg-surface-muted p-1">
             <button
-              className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
+              className={`flex-1 rounded-lg py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-all ${
                 mode === "signin"
                   ? "bg-surface text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -406,7 +406,7 @@ function AuthPage() {
               Connexion
             </button>
             <button
-              className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
+              className={`flex-1 rounded-lg py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-all ${
                 mode === "signup"
                   ? "bg-surface text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -417,12 +417,12 @@ function AuthPage() {
             </button>
           </div>
 
-          <form onSubmit={mode === "signin" ? handleSignIn : handleSignUp} className="space-y-4">
+          <form onSubmit={mode === "signin" ? handleSignIn : handleSignUp} className="space-y-2.5 sm:space-y-4">
 
             {/* Nom du commerce (signup only) */}
             {mode === "signup" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="businessName">Nom du commerce</Label>
+              <div className="space-y-1">
+                <Label htmlFor="businessName" className="text-xs sm:text-sm">Nom du commerce</Label>
                 <Input
                   id="businessName"
                   placeholder="Ex: Café du Marché"
@@ -430,49 +430,46 @@ function AuthPage() {
                   onChange={(e) => set("businessName", e.target.value)}
                   disabled={loading}
                   autoComplete="organization"
+                  className="h-9 sm:h-10 text-xs sm:text-sm"
                 />
                 {errors['businessName'] && (
-                  <p className="text-xs text-destructive">{errors['businessName']}</p>
+                  <p className="text-[11px] text-destructive">{errors['businessName']}</p>
                 )}
               </div>
             )}
 
             {/* Numéro de téléphone du commerçant (signup only) */}
             {mode === "signup" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="phone">Numéro de téléphone du commerçant *</Label>
+              <div className="space-y-1">
+                <Label htmlFor="phone" className="text-xs sm:text-sm">Numéro de téléphone *</Label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Phone className="absolute left-3 top-1/2 size-3.5 sm:size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="phone"
                     type="tel"
                     placeholder="0550 12 34 56 ou 06 / 07..."
-                    className="pl-9"
+                    className="pl-8 sm:pl-9 h-9 sm:h-10 text-xs sm:text-sm"
                     value={form.phone}
                     onChange={(e) => set("phone", e.target.value)}
                     disabled={loading}
                     autoComplete="tel"
                   />
                 </div>
-                {errors['phone'] ? (
-                  <p className="text-xs text-destructive">{errors['phone']}</p>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground">
-                    Ce numéro sera affiché dans le panneau administrateur pour le suivi de votre compte et abonnements.
-                  </p>
+                {errors['phone'] && (
+                  <p className="text-[11px] text-destructive">{errors['phone']}</p>
                 )}
               </div>
             )}
 
             {/* Username */}
-            <div className="space-y-1.5">
-              <Label htmlFor="username">Nom d'utilisateur</Label>
+            <div className="space-y-1">
+              <Label htmlFor="username" className="text-xs sm:text-sm">Nom d'utilisateur</Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <User className="absolute left-3 top-1/2 size-3.5 sm:size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="username"
                   placeholder="moncommerce"
-                  className="pl-9"
+                  className="pl-8 sm:pl-9 h-9 sm:h-10 text-xs sm:text-sm"
                   value={form.username}
                   onChange={(e) => set("username", e.target.value.toLowerCase().replace(/\s/g, ""))}
                   disabled={loading}
@@ -481,81 +478,84 @@ function AuthPage() {
                 />
               </div>
               {errors['username'] && (
-                <p className="text-xs text-destructive">{errors['username']}</p>
+                <p className="text-[11px] text-destructive">{errors['username']}</p>
               )}
             </div>
 
-            {/* Mot de passe */}
-            <div className="space-y-1.5">
-              <Label htmlFor="password">Mot de passe</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type={showPass ? "text" : "password"}
-                  placeholder={mode === "signin" ? "••••••••" : "Minimum 6 caractères"}
-                  className="pl-9 pr-10"
-                  value={form.password}
-                  onChange={(e) => set("password", e.target.value)}
-                  disabled={loading}
-                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                />
-                <button
-                  type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowPass(!showPass)}
-                  tabIndex={-1}
-                >
-                  {showPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
-              </div>
-              {errors['password'] && (
-                <p className="text-xs text-destructive">{errors['password']}</p>
-              )}
-            </div>
-
-            {/* Confirmer mot de passe (signup only) */}
-            {mode === "signup" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
+            {/* Mot de passe et confirmation */}
+            <div className={mode === "signup" ? "grid grid-cols-1 sm:grid-cols-2 gap-2" : "space-y-1"}>
+              {/* Mot de passe */}
+              <div className="space-y-1">
+                <Label htmlFor="password" className="text-xs sm:text-sm">Mot de passe</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Lock className="absolute left-3 top-1/2 size-3.5 sm:size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    id="confirmPassword"
-                    type={showConfirm ? "text" : "password"}
-                    placeholder="••••••••"
-                    className="pl-9 pr-10"
-                    value={form.confirmPassword}
-                    onChange={(e) => set("confirmPassword", e.target.value)}
+                    id="password"
+                    type={showPass ? "text" : "password"}
+                    placeholder={mode === "signin" ? "••••••••" : "Min 6 car."}
+                    className="pl-8 sm:pl-9 pr-9 h-9 sm:h-10 text-xs sm:text-sm"
+                    value={form.password}
+                    onChange={(e) => set("password", e.target.value)}
                     disabled={loading}
-                    autoComplete="new-password"
+                    autoComplete={mode === "signin" ? "current-password" : "new-password"}
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowConfirm(!showConfirm)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowPass(!showPass)}
                     tabIndex={-1}
                   >
-                    {showConfirm ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    {showPass ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                   </button>
                 </div>
-                {errors['confirmPassword'] && (
-                  <p className="text-xs text-destructive">{errors['confirmPassword']}</p>
+                {errors['password'] && (
+                  <p className="text-[11px] text-destructive">{errors['password']}</p>
                 )}
               </div>
-            )}
+
+              {/* Confirmer mot de passe (signup only) */}
+              {mode === "signup" && (
+                <div className="space-y-1">
+                  <Label htmlFor="confirmPassword" className="text-xs sm:text-sm">Confirmation</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 size-3.5 sm:size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="confirmPassword"
+                      type={showConfirm ? "text" : "password"}
+                      placeholder="••••••••"
+                      className="pl-8 sm:pl-9 pr-9 h-9 sm:h-10 text-xs sm:text-sm"
+                      value={form.confirmPassword}
+                      onChange={(e) => set("confirmPassword", e.target.value)}
+                      disabled={loading}
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowConfirm(!showConfirm)}
+                      tabIndex={-1}
+                    >
+                      {showConfirm ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </button>
+                  </div>
+                  {errors['confirmPassword'] && (
+                    <p className="text-[11px] text-destructive">{errors['confirmPassword']}</p>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Info activation immédiate (signup) */}
             {mode === "signup" && (
-              <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
-                <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                <span>Votre compte est activé automatiquement dès sa création.</span>
+              <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 text-[11px] text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                <CheckCircle2 className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span>Compte activé automatiquement avec essai 7 jours gratuit.</span>
               </div>
             )}
 
             <Button
               type="submit"
-              className="mt-2 w-full"
+              className="mt-1 w-full h-9 sm:h-10 text-xs sm:text-sm font-bold"
               disabled={loading}
             >
               {loading ? (
@@ -570,12 +570,11 @@ function AuthPage() {
         </div>
 
         {/* Lien client */}
-        <div className="text-center text-sm text-muted-foreground">
+        <div className="text-center text-xs sm:text-sm text-muted-foreground pb-2">
           Vous êtes un client ?{" "}
           <button
             className="font-medium text-primary underline-offset-2 hover:underline"
             onClick={async () => {
-              // Connexion anonyme ou redirection vers une page de téléchargement
               navigate({ to: "/customer" });
             }}
           >
@@ -584,7 +583,7 @@ function AuthPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="text-center text-[11px] text-muted-foreground">
           M3ak Loyalty · {new Date().getFullYear()}
         </p>
       </div>

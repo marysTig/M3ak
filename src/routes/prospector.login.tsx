@@ -107,35 +107,35 @@ function ProspectorLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
+    <div className="min-h-dvh bg-background flex flex-col items-center justify-center p-3 sm:p-4 overflow-x-hidden">
+      <div className="w-full max-w-md space-y-3 sm:space-y-6 my-auto">
         {/* En-tête */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex size-16 items-center justify-center rounded-2xl bg-white shadow-md border border-border/60 p-2 mb-2">
+        <div className="text-center space-y-1 sm:space-y-2">
+          <div className="inline-flex size-12 sm:size-16 items-center justify-center rounded-2xl bg-white shadow-md border border-border/60 p-2 mb-1">
             <img
               src="/ChatGPT_Image_27_sept._2026__16_31_22-removebg-preview (1).png"
               alt="M3ak Logo"
               className="size-full object-contain"
             />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
             Espace Prospecteur M3ak
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Connectez-vous à votre CRM commercial avec votre nom d'utilisateur.
           </p>
         </div>
 
         {/* Formulaire de connexion */}
-        <div className="rounded-3xl border border-border/80 bg-surface/80 p-8 shadow-xl backdrop-blur-md">
+        <div className="rounded-2xl sm:rounded-3xl border border-border/80 bg-surface/90 p-4 sm:p-8 shadow-xl backdrop-blur-md">
           {errorMsg && (
-            <div className="mb-4 flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-xs text-rose-600">
+            <div className="mb-3 sm:mb-4 flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-2.5 sm:p-3.5 text-xs text-rose-600">
               <AlertCircle className="size-4 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="user">Nom d'utilisateur</Label>
               <div className="relative">

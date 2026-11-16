@@ -387,9 +387,122 @@ export function HierarchicalProspectsTable({
         )}
       </div>
 
-      {/* Rendu du tableau */}
+      {/* Rendu Responsive : Cartes sur Mobile (block md:hidden) / Tableau complet sur Desktop (hidden md:block) */}
       <div className="w-full overflow-hidden rounded-2xl border border-border/80 bg-surface/70 shadow-sm backdrop-blur-sm">
-        <div className="w-full overflow-x-auto">
+
+        {/* ─── VUE MOBILE : CARTES PAR PROSPECT (AUCUN SCROLL HORIZONTAL) ─── */}
+        <div className="block md:hidden p-2.5 sm:p-3 space-y-2.5">
+          {filteredProspects.length === 0 ? (
+            <div className="p-8 text-center text-muted text-xs">
+              Aucun prospect ne correspond aux critères de recherche.
+            </div>
+          ) : isHierarchicalView ? (
+            // VUE HIÉRARCHIQUE MOBILE (Wilayas & Communes pliables)
+            Object.keys(hierarchicalTree).map((wilayaName) => {
+              const communesMap = hierarchicalTree[wilayaName];
+              const totalInWilaya = Object.values(communesMap).reduce(
+                (sum, list) => sum + list.length,
+                0
+              );
+              const isWilayaExpanded = expandedWilayas[wilayaName] ?? true;
+
+              return (
+                <div key={`m-w-${wilayaName}`} className="rounded-2xl border border-border/80 bg-surface/90 overflow-hidden shadow-xs">
+                  {/* Header Wilaya Mobile */}
+                  <button
+                    type="button"
+                    onClick={() => toggleWilaya(wilayaName)}
+                    className="w-full p-2.5 sm:p-3 flex items-center justify-between text-left font-bold text-foreground text-xs sm:text-sm bg-surface hover:bg-surface/80 transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {isWilayaExpanded ? (
+                        <ChevronDown className="size-4 text-primary shrink-0" />
+                      ) : (
+                        <ChevronRight className="size-4 text-muted shrink-0" />
+                      )}
+                      <MapPin className="size-3.5 text-primary shrink-0" />
+                      <span className="truncate">Wilaya : {wilayaName}</span>
+                    </div>
+                    <Badge variant="secondary" className="text-[11px] font-bold shrink-0">
+                      {totalInWilaya}
+                    </Badge>
+                  </button>
+
+                  {/* Communes et prospects */}
+                  {isWilayaExpanded && (
+                    <div className="p-2 space-y-2 border-t border-border/60 bg-surface-muted/30">
+                      {Object.keys(communesMap).map((communeName) => {
+                        const communeProspects = communesMap[communeName] ?? [];
+                        const communeKey = `${wilayaName}__${communeName}`;
+                        const isCommuneExpanded = expandedCommunes[communeKey] ?? true;
+
+                        return (
+                          <div key={`m-c-${communeKey}`} className="rounded-xl border border-border/60 bg-surface overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => toggleCommune(communeKey)}
+                              className="w-full p-2 flex items-center justify-between text-left font-semibold text-xs text-foreground bg-surface hover:bg-surface/80"
+                            >
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                {isCommuneExpanded ? (
+                                  <ChevronDown className="size-3 text-slate-600 shrink-0" />
+                                ) : (
+                                  <ChevronRight className="size-3 text-slate-600 shrink-0" />
+                                )}
+                                <span className="truncate">Commune : {communeName}</span>
+                              </div>
+                              <span className="text-[10px] font-bold text-muted shrink-0">
+                                {communeProspects.length}
+                              </span>
+                            </button>
+
+                            {isCommuneExpanded && (
+                              <div className="p-2 space-y-2 border-t border-border/40">
+                                {communeProspects.map((p) => (
+                                  <ProspectMobileCard
+                                    key={p.id}
+                                    prospect={p}
+                                    enableSelection={enableSelection}
+                                    isSelected={selectedIds.includes(p.id)}
+                                    onToggleSelect={() => handleToggleSelectOne(p.id)}
+                                    canEditStatus={canEditStatus}
+                                    canEditFinale={canEditFinale}
+                                    onStatusChange={onStatusChange}
+                                    onFinaleChange={onFinaleChange}
+                                    showProspectorColumn={showProspectorColumn}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            // VUE SIMPLE PLATE MOBILE (Cartes pleine largeur sans scroll horizontal)
+            paginatedProspects.map((p) => (
+              <ProspectMobileCard
+                key={p.id}
+                prospect={p}
+                enableSelection={enableSelection}
+                isSelected={selectedIds.includes(p.id)}
+                onToggleSelect={() => handleToggleSelectOne(p.id)}
+                canEditStatus={canEditStatus}
+                canEditFinale={canEditFinale}
+                onStatusChange={onStatusChange}
+                onFinaleChange={onFinaleChange}
+                showProspectorColumn={showProspectorColumn}
+              />
+            ))
+          )}
+        </div>
+
+        {/* ─── VUE DESKTOP : TABLEAU COMPLET (hidden md:block) ─── */}
+        <div className="hidden md:block w-full overflow-x-auto">
           <table className="w-full min-w-[820px] table-fixed caption-bottom text-sm border-collapse">
             <thead className="bg-surface/90 [&_tr]:border-b">
               <TableRow className="border-b border-border/80">
@@ -749,6 +862,204 @@ function ProspectRow({
         )}
       </TableCell>
     </TableRow>
+  );
+}
+
+// ─── Composant Carte Mobile (Zéro Scroll Horizontal - Spécial Smartphone) ────────
+
+function ProspectMobileCard({
+  prospect,
+  enableSelection,
+  isSelected,
+  onToggleSelect,
+  canEditStatus,
+  canEditFinale,
+  onStatusChange,
+  onFinaleChange,
+  showProspectorColumn,
+}: {
+  prospect: Prospect;
+  enableSelection: boolean;
+  isSelected: boolean;
+  onToggleSelect: () => void;
+  canEditStatus: boolean;
+  canEditFinale: boolean;
+  onStatusChange?: (id: string, s: ProspectStatus) => void;
+  onFinaleChange?: (id: string, f: ProspectFinale) => void;
+  showProspectorColumn: boolean;
+}) {
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [updatingFinale, setUpdatingFinale] = useState(false);
+
+  const handleStatusSelect = async (newVal: string) => {
+    if (!onStatusChange) return;
+    setUpdatingStatus(true);
+    try {
+      await onStatusChange(prospect.id, newVal as ProspectStatus);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const handleFinaleSelect = async (newVal: string) => {
+    if (!onFinaleChange) return;
+    setUpdatingFinale(true);
+    try {
+      const val: ProspectFinale = newVal === "none" ? null : (newVal as "paid" | "unpaid");
+      await onFinaleChange(prospect.id, val);
+    } finally {
+      setUpdatingFinale(false);
+    }
+  };
+
+  return (
+    <div
+      className={`rounded-2xl border p-3 transition-all shadow-xs space-y-2.5 w-full overflow-hidden ${
+        isSelected
+          ? "bg-primary/5 border-primary/40 ring-1 ring-primary/20"
+          : "bg-surface border-border/80 hover:border-primary/30"
+      }`}
+    >
+      {/* Ligne 1 : Nom du commerce + Sélection + Badge Activité */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2 min-w-0 flex-1">
+          {enableSelection && (
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={onToggleSelect}
+              className="mt-0.5 shrink-0"
+            />
+          )}
+          <div className="min-w-0 flex-1">
+            <h4 className="font-bold text-sm text-foreground leading-snug break-words">
+              {prospect.business_name}
+            </h4>
+            <div className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium mt-0.5">
+              <MapPin className="size-3 text-slate-500 shrink-0" />
+              <span className="truncate">
+                {prospect.wilaya} {prospect.commune ? `• ${prospect.commune}` : ""}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Badge Activité */}
+        <span className="text-[11px] font-semibold shrink-0 bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 px-2 py-0.5 rounded-full max-w-[120px] truncate">
+          {prospect.category || "Commerce"}
+        </span>
+      </div>
+
+      {/* Ligne 2 : Sélecteurs Statut & Finale directement accessibles */}
+      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60">
+        {/* Statut (Prospecteur) */}
+        <div className="space-y-1">
+          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
+            Statut
+          </label>
+          {canEditStatus ? (
+            <Select
+              value={prospect.status}
+              onValueChange={handleStatusSelect}
+              disabled={updatingStatus}
+            >
+              <SelectTrigger
+                className={`h-8 text-xs font-bold border rounded-xl w-full ${
+                  PROSPECT_STATUS_COLORS[prospect.status] || "bg-surface"
+                }`}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PROSPECTOR_EDITABLE_STATUSES.map((st) => (
+                  <SelectItem key={st} value={st} className="text-xs font-semibold">
+                    {PROSPECT_STATUS_LABELS[st]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Badge
+              variant="outline"
+              className={`text-xs font-bold w-full justify-center h-8 rounded-xl ${
+                PROSPECT_STATUS_COLORS[prospect.status]
+              }`}
+            >
+              {PROSPECT_STATUS_LABELS[prospect.status] || prospect.status}
+            </Badge>
+          )}
+        </div>
+
+        {/* Finale (Admin ou Lecture seule) */}
+        <div className="space-y-1">
+          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
+            Décision Finale
+          </label>
+          {canEditFinale ? (
+            <Select
+              value={prospect.finale || "none"}
+              onValueChange={handleFinaleSelect}
+              disabled={updatingFinale}
+            >
+              <SelectTrigger
+                className={`h-8 text-xs font-bold border rounded-xl w-full ${
+                  prospect.finale ? PROSPECT_FINALE_COLORS[prospect.finale] : "bg-surface"
+                }`}
+              >
+                <SelectValue placeholder="En attente" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">En attente</SelectItem>
+                <SelectItem value="paid" className="text-emerald-700 font-bold">Payé</SelectItem>
+                <SelectItem value="unpaid" className="text-rose-700 font-bold">Non payé</SelectItem>
+              </SelectContent>
+            </Select>
+          ) : prospect.finale ? (
+            <Badge
+              variant="outline"
+              className={`text-xs font-bold w-full justify-center h-8 rounded-xl ${
+                PROSPECT_FINALE_COLORS[prospect.finale]
+              }`}
+            >
+              {PROSPECT_FINALE_LABELS[prospect.finale]}
+            </Badge>
+          ) : (
+            <div className="h-8 flex items-center justify-center rounded-xl bg-surface border border-dashed border-border/70 text-[11px] text-muted font-medium">
+              En attente
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Ligne 3 : Bouton d'appel direct en 1 clic */}
+      <div className="flex items-center justify-between gap-2 pt-1">
+        {prospect.phone ? (
+          <a
+            href={`tel:${prospect.phone}`}
+            className="flex-1 inline-flex items-center justify-center gap-2 h-9 px-3 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 active:scale-[0.98] transition-all shadow-xs"
+          >
+            <Phone className="size-3.5 shrink-0" />
+            <span>Appeler {prospect.phone}</span>
+          </a>
+        ) : (
+          <div className="flex-1 text-xs text-muted italic text-center py-1.5 bg-surface-muted/50 rounded-xl border border-dashed border-border/50">
+            Aucun numéro renseigné
+          </div>
+        )}
+
+        {showProspectorColumn && prospect.prospector && (
+          <Badge variant="outline" className="text-[11px] font-semibold text-primary border-primary/20 shrink-0">
+            <UserCheck className="size-3 mr-1" />
+            {prospect.prospector.full_name}
+          </Badge>
+        )}
+      </div>
+
+      {prospect.notes && (
+        <div className="text-[11px] text-slate-700 dark:text-slate-300 bg-surface-muted/60 p-2 rounded-lg border border-border/50 break-words">
+          <strong>Note :</strong> {prospect.notes}
+        </div>
+      )}
+    </div>
   );
 }
 
