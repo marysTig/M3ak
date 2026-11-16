@@ -77,15 +77,17 @@ function AuthPage() {
 
   function validateSignUp() {
     const errs: { [k: string]: string } = {};
-    if (!form.businessName.trim()) errs['businessName'] = "Nom du commerce requis.";
-    if (!form.phone.trim()) {
-      errs['phone'] = "Numéro de téléphone requis.";
-    } else if (form.phone.trim().replace(/[^0-9]/g, "").length < 9) {
-      errs['phone'] = "Numéro invalide (au moins 9 chiffres).";
+    if (!form.businessName.trim()) errs['businessName'] = "Nom du commerce obligatoire.";
+    const cleanPhone = form.phone.trim();
+    const phoneDigits = cleanPhone.replace(/[^0-9]/g, "");
+    if (!cleanPhone) {
+      errs['phone'] = "Le numéro de téléphone est obligatoire.";
+    } else if (phoneDigits.length < 9) {
+      errs['phone'] = "Numéro de téléphone invalide (au moins 9 chiffres, ex: 0550 12 34 56).";
     }
-    if (!form.username.trim()) errs['username'] = "Nom d'utilisateur requis.";
+    if (!form.username.trim()) errs['username'] = "Nom d'utilisateur obligatoire.";
     if (form.username.trim().length < 3) errs['username'] = "Minimum 3 caractères.";
-    if (!form.password) errs['password'] = "Mot de passe requis.";
+    if (!form.password) errs['password'] = "Mot de passe obligatoire.";
     if (form.password.length < 6) errs['password'] = "Minimum 6 caractères.";
     if (form.password !== form.confirmPassword) errs['confirmPassword'] = "Les mots de passe ne correspondent pas.";
     return errs;
@@ -188,7 +190,12 @@ function AuthPage() {
     setLoading(true);
     try {
       const { email, username: cleanUser } = toAuthEmail(form.username);
-      const cleanPhone = form.phone.trim() || null;
+      const cleanPhone = form.phone.trim();
+      if (!cleanPhone || cleanPhone.replace(/[^0-9]/g, "").length < 9) {
+        setErrors({ phone: "Le numéro de téléphone est obligatoire (au moins 9 chiffres)." });
+        setLoading(false);
+        return;
+      }
       const cleanBusinessName = form.businessName.trim();
 
       // 1. Créer le compte utilisateur dans Supabase Auth
@@ -290,8 +297,14 @@ function AuthPage() {
 
       const authUserId = activeSession?.user?.id || userId;
 
-      // 3. Le trigger database handle_new_user() a déjà créé le profil et le commerce.
-      // On vérifie leur présence sans déclencher de double insertion conflictuelle.
+      // 3. Garantir que le profil et le numéro de téléphone obligatoire sont enregistrés
+      await supabase.from("profiles").upsert({
+        id: authUserId,
+        full_name: cleanBusinessName,
+        phone: cleanPhone,
+        role: "merchant",
+      }, { onConflict: "id" });
+
       const baseSlug = cleanUser.replace(/[^a-z0-9]/g, "-") || "commerce";
 
       let { data: mRow } = await supabase
@@ -302,14 +315,6 @@ function AuthPage() {
 
       // Repli défensif au cas où le trigger n'a pas été exécuté dans Supabase
       if (!mRow) {
-        // S'assurer que le profil existe
-        await supabase.from("profiles").upsert({
-          id: authUserId,
-          full_name: cleanBusinessName,
-          phone: cleanPhone,
-          role: "merchant",
-        }, { onConflict: "id" });
-
         const uniqueSlug = `${baseSlug}-${authUserId.slice(0, 5)}`;
         let insertRes = await supabase
           .from("merchants")
@@ -343,6 +348,12 @@ function AuthPage() {
         }
 
         if (insertRes.data) mRow = insertRes.data;
+      } else {
+        // Le commerce existe déjà (ex. trigger Supabase) : synchroniser le téléphone
+        await supabase
+          .from("merchants")
+          .update({ phone: cleanPhone })
+          .eq("id", mRow.id);
       }
 
       if (mRow) {
@@ -422,18 +433,21 @@ function AuthPage() {
             {/* Nom du commerce (signup only) */}
             {mode === "signup" && (
               <div className="space-y-1">
-                <Label htmlFor="businessName" className="text-xs sm:text-sm">Nom du commerce</Label>
+                <Label htmlFor="businessName" className="text-xs sm:text-sm font-medium">
+                  Nom du commerce <span className="text-destructive font-bold">*</span>
+                </Label>
                 <Input
                   id="businessName"
                   placeholder="Ex: Café du Marché"
                   value={form.businessName}
                   onChange={(e) => set("businessName", e.target.value)}
                   disabled={loading}
+                  required
                   autoComplete="organization"
                   className="h-9 sm:h-10 text-xs sm:text-sm"
                 />
                 {errors['businessName'] && (
-                  <p className="text-[11px] text-destructive">{errors['businessName']}</p>
+                  <p className="text-[11px] text-destructive font-medium">{errors['businessName']}</p>
                 )}
               </div>
             )}
@@ -441,12 +455,21 @@ function AuthPage() {
             {/* Numéro de téléphone du commerçant (signup only) */}
             {mode === "signup" && (
               <div className="space-y-1">
-                <Label htmlFor="phone" className="text-xs sm:text-sm">Numéro de téléphone *</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="phone" className="text-xs sm:text-sm font-medium">
+                    Numéro de téléphone <span className="text-destructive font-bold">*</span>
+                  </Label>
+                  <span className="text-[10px] text-destructive font-semibold uppercase tracking-wider">
+                    Obligatoire
+                  </span>
+                </div>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 size-3.5 sm:size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="phone"
                     type="tel"
+                    required
+                    aria-required="true"
                     placeholder="0550 12 34 56 ou 06 / 07..."
                     className="pl-8 sm:pl-9 h-9 sm:h-10 text-xs sm:text-sm"
                     value={form.phone}
@@ -456,7 +479,7 @@ function AuthPage() {
                   />
                 </div>
                 {errors['phone'] && (
-                  <p className="text-[11px] text-destructive">{errors['phone']}</p>
+                  <p className="text-[11px] text-destructive font-medium">{errors['phone']}</p>
                 )}
               </div>
             )}

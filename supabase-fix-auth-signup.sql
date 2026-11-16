@@ -92,6 +92,10 @@ BEGIN
         VALUES (v_merchant_id, 'aurora', 'active')
         ON CONFLICT (merchant_id) DO NOTHING;
       END IF;
+    ELSE
+      UPDATE public.merchants
+      SET phone = COALESCE(v_phone, public.merchants.phone)
+      WHERE owner_id = NEW.id;
     END IF;
   END IF;
 
