@@ -215,7 +215,8 @@ export async function updateProspectFinale(
 }
 
 /**
- * Attribution de listes de prospects à un prospecteur
+ * Attribution de listes de prospects à un prospecteur.
+ * Les IDs sont envoyés en lots de 50 pour éviter les URLs trop longues (400 Bad Request).
  */
 export async function assignProspects(
   prospectIds: string[],
@@ -225,16 +226,22 @@ export async function assignProspects(
   if (prospectIds.length === 0) return true;
 
   const now = new Date().toISOString();
-  const { error } = await supabase
-    .from("prospects")
-    .update({
-      assigned_to: prospectorId,
-      assigned_at: prospectorId ? now : null,
-      updated_at: now,
-    })
-    .in("id", prospectIds);
+  const CHUNK_SIZE = 50;
 
-  if (error) throw new Error(error.message);
+  // Découper en lots de 50 IDs
+  for (let i = 0; i < prospectIds.length; i += CHUNK_SIZE) {
+    const chunk = prospectIds.slice(i, i + CHUNK_SIZE);
+    const { error } = await supabase
+      .from("prospects")
+      .update({
+        assigned_to: prospectorId,
+        assigned_at: prospectorId ? now : null,
+        updated_at: now,
+      })
+      .in("id", chunk);
+
+    if (error) throw new Error(error.message);
+  }
 
   // Historique d'attribution
   if (prospectorId) {
@@ -246,10 +253,14 @@ export async function assignProspects(
       notes: "Attribution de liste",
     }));
 
-    try {
-      await supabase.from("prospect_assignments").insert(historyRows);
-    } catch {
-      // Ignorer si table non créée
+    // Insérer l'historique aussi par lots de 50
+    const HIST_CHUNK = 50;
+    for (let i = 0; i < historyRows.length; i += HIST_CHUNK) {
+      try {
+        await supabase.from("prospect_assignments").insert(historyRows.slice(i, i + HIST_CHUNK));
+      } catch {
+        // Ignorer si table non créée
+      }
     }
   }
 
