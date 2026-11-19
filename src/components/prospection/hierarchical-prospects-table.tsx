@@ -60,10 +60,22 @@ import {
 } from "@/lib/types/prospection";
 
 /**
+ * Message d'accroche commercial WhatsApp automatique en arabe
+ */
+export function getProspectionWhatsAppMessage(businessName?: string | null): string {
+  const greeting = businessName ? `السلام عليكم ${businessName}،` : "السلام عليكم،";
+  return `${greeting}
+افتح حساب معنا وخلي زبائنك يستفادوا من بطاقة الوفاء ديالهم عبر الإنترنت 🎁
+جرّب الخدمة مجاناً لمدة 7 أيام:
+https://m3ak.vercel.app/`;
+}
+
+/**
  * Normalise automatiquement les numéros algériens pour l'API WhatsApp (wa.me)
+ * et pré-remplit le message commercial en arabe.
  * Format requis : 213XXXXXXXXX (sans +, sans espaces, sans 0 initial)
  */
-export function formatWhatsAppUrl(rawPhone: string | null | undefined): string | null {
+export function formatWhatsAppUrl(rawPhone: string | null | undefined, businessName?: string | null): string | null {
   if (!rawPhone) return null;
   let digits = rawPhone.replace(/\D/g, "");
   if (!digits) return null;
@@ -78,7 +90,8 @@ export function formatWhatsAppUrl(rawPhone: string | null | undefined): string |
     digits = "213" + digits;
   }
 
-  return `https://wa.me/${digits}`;
+  const message = getProspectionWhatsAppMessage(businessName);
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
 }
 
 function WhatsAppIcon({ className = "size-3.5" }: { className?: string }) {
@@ -1055,7 +1068,7 @@ function ProspectRow({
           </a>
           {prospect.phone && (
             <a
-              href={formatWhatsAppUrl(prospect.phone) || "#"}
+              href={formatWhatsAppUrl(prospect.phone, prospect.business_name) || "#"}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
@@ -1371,7 +1384,7 @@ function ProspectMobileCard({
               <span className="truncate">Appeler</span>
             </a>
             <a
-              href={formatWhatsAppUrl(prospect.phone) || "#"}
+              href={formatWhatsAppUrl(prospect.phone, prospect.business_name) || "#"}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold text-xs active:scale-[0.98] transition-all shadow-xs shrink-0"
