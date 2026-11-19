@@ -107,7 +107,7 @@ export async function createProspector(payload: {
     }
 
     // 2. Création directe par RPC Admin (sans limite d'envoi d'emails ni déconnexion de session)
-    const { data: rpcRes, error: rpcError } = await supabase.rpc("admin_create_prospector", {
+    let { data: rpcRes, error: rpcError } = await supabase.rpc("admin_create_prospector", {
       p_username: username,
       p_password: payload.password,
       p_full_name: payload.full_name.trim(),
@@ -117,11 +117,49 @@ export async function createProspector(payload: {
       p_notes: payload.notes?.trim() || null,
     });
 
+    // Si le token JWT est expiré, tenter un rafraîchissement automatique de la session et réessayer
+    if (rpcError && (rpcError.message?.toLowerCase().includes("jwt") || rpcError.code === "PGRST301")) {
+      console.warn("[admin_create_prospector] JWT expiré, rafraîchissement de la session...");
+      try {
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (!refreshError && refreshData.session) {
+          const retry = await supabase.rpc("admin_create_prospector", {
+            p_username: username,
+            p_password: payload.password,
+            p_full_name: payload.full_name.trim(),
+            p_phone: payload.phone.trim(),
+            p_wilaya: payload.wilaya,
+            p_commune: payload.commune?.trim() || null,
+            p_notes: payload.notes?.trim() || null,
+          });
+          rpcRes = retry.data;
+          rpcError = retry.error;
+        }
+      } catch (refreshErr) {
+        console.error("[admin_create_prospector] Échec du rafraîchissement de la session:", refreshErr);
+      }
+    }
+
     if (rpcError) {
       console.error("[admin_create_prospector] Erreur RPC:", rpcError);
+      if (rpcError.message?.toLowerCase().includes("jwt expired")) {
+        return {
+          success: false,
+          error: "Votre session administrateur a expiré. Veuillez vous reconnecter pour valider cette action.",
+        };
+      }
+      if (
+        rpcError.message?.toLowerCase().includes("function") &&
+        (rpcError.message?.toLowerCase().includes("does not exist") || rpcError.message?.toLowerCase().includes("not found"))
+      ) {
+        return {
+          success: false,
+          error: `La fonction SQL "admin_create_prospector" n'est pas installée dans Supabase. Veuillez exécuter le script SQL fourni dans le SQL Editor.`,
+        };
+      }
       return { 
         success: false, 
-        error: `Erreur lors de la création du prospecteur : ${rpcError.message}. Assurez-vous d'avoir exécuté la fonction SQL "admin_create_prospector" dans Supabase.` 
+        error: `Erreur lors de la création du prospecteur : ${rpcError.message}` 
       };
     }
 
@@ -171,9 +209,21 @@ export async function updateProspectorStatus(
 export async function deleteProspector(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     // 1. Tenter la suppression via RPC admin sécurisée
-    const { error: rpcError } = await supabase.rpc("admin_delete_prospector", {
+    let { error: rpcError } = await supabase.rpc("admin_delete_prospector", {
       p_user_id: id,
     });
+
+    if (rpcError && (rpcError.message?.toLowerCase().includes("jwt") || rpcError.code === "PGRST301")) {
+      try {
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (!refreshError && refreshData.session) {
+          const retry = await supabase.rpc("admin_delete_prospector", {
+            p_user_id: id,
+          });
+          rpcError = retry.error;
+        }
+      } catch (_) {}
+    }
 
     if (rpcError) {
       console.warn("[deleteProspector] Fallback direct deletion:", rpcError.message);
