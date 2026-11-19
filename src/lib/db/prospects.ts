@@ -215,6 +215,61 @@ export async function updateProspectFinale(
 }
 
 /**
+ * Mise à jour de la colonne NOTE (Géré par le prospecteur assigné ou l'administrateur)
+ */
+export async function updateProspectNotes(
+  id: string,
+  notes: string | null,
+  prospectorId?: string
+): Promise<Prospect> {
+  const cleanNotes = notes ? notes.trim() || null : null;
+  const updates: Record<string, any> = {
+    notes: cleanNotes,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from("prospects")
+    .update(updates)
+    .eq("id", id)
+    .select(`
+      *,
+      prospector:profiles(id, full_name, username, phone, wilaya)
+    `)
+    .single();
+
+  if (error) {
+    // Fallback sans jointure si le foreign key strict pose souci
+    const { data: fallback, error: fbErr } = await supabase
+      .from("prospects")
+      .update(updates)
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (fbErr) throw new Error(fbErr.message);
+    return fallback as unknown as Prospect;
+  }
+
+  // Journaliser l'activité de note
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData?.user?.id || prospectorId;
+    if (userId) {
+      await supabase.from("prospect_activities").insert({
+        prospect_id: id,
+        user_id: userId,
+        type: "note",
+        notes: cleanNotes || "Note effacée",
+      });
+    }
+  } catch {
+    // Ignorer si table d'activités non créée
+  }
+
+  return data as unknown as Prospect;
+}
+
+/**
  * Attribution de listes de prospects à un prospecteur.
  * Les IDs sont envoyés en lots de 50 pour éviter les URLs trop longues (400 Bad Request).
  */

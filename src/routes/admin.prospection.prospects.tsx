@@ -62,6 +62,7 @@ import {
   getProspects,
   importAndAssignExcelProspects,
   updateProspectFinale,
+  updateProspectNotes,
   updateProspectStatus,
 } from "@/lib/db/prospects";
 import type { ExcelParseResult, ParsedProspectRow } from "@/lib/excel-parser";
@@ -214,6 +215,19 @@ function ProspectsManagementPage() {
       await updateProspectStatus(prospectId, newStatus);
     } catch (err) {
       console.error("Erreur mise à jour Statut :", err);
+      loadData();
+    }
+  };
+
+  // Modification directe de la Note
+  const handleNotesChange = async (prospectId: string, notes: string | null) => {
+    try {
+      setProspects((prev) =>
+        prev.map((p) => (p.id === prospectId ? { ...p, notes } : p))
+      );
+      await updateProspectNotes(prospectId, notes);
+    } catch (err) {
+      console.error("Erreur mise à jour Note :", err);
       loadData();
     }
   };
@@ -611,8 +625,10 @@ function ProspectsManagementPage() {
             prospects={prospects}
             canEditStatus={true}
             canEditFinale={true} // L'administrateur a le contrôle total de Finale
+            canEditNotes={true}
             onStatusChange={handleStatusChange}
             onFinaleChange={handleAdminChangeFinale}
+            onNotesChange={handleNotesChange}
             enableSelection={true}
             selectedIds={selectedIds}
             onSelectChange={setSelectedIds}

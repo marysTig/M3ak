@@ -19,18 +19,8 @@ import { PageHeader } from "@/components/app/page-header";
 import { StatCard } from "@/components/app/stat-card";
 import { HierarchicalProspectsTable } from "@/components/prospection/hierarchical-prospects-table";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
-import { getProspects, updateProspect, updateProspectStatus } from "@/lib/db/prospects";
+import { getProspects, updateProspectNotes, updateProspectStatus } from "@/lib/db/prospects";
 import type { Prospect, ProspectStatus } from "@/lib/types/prospection";
 
 export const Route = createFileRoute("/prospector/")({
@@ -47,11 +37,6 @@ function ProspectorDashboardPage() {
   const { profile } = useAuthGuard("prospector");
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Modale pour ajouter/éditer des notes
-  const [noteProspect, setNoteProspect] = useState<Prospect | null>(null);
-  const [noteText, setNoteText] = useState("");
-  const [savingNote, setSavingNote] = useState(false);
 
   async function loadMyProspects() {
     if (!profile?.id) return;
@@ -89,22 +74,17 @@ function ProspectorDashboardPage() {
     }
   };
 
-  // Enregistrer une note commerciale
-  const handleSaveNotes = async () => {
-    if (!noteProspect) return;
-    setSavingNote(true);
+  // Modification de la note commerciale
+  const handleNotesChange = async (prospectId: string, notes: string | null) => {
     try {
-      const updated = await updateProspect(noteProspect.id, {
-        notes: noteText.trim() || null,
-      });
-      if (updated) {
-        setProspects((prev) =>
-          prev.map((p) => (p.id === noteProspect.id ? { ...p, notes: noteText.trim() } : p))
-        );
-        setNoteProspect(null);
-      }
-    } finally {
-      setSavingNote(false);
+      setProspects((prev) =>
+        prev.map((p) => (p.id === prospectId ? { ...p, notes } : p))
+      );
+      await updateProspectNotes(prospectId, notes, profile?.id);
+    } catch (err: any) {
+      console.error("Erreur modification note :", err);
+      alert(`Erreur : ${err?.message || "Impossible d'enregistrer la note."}`);
+      loadMyProspects();
     }
   };
 
@@ -225,45 +205,15 @@ function ProspectorDashboardPage() {
             prospects={prospects}
             canEditStatus={true} // Le prospecteur peut modifier son Statut
             canEditFinale={false} // Finale est strictement en LECTURE SEULE pour le prospecteur
+            canEditNotes={true} // Le prospecteur peut enregistrer ses notes personnelles
             onStatusChange={handleStatusChange}
+            onNotesChange={handleNotesChange}
             enableSelection={false}
             showProspectorColumn={false}
             defaultHierarchical={false}
           />
         )}
       </div>
-
-      {/* MODALE NOTES COMMERCIALES */}
-      <Dialog open={!!noteProspect} onOpenChange={(open) => !open && setNoteProspect(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Notes d'échange — {noteProspect?.business_name}</DialogTitle>
-            <DialogDescription>
-              Ajoutez vos remarques de prospection ou l'historique de votre appel.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-2 py-2">
-            <Label htmlFor="note">Commentaire de terrain</Label>
-            <Textarea
-              id="note"
-              placeholder="Client intéressé par la fidélité, rappeler mardi 14h..."
-              rows={4}
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-            />
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setNoteProspect(null)}>
-              Annuler
-            </Button>
-            <Button onClick={handleSaveNotes} disabled={savingNote}>
-              {savingNote ? "Enregistrement..." : "Enregistrer la note"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

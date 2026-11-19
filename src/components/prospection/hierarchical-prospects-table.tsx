@@ -5,13 +5,16 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  FileText,
   Filter,
   Lock,
   MapPin,
   Phone,
+  Plus,
   RefreshCw,
   Search,
   Sparkles,
+  Trash2,
   UserCheck,
 } from "lucide-react";
 import React, { Fragment, useMemo, useState } from "react";
@@ -19,7 +22,16 @@ import React, { Fragment, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -35,7 +47,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { ALGERIA_WILAYAS } from "@/lib/constants/algeria-wilayas";
+import { updateProspectNotes } from "@/lib/db/prospects";
 import type { Prospect, ProspectFinale, ProspectStatus } from "@/lib/types/prospection";
 import {
   PROSPECTOR_EDITABLE_STATUSES,
@@ -45,12 +59,54 @@ import {
   PROSPECT_STATUS_LABELS,
 } from "@/lib/types/prospection";
 
+/**
+ * Normalise automatiquement les numéros algériens pour l'API WhatsApp (wa.me)
+ * Format requis : 213XXXXXXXXX (sans +, sans espaces, sans 0 initial)
+ */
+export function formatWhatsAppUrl(rawPhone: string | null | undefined): string | null {
+  if (!rawPhone) return null;
+  let digits = rawPhone.replace(/\D/g, "");
+  if (!digits) return null;
+
+  if (digits.startsWith("2130")) {
+    digits = "213" + digits.slice(4);
+  } else if (digits.startsWith("0")) {
+    digits = "213" + digits.slice(1);
+  } else if (digits.startsWith("213")) {
+    digits = digits;
+  } else if (digits.length === 9) {
+    digits = "213" + digits;
+  }
+
+  return `https://wa.me/${digits}`;
+}
+
+function WhatsAppIcon({ className = "size-3.5" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      fill="currentColor"
+    >
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+    </svg>
+  );
+}
+
 interface HierarchicalProspectsTableProps {
   prospects: Prospect[];
   canEditStatus?: boolean; // Prospecteur ou Admin
   canEditFinale?: boolean; // STRICTEMENT Admin
+  canEditNotes?: boolean; // Édition des notes (défaut: true)
   onStatusChange?: (prospectId: string, status: ProspectStatus) => Promise<void> | void;
   onFinaleChange?: (prospectId: string, finale: ProspectFinale) => Promise<void> | void;
+  onNotesChange?: (prospectId: string, notes: string | null) => Promise<void> | void;
   selectedIds?: string[];
   onSelectChange?: (selectedIds: string[]) => void;
   enableSelection?: boolean;
@@ -62,8 +118,10 @@ export function HierarchicalProspectsTable({
   prospects,
   canEditStatus = false,
   canEditFinale = false,
+  canEditNotes = true,
   onStatusChange,
   onFinaleChange,
+  onNotesChange,
   selectedIds = [],
   onSelectChange,
   enableSelection = false,
@@ -88,28 +146,88 @@ export function HierarchicalProspectsTable({
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
+  // Notes modale & état réactif local
+  const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
+  const [noteText, setNoteText] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+  const [localNotes, setLocalNotes] = useState<Record<string, string | null>>({});
+
+  const handleOpenNote = (p: Prospect) => {
+    setEditingProspect(p);
+    const currentNote = localNotes[p.id] !== undefined ? localNotes[p.id] : p.notes;
+    setNoteText(currentNote || "");
+  };
+
+  const handleSaveNote = async () => {
+    if (!editingProspect) return;
+    setSavingNote(true);
+    const trimmed = noteText.trim() || null;
+    try {
+      await updateProspectNotes(editingProspect.id, trimmed);
+      setLocalNotes((prev) => ({ ...prev, [editingProspect.id]: trimmed }));
+      if (onNotesChange) {
+        await onNotesChange(editingProspect.id, trimmed);
+      }
+      setEditingProspect(null);
+    } catch (err: any) {
+      console.error("Erreur sauvegarde note :", err);
+      alert(`Erreur lors de l'enregistrement de la note : ${err?.message || "Veuillez réessayer."}`);
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
+  const handleDeleteNote = async () => {
+    if (!editingProspect) return;
+    if (!window.confirm("Voulez-vous vraiment effacer cette note ?")) return;
+    setSavingNote(true);
+    try {
+      await updateProspectNotes(editingProspect.id, null);
+      setLocalNotes((prev) => ({ ...prev, [editingProspect.id]: null }));
+      if (onNotesChange) {
+        await onNotesChange(editingProspect.id, null);
+      }
+      setEditingProspect(null);
+    } catch (err: any) {
+      console.error("Erreur suppression note :", err);
+      alert(`Erreur lors de la suppression de la note : ${err?.message || "Veuillez réessayer."}`);
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
+  // Enrichir les prospects avec les notes locales
+  const enrichedProspects = useMemo(() => {
+    return prospects.map((p) => {
+      if (localNotes[p.id] !== undefined) {
+        return { ...p, notes: localNotes[p.id] };
+      }
+      return p;
+    });
+  }, [prospects, localNotes]);
+
   // Extraction unique des communes et activités pour les filtres
   const availableCommunes = useMemo(() => {
     const set = new Set<string>();
-    prospects.forEach((p) => {
+    enrichedProspects.forEach((p) => {
       if (p.commune && (selectedWilaya === "all" || p.wilaya === selectedWilaya)) {
         set.add(p.commune);
       }
     });
     return Array.from(set).sort();
-  }, [prospects, selectedWilaya]);
+  }, [enrichedProspects, selectedWilaya]);
 
   const availableActivities = useMemo(() => {
     const set = new Set<string>();
-    prospects.forEach((p) => {
+    enrichedProspects.forEach((p) => {
       if (p.category) set.add(p.category);
     });
     return Array.from(set).sort();
-  }, [prospects]);
+  }, [enrichedProspects]);
 
   const availableProspectors = useMemo(() => {
     const map = new Map<string, { id: string; name: string }>();
-    prospects.forEach((p) => {
+    enrichedProspects.forEach((p) => {
       if (p.assigned_to && p.prospector) {
         map.set(p.assigned_to, {
           id: p.assigned_to,
@@ -118,17 +236,18 @@ export function HierarchicalProspectsTable({
       }
     });
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [prospects]);
+  }, [enrichedProspects]);
 
   // Filtrage
   const filteredProspects = useMemo(() => {
-    return prospects.filter((p) => {
+    return enrichedProspects.filter((p) => {
       const matchSearch =
         !searchTerm.trim() ||
         p.business_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.commune?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.wilaya?.toLowerCase().includes(searchTerm.toLowerCase());
+        p.wilaya?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.notes?.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchWilaya = selectedWilaya === "all" || p.wilaya === selectedWilaya;
       const matchCommune = selectedCommune === "all" || p.commune === selectedCommune;
@@ -147,7 +266,7 @@ export function HierarchicalProspectsTable({
       return matchSearch && matchWilaya && matchCommune && matchActivity && matchStatus && matchFinale && matchProspector;
     });
   }, [
-    prospects,
+    enrichedProspects,
     searchTerm,
     selectedWilaya,
     selectedCommune,
@@ -510,6 +629,8 @@ export function HierarchicalProspectsTable({
                                     onToggleSelect={() => handleToggleSelectOne(p.id)}
                                     canEditStatus={canEditStatus}
                                     canEditFinale={canEditFinale}
+                                    canEditNotes={canEditNotes}
+                                    onOpenNote={handleOpenNote}
                                     onStatusChange={onStatusChange}
                                     onFinaleChange={onFinaleChange}
                                     showProspectorColumn={showProspectorColumn}
@@ -536,6 +657,8 @@ export function HierarchicalProspectsTable({
                 onToggleSelect={() => handleToggleSelectOne(p.id)}
                 canEditStatus={canEditStatus}
                 canEditFinale={canEditFinale}
+                canEditNotes={canEditNotes}
+                onOpenNote={handleOpenNote}
                 onStatusChange={onStatusChange}
                 onFinaleChange={onFinaleChange}
                 showProspectorColumn={showProspectorColumn}
@@ -546,7 +669,7 @@ export function HierarchicalProspectsTable({
 
         {/* ─── VUE DESKTOP : TABLEAU COMPLET (hidden md:block) ─── */}
         <div className="hidden md:block w-full overflow-x-auto">
-          <table className="w-full min-w-[820px] table-fixed caption-bottom text-sm border-collapse">
+          <table className="w-full min-w-[850px] table-fixed caption-bottom text-sm border-collapse">
             <thead className="bg-surface/90 [&_tr]:border-b">
               <TableRow className="border-b border-border/80">
                 {enableSelection && (
@@ -560,22 +683,23 @@ export function HierarchicalProspectsTable({
                     />
                   </TableHead>
                 )}
-                <TableHead className="min-w-[190px] w-[24%]">1. Nom du prospect</TableHead>
-                <TableHead className="min-w-[105px] w-[12%] whitespace-nowrap">2. Wilaya</TableHead>
-                <TableHead className="min-w-[110px] w-[13%] whitespace-nowrap">3. Commune</TableHead>
-                <TableHead className="min-w-[120px] w-[13%] whitespace-nowrap">4. Téléphone</TableHead>
-                <TableHead className="min-w-[125px] w-[14%] whitespace-nowrap">5. Activité</TableHead>
+                <TableHead className="min-w-[190px] w-[21%]">1. Nom du prospect</TableHead>
+                <TableHead className="min-w-[105px] w-[11%] whitespace-nowrap">2. Wilaya</TableHead>
+                <TableHead className="min-w-[110px] w-[11%] whitespace-nowrap">3. Commune</TableHead>
+                <TableHead className="min-w-[130px] w-[13%] whitespace-nowrap">4. Téléphone</TableHead>
+                <TableHead className="min-w-[120px] w-[12%] whitespace-nowrap">5. Activité</TableHead>
                 {showProspectorColumn && (
-                  <TableHead className="min-w-[120px] w-[12%] whitespace-nowrap">Commercial</TableHead>
+                  <TableHead className="min-w-[115px] w-[11%] whitespace-nowrap">Commercial</TableHead>
                 )}
-                <TableHead className="min-w-[115px] w-[12%] whitespace-nowrap text-center">6. Statut</TableHead>
-                <TableHead className="min-w-[115px] w-[12%] whitespace-nowrap text-center">7. Finale</TableHead>
+                <TableHead className="min-w-[110px] w-[10%] whitespace-nowrap text-center">6. Statut</TableHead>
+                <TableHead className="min-w-[110px] w-[10%] whitespace-nowrap text-center">7. Finale</TableHead>
+                <TableHead className="min-w-[125px] w-[12%] whitespace-nowrap">8. Note</TableHead>
               </TableRow>
             </thead>
             <tbody>
               {filteredProspects.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={enableSelection ? (showProspectorColumn ? 9 : 8) : (showProspectorColumn ? 8 : 7)} className="h-36 text-center text-muted">
+                  <TableCell colSpan={enableSelection ? (showProspectorColumn ? 10 : 9) : (showProspectorColumn ? 9 : 8)} className="h-36 text-center text-muted">
                     Aucun prospect ne correspond aux critères de recherche.
                   </TableCell>
                 </TableRow>
@@ -594,7 +718,7 @@ export function HierarchicalProspectsTable({
                       {/* LIGNE HEADER WILAYA */}
                       <tr className="bg-surface/90 hover:bg-surface font-semibold text-foreground text-sm cursor-pointer select-none border-b border-border/60">
                         <td
-                          colSpan={enableSelection ? (showProspectorColumn ? 9 : 8) : (showProspectorColumn ? 8 : 7)}
+                          colSpan={enableSelection ? (showProspectorColumn ? 10 : 9) : (showProspectorColumn ? 9 : 8)}
                           className="p-3"
                           onClick={() => toggleWilaya(wilayaName)}
                         >
@@ -627,7 +751,7 @@ export function HierarchicalProspectsTable({
                               {/* LIGNE HEADER COMMUNE */}
                               <tr className="bg-surface/40 hover:bg-surface/60 text-xs font-medium cursor-pointer select-none border-b border-border/40">
                                 <td
-                                  colSpan={enableSelection ? (showProspectorColumn ? 9 : 8) : (showProspectorColumn ? 8 : 7)}
+                                  colSpan={enableSelection ? (showProspectorColumn ? 10 : 9) : (showProspectorColumn ? 9 : 8)}
                                   className="py-2.5 px-6"
                                   onClick={() => toggleCommune(communeKey)}
                                 >
@@ -660,6 +784,8 @@ export function HierarchicalProspectsTable({
                                     onToggleSelect={() => handleToggleSelectOne(p.id)}
                                     canEditStatus={canEditStatus}
                                     canEditFinale={canEditFinale}
+                                    canEditNotes={canEditNotes}
+                                    onOpenNote={handleOpenNote}
                                     onStatusChange={onStatusChange}
                                     onFinaleChange={onFinaleChange}
                                     showProspectorColumn={showProspectorColumn}
@@ -683,6 +809,8 @@ export function HierarchicalProspectsTable({
                     onToggleSelect={() => handleToggleSelectOne(p.id)}
                     canEditStatus={canEditStatus}
                     canEditFinale={canEditFinale}
+                    canEditNotes={canEditNotes}
+                    onOpenNote={handleOpenNote}
                     onStatusChange={onStatusChange}
                     onFinaleChange={onFinaleChange}
                     showProspectorColumn={showProspectorColumn}
@@ -720,6 +848,118 @@ export function HierarchicalProspectsTable({
           </div>
         )}
       </div>
+
+      {/* ─── MODALE D'ÉDITION DE NOTE PERSONNELLE ─── */}
+      <Dialog open={!!editingProspect} onOpenChange={(open) => !open && setEditingProspect(null)}>
+        <DialogContent className="max-w-md w-[calc(100%-1.5rem)] rounded-2xl p-4 sm:p-5">
+          <DialogHeader className="text-left space-y-1">
+            <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs font-bold uppercase tracking-wider">
+              <FileText className="size-3.5" />
+              <span>Note Commerciale</span>
+            </div>
+            <DialogTitle className="text-base sm:text-lg font-bold text-foreground">
+              {editingProspect?.business_name}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <span>{editingProspect?.wilaya} {editingProspect?.commune ? `• ${editingProspect.commune}` : ""}</span>
+              {editingProspect?.phone && (
+                <>
+                  <span>•</span>
+                  <span className="font-mono">{editingProspect.phone}</span>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            {editingProspect?.prospector && (
+              <div className="flex items-center gap-2 text-xs bg-surface-muted/60 p-2.5 rounded-xl border border-border/60">
+                <UserCheck className="size-3.5 text-primary shrink-0" />
+                <span className="text-muted-foreground">Commercial assigné :</span>
+                <strong className="text-foreground">{editingProspect.prospector.full_name}</strong>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="prospect-note-field" className="text-xs font-semibold text-foreground">
+                  Remarques, détails d'appel ou de visite
+                </Label>
+                {noteText.length > 0 && (
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    {noteText.length} car.
+                  </span>
+                )}
+              </div>
+              <Textarea
+                id="prospect-note-field"
+                placeholder="Ex: Responsable intéressé par la fidélité, rappeler mardi à 14h, gérant s'appelle Amine..."
+                rows={4}
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                disabled={savingNote || !canEditNotes}
+                className="text-xs sm:text-sm bg-background resize-none leading-relaxed min-h-[100px]"
+                autoFocus
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Cette note est enregistrée en temps réel et consultable par l'administrateur.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-row items-center justify-between gap-2 pt-2 border-t border-border/60 sm:space-x-0">
+            {editingProspect?.notes && canEditNotes ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleDeleteNote}
+                disabled={savingNote}
+                className="text-xs text-destructive hover:bg-destructive/10 h-8 px-2"
+              >
+                <Trash2 className="size-3.5 mr-1" />
+                Effacer
+              </Button>
+            ) : (
+              <div />
+            )}
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setEditingProspect(null)}
+                disabled={savingNote}
+                className="text-xs h-8 px-3 rounded-lg"
+              >
+                Annuler
+              </Button>
+              {canEditNotes && (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleSaveNote}
+                  disabled={savingNote}
+                  className="text-xs h-8 px-3 font-semibold gap-1.5 rounded-lg bg-primary"
+                >
+                  {savingNote ? (
+                    <>
+                      <RefreshCw className="size-3.5 animate-spin" />
+                      Enregistrement...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="size-3.5" />
+                      Enregistrer
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -733,6 +973,8 @@ function ProspectRow({
   onToggleSelect,
   canEditStatus,
   canEditFinale,
+  canEditNotes = true,
+  onOpenNote,
   onStatusChange,
   onFinaleChange,
   showProspectorColumn,
@@ -744,6 +986,8 @@ function ProspectRow({
   onToggleSelect: () => void;
   canEditStatus: boolean;
   canEditFinale: boolean;
+  canEditNotes?: boolean;
+  onOpenNote: (prospect: Prospect) => void;
   onStatusChange?: (id: string, s: ProspectStatus) => void;
   onFinaleChange?: (id: string, f: ProspectFinale) => void;
   showProspectorColumn: boolean;
@@ -782,45 +1026,58 @@ function ProspectRow({
       )}
 
       {/* 1. Nom du prospect */}
-      <TableCell className={`min-w-[220px] ${indent ? "pl-10" : ""}`}>
+      <TableCell className={`min-w-[190px] ${indent ? "pl-10" : ""}`}>
         <div className="font-semibold text-foreground leading-snug break-words">
           {prospect.business_name}
         </div>
-        {prospect.notes && (
-          <div className="text-[11px] text-muted truncate max-w-[200px]" title={prospect.notes}>
-            {prospect.notes}
-          </div>
-        )}
       </TableCell>
 
       {/* 2. Wilaya */}
-      <TableCell className="min-w-[120px] whitespace-nowrap font-medium text-foreground">
+      <TableCell className="min-w-[105px] whitespace-nowrap font-medium text-foreground">
         {prospect.wilaya}
       </TableCell>
 
       {/* 3. Commune */}
-      <TableCell className="min-w-[130px] whitespace-nowrap text-muted-foreground">
+      <TableCell className="min-w-[110px] whitespace-nowrap text-muted-foreground">
         {prospect.commune || "—"}
       </TableCell>
 
-      {/* 4. Téléphone */}
-      <TableCell className="min-w-[120px] whitespace-nowrap">
-        <div className="flex items-center gap-1.5 font-mono text-slate-800 dark:text-slate-100 font-semibold text-xs">
-          <Phone className="size-3 text-slate-500 shrink-0" />
-          <span>{prospect.phone}</span>
+      {/* 4. Téléphone avec WhatsApp direct */}
+      <TableCell className="min-w-[130px] whitespace-nowrap">
+        <div className="flex items-center justify-between gap-1 font-mono text-slate-800 dark:text-slate-100 font-semibold text-xs">
+          <a
+            href={prospect.phone ? `tel:${prospect.phone}` : undefined}
+            className="flex items-center gap-1.5 hover:text-primary hover:underline transition-colors truncate"
+            title="Appeler par téléphone"
+          >
+            <Phone className="size-3 text-slate-500 shrink-0" />
+            <span className="truncate">{prospect.phone || "—"}</span>
+          </a>
+          {prospect.phone && (
+            <a
+              href={formatWhatsAppUrl(prospect.phone) || "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center justify-center size-6 rounded-md bg-[#25D366]/10 hover:bg-[#25D366] text-[#25D366] hover:text-white transition-all shrink-0 ml-1"
+              title="Discuter sur WhatsApp (wa.me)"
+            >
+              <WhatsAppIcon className="size-3.5" />
+            </a>
+          )}
         </div>
       </TableCell>
 
       {/* 5. Activité */}
-      <TableCell className="min-w-[125px] whitespace-nowrap">
-        <span className="text-slate-700 dark:text-slate-300 font-semibold text-xs truncate block max-w-[160px] whitespace-nowrap" title={prospect.category || "Commerce"}>
+      <TableCell className="min-w-[120px] whitespace-nowrap">
+        <span className="text-slate-700 dark:text-slate-300 font-semibold text-xs truncate block max-w-[150px] whitespace-nowrap" title={prospect.category || "Commerce"}>
           {prospect.category || "Commerce"}
         </span>
       </TableCell>
 
       {/* Commercial assigné */}
       {showProspectorColumn && (
-        <TableCell className="min-w-[120px] whitespace-nowrap">
+        <TableCell className="min-w-[115px] whitespace-nowrap">
           {prospect.prospector ? (
             <Badge variant="outline" className="text-[11px] gap-1 border-primary/20 text-primary whitespace-nowrap max-w-[140px] truncate">
               <UserCheck className="size-2.5 shrink-0" />
@@ -833,7 +1090,7 @@ function ProspectRow({
       )}
 
       {/* 6. STATUT (Géré exclusivement par le prospecteur) */}
-      <TableCell className="min-w-[115px] whitespace-nowrap text-center">
+      <TableCell className="min-w-[110px] whitespace-nowrap text-center">
         {canEditStatus ? (
           <Select
             value={prospect.status}
@@ -841,7 +1098,7 @@ function ProspectRow({
             disabled={updatingStatus}
           >
             <SelectTrigger
-              className={`h-7 w-full min-w-[105px] max-w-[130px] mx-auto text-[11px] font-semibold rounded-full border shadow-2xs whitespace-nowrap ${
+              className={`h-7 w-full min-w-[100px] max-w-[125px] mx-auto text-[11px] font-semibold rounded-full border shadow-2xs whitespace-nowrap ${
                 PROSPECT_STATUS_COLORS[prospect.status] || ""
               }`}
             >
@@ -857,7 +1114,7 @@ function ProspectRow({
           </Select>
         ) : (
           <span
-            className={`inline-flex items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap border shadow-2xs max-w-[130px] truncate ${
+            className={`inline-flex items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap border shadow-2xs max-w-[125px] truncate ${
               PROSPECT_STATUS_COLORS[prospect.status] || ""
             }`}
           >
@@ -867,7 +1124,7 @@ function ProspectRow({
       </TableCell>
 
       {/* 7. FINALE (Géré exclusivement par l'administrateur) */}
-      <TableCell className="min-w-[115px] whitespace-nowrap text-center">
+      <TableCell className="min-w-[110px] whitespace-nowrap text-center">
         {canEditFinale ? (
           <Select
             value={prospect.finale || "none"}
@@ -875,7 +1132,7 @@ function ProspectRow({
             disabled={updatingFinale}
           >
             <SelectTrigger
-              className={`h-7 w-full min-w-[105px] max-w-[130px] mx-auto text-[11px] font-semibold rounded-full border shadow-2xs whitespace-nowrap ${
+              className={`h-7 w-full min-w-[100px] max-w-[125px] mx-auto text-[11px] font-semibold rounded-full border shadow-2xs whitespace-nowrap ${
                 PROSPECT_FINALE_COLORS[prospect.finale || "none"]
               }`}
             >
@@ -904,6 +1161,31 @@ function ProspectRow({
           </div>
         )}
       </TableCell>
+
+      {/* 8. NOTE (Informations, remarques de visite ou d'appel) */}
+      <TableCell className="min-w-[125px] whitespace-nowrap">
+        {prospect.notes ? (
+          <button
+            type="button"
+            onClick={() => onOpenNote(prospect)}
+            className="group flex items-center gap-1.5 text-left px-2 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/20 transition-all max-w-[150px] w-full"
+            title={prospect.notes}
+          >
+            <FileText className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform" />
+            <span className="text-[11px] font-medium truncate flex-1">{prospect.notes}</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onOpenNote(prospect)}
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-surface-muted px-2 py-1 rounded-lg transition-colors border border-dashed border-border/70"
+            title="Ajouter une note pour ce prospect"
+          >
+            <Plus className="size-3" />
+            <span>Note</span>
+          </button>
+        )}
+      </TableCell>
     </TableRow>
   );
 }
@@ -917,6 +1199,8 @@ function ProspectMobileCard({
   onToggleSelect,
   canEditStatus,
   canEditFinale,
+  canEditNotes = true,
+  onOpenNote,
   onStatusChange,
   onFinaleChange,
   showProspectorColumn,
@@ -927,6 +1211,8 @@ function ProspectMobileCard({
   onToggleSelect: () => void;
   canEditStatus: boolean;
   canEditFinale: boolean;
+  canEditNotes?: boolean;
+  onOpenNote: (prospect: Prospect) => void;
   onStatusChange?: (id: string, s: ProspectStatus) => void;
   onFinaleChange?: (id: string, f: ProspectFinale) => void;
   showProspectorColumn: boolean;
@@ -1014,8 +1300,8 @@ function ProspectMobileCard({
               </SelectTrigger>
               <SelectContent>
                 {PROSPECTOR_EDITABLE_STATUSES.map((st) => (
-                  <SelectItem key={st} value={st} className="text-xs font-semibold">
-                    {PROSPECT_STATUS_LABELS[st]}
+                  <SelectItem key={st.id} value={st.id} className="text-xs font-semibold">
+                    {PROSPECT_STATUS_LABELS[st.id]}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1073,16 +1359,28 @@ function ProspectMobileCard({
         </div>
       </div>
 
-      {/* Ligne 3 : Bouton d'appel direct en 1 clic */}
-      <div className="flex items-center justify-between gap-2 pt-1">
+      {/* Ligne 3 : Boutons Appel direct et WhatsApp */}
+      <div className="flex items-center gap-2 pt-1">
         {prospect.phone ? (
-          <a
-            href={`tel:${prospect.phone}`}
-            className="flex-1 inline-flex items-center justify-center gap-2 h-9 px-3 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 active:scale-[0.98] transition-all shadow-xs"
-          >
-            <Phone className="size-3.5 shrink-0" />
-            <span>Appeler {prospect.phone}</span>
-          </a>
+          <>
+            <a
+              href={`tel:${prospect.phone}`}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 active:scale-[0.98] transition-all shadow-xs truncate"
+            >
+              <Phone className="size-3 shrink-0" />
+              <span className="truncate">Appeler</span>
+            </a>
+            <a
+              href={formatWhatsAppUrl(prospect.phone) || "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold text-xs active:scale-[0.98] transition-all shadow-xs shrink-0"
+              title="Discuter sur WhatsApp"
+            >
+              <WhatsAppIcon className="size-3.5" />
+              <span>WhatsApp</span>
+            </a>
+          </>
         ) : (
           <div className="flex-1 text-xs text-muted italic text-center py-1.5 bg-surface-muted/50 rounded-xl border border-dashed border-border/50">
             Aucun numéro renseigné
@@ -1097,9 +1395,37 @@ function ProspectMobileCard({
         )}
       </div>
 
-      {prospect.notes && (
-        <div className="text-[11px] text-slate-700 dark:text-slate-300 bg-surface-muted/60 p-2 rounded-lg border border-border/50 break-words">
-          <strong>Note :</strong> {prospect.notes}
+      {/* 8. Note personnelle mobile */}
+      {prospect.notes ? (
+        <div className="text-[11px] text-slate-700 dark:text-slate-300 bg-amber-500/5 p-2.5 rounded-xl border border-amber-500/20 break-words flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <strong className="text-amber-700 dark:text-amber-400 font-bold flex items-center gap-1 mb-0.5">
+              <FileText className="size-3" /> Note :
+            </strong>
+            <p className="whitespace-pre-wrap leading-relaxed">{prospect.notes}</p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => onOpenNote(prospect)}
+            className="h-6 px-1.5 text-[10px] text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 shrink-0 font-semibold"
+          >
+            Modifier
+          </Button>
+        </div>
+      ) : (
+        <div className="pt-0.5">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenNote(prospect)}
+            className="w-full h-7 text-[11px] text-muted-foreground hover:text-foreground border-dashed gap-1"
+          >
+            <Plus className="size-3" />
+            Ajouter une note personnelle
+          </Button>
         </div>
       )}
     </div>
