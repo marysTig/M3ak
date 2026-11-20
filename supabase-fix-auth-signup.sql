@@ -475,10 +475,49 @@ $$;
 GRANT EXECUTE ON FUNCTION public.admin_delete_prospector TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_delete_prospector TO service_role;
 
--- ─── 10. Réparation rétroactive automatique des identités prospecteurs existantes ───
+-- ─── 10. Réparation rétroactive automatique (500 Database error querying schema + identités) ───
+-- GoTrue crashe avec "500: Database error querying schema" si l'une de ces colonnes est NULL
+UPDATE auth.users
+SET 
+  confirmation_token          = COALESCE(confirmation_token, ''),
+  recovery_token              = COALESCE(recovery_token, ''),
+  email_change_token_new      = COALESCE(email_change_token_new, ''),
+  email_change                = COALESCE(email_change, ''),
+  email_change_token_current  = COALESCE(email_change_token_current, ''),
+  phone_change                = COALESCE(phone_change, ''),
+  phone_change_token          = COALESCE(phone_change_token, ''),
+  reauthentication_token      = COALESCE(reauthentication_token, ''),
+  email_change_confirm_status = COALESCE(email_change_confirm_status, 0),
+  is_super_admin              = COALESCE(is_super_admin, FALSE),
+  is_sso_user                 = COALESCE(is_sso_user, FALSE),
+  is_anonymous                = COALESCE(is_anonymous, FALSE),
+  role                        = COALESCE(NULLIF(role, ''), 'authenticated'),
+  aud                         = COALESCE(NULLIF(aud, ''), 'authenticated'),
+  instance_id                 = COALESCE(instance_id, '00000000-0000-0000-0000-000000000000'),
+  email_confirmed_at          = COALESCE(email_confirmed_at, NOW())
+WHERE 
+  confirmation_token IS NULL
+  OR recovery_token IS NULL
+  OR email_change_token_new IS NULL
+  OR email_change IS NULL
+  OR email_change_token_current IS NULL
+  OR phone_change IS NULL
+  OR phone_change_token IS NULL
+  OR reauthentication_token IS NULL
+  OR email_change_confirm_status IS NULL
+  OR is_super_admin IS NULL
+  OR is_sso_user IS NULL
+  OR is_anonymous IS NULL
+  OR role IS NULL
+  OR aud IS NULL
+  OR instance_id IS NULL
+  OR email_confirmed_at IS NULL;
+
+-- Corriger les identités provider_id = user_id::text
 UPDATE auth.identities
-SET provider_id = user_id::text
+SET provider_id = user_id::text,
+    updated_at  = NOW()
 WHERE provider = 'email' AND provider_id != user_id::text;
 
 -- ─── 11. Confirmation ──────────────────────────────────────────────────────────
-SELECT 'Fix appliqué avec succès ! admin_create_prospector, admin_reset_prospector_password et identités auth synchronisées.' AS resultat;
+SELECT 'Fix appliqué avec succès ! admin_create_prospector, admin_reset_prospector_password et comptes auth réparés.' AS resultat;
