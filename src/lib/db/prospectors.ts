@@ -268,17 +268,29 @@ export async function resetProspectorPassword(
   newPassword: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Si l'utilisateur est admin ou utilise une fonction sécurisée
     const cleanUser = cleanUsername(username);
-    const authEmail = `${cleanUser}@m3ak.app`;
-    
-    // Tentative de mise à jour si session active ou appel RPC
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword,
+
+    let { error: rpcError } = await supabase.rpc("admin_reset_prospector_password", {
+      p_username: cleanUser,
+      p_new_password: newPassword,
     });
 
-    if (error) {
-      return { success: false, error: error.message };
+    if (rpcError && (rpcError.message?.toLowerCase().includes("jwt") || rpcError.code === "PGRST301")) {
+      try {
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (!refreshError && refreshData.session) {
+          const retry = await supabase.rpc("admin_reset_prospector_password", {
+            p_username: cleanUser,
+            p_new_password: newPassword,
+          });
+          rpcError = retry.error;
+        }
+      } catch (_) {}
+    }
+
+    if (rpcError) {
+      console.error("[admin_reset_prospector_password] Erreur RPC:", rpcError);
+      return { success: false, error: rpcError.message };
     }
     return { success: true };
   } catch (err: any) {

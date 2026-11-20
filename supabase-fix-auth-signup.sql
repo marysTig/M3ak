@@ -216,7 +216,7 @@ BEGIN
     VALUES (
       v_user_id,
       v_user_id,
-      v_email,
+      v_user_id::text,
       'email',
       jsonb_build_object(
         'sub', v_user_id::text,
@@ -330,7 +330,7 @@ BEGIN
     VALUES (
       v_user_id,
       v_user_id,
-      v_email,
+      v_user_id::text,
       'email',
       jsonb_build_object(
         'sub', v_user_id::text,
@@ -394,7 +394,56 @@ $$;
 GRANT EXECUTE ON FUNCTION public.admin_create_prospector TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_create_prospector TO service_role;
 
--- ─── 8. Fonction RPC admin_delete_prospector (Suppression propre en cascade) ───
+-- ─── 8. Fonction RPC admin_reset_prospector_password ──────────────────────────
+DROP FUNCTION IF EXISTS public.admin_reset_prospector_password(text, text);
+CREATE OR REPLACE FUNCTION public.admin_reset_prospector_password(
+  p_username text,
+  p_new_password text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, extensions
+AS $$
+DECLARE
+  v_caller_role text;
+  v_email       text;
+  v_user_id     uuid;
+BEGIN
+  -- 1. Vérifier que l'appelant est administrateur
+  SELECT role INTO v_caller_role FROM public.profiles WHERE id = auth.uid();
+  IF v_caller_role IS DISTINCT FROM 'admin' THEN
+    RAISE EXCEPTION 'Action réservée aux administrateurs.';
+  END IF;
+
+  p_username := lower(trim(p_username));
+  v_email := p_username || '@m3ak.app';
+
+  SELECT id INTO v_user_id FROM auth.users WHERE lower(email) = lower(v_email) LIMIT 1;
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'Utilisateur introuvable dans auth.users.';
+  END IF;
+
+  -- Mettre à jour le mot de passe crypté
+  UPDATE auth.users
+  SET encrypted_password = extensions.crypt(p_new_password, extensions.gen_salt('bf', 10)),
+      updated_at = NOW()
+  WHERE id = v_user_id;
+
+  -- Réparer et synchroniser l'identité
+  UPDATE auth.identities
+  SET provider_id = v_user_id::text,
+      updated_at = NOW()
+  WHERE user_id = v_user_id AND provider = 'email';
+
+  RETURN jsonb_build_object('success', true);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_reset_prospector_password TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_reset_prospector_password TO service_role;
+
+-- ─── 9. Fonction RPC admin_delete_prospector (Suppression propre en cascade) ───
 -- DROP requis si le type de retour a changé depuis l'ancienne version
 DROP FUNCTION IF EXISTS public.admin_delete_prospector(uuid);
 CREATE OR REPLACE FUNCTION public.admin_delete_prospector(p_user_id uuid)
@@ -426,5 +475,10 @@ $$;
 GRANT EXECUTE ON FUNCTION public.admin_delete_prospector TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_delete_prospector TO service_role;
 
--- ─── 9. Confirmation ──────────────────────────────────────────────────────────
-SELECT 'Fix appliqué avec succès ! admin_create_prospector et admin_delete_prospector sont opérationnels.' AS resultat;
+-- ─── 10. Réparation rétroactive automatique des identités prospecteurs existantes ───
+UPDATE auth.identities
+SET provider_id = user_id::text
+WHERE provider = 'email' AND provider_id != user_id::text;
+
+-- ─── 11. Confirmation ──────────────────────────────────────────────────────────
+SELECT 'Fix appliqué avec succès ! admin_create_prospector, admin_reset_prospector_password et identités auth synchronisées.' AS resultat;
