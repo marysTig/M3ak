@@ -52,26 +52,60 @@ export async function getProspects(filters?: {
       }
     }
 
-    let { data, error } = await q;
-    if (error) {
-      console.warn("Erreur lecture prospects avec jointure, tentative sans jointure :", error.message);
-      let fallbackQ = supabase.from("prospects").select("*").order("created_at", { ascending: false });
-      if (filters?.prospectorId && filters.prospectorId !== "all") {
-        if (filters.prospectorId === "unassigned") {
-          fallbackQ = fallbackQ.is("assigned_to", null);
-        } else {
-          fallbackQ = fallbackQ.eq("assigned_to", filters.prospectorId);
+    let allData: any[] = [];
+    let from = 0;
+    const CHUNK_SIZE = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await q.range(from, from + CHUNK_SIZE - 1);
+      if (error) {
+        console.warn("Erreur lecture prospects avec jointure, tentative sans jointure :", error.message);
+        let fallbackData: any[] = [];
+        let fbFrom = 0;
+        let fbMore = true;
+        while (fbMore) {
+          let fallbackQ = supabase
+            .from("prospects")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .range(fbFrom, fbFrom + CHUNK_SIZE - 1);
+
+          if (filters?.prospectorId && filters.prospectorId !== "all") {
+            if (filters.prospectorId === "unassigned") {
+              fallbackQ = fallbackQ.is("assigned_to", null);
+            } else {
+              fallbackQ = fallbackQ.eq("assigned_to", filters.prospectorId);
+            }
+          }
+          const fallbackRes = await fallbackQ;
+          if (fallbackRes.error) {
+            console.error("Erreur fallback prospects :", fallbackRes.error.message);
+            break;
+          }
+          const batch = fallbackRes.data ?? [];
+          fallbackData.push(...batch);
+          if (batch.length < CHUNK_SIZE) {
+            fbMore = false;
+          } else {
+            fbFrom += CHUNK_SIZE;
+          }
         }
+        allData = fallbackData;
+        hasMore = false;
+        break;
       }
-      const fallbackRes = await fallbackQ;
-      if (fallbackRes.error) {
-        console.error("Erreur fallback prospects :", fallbackRes.error.message);
-        return [];
+
+      const batch = data ?? [];
+      allData.push(...batch);
+      if (batch.length < CHUNK_SIZE) {
+        hasMore = false;
+      } else {
+        from += CHUNK_SIZE;
       }
-      data = fallbackRes.data;
     }
 
-    let list = (data ?? []) as unknown as Prospect[];
+    let list = (allData ?? []) as unknown as Prospect[];
 
     if (filters?.search) {
       const s = filters.search.toLowerCase().trim();

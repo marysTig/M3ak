@@ -27,28 +27,55 @@ export async function getProspectors(): Promise<Prospector[]> {
 
     const prospectorIds = profiles.map((p) => p.id);
 
-    // Statistiques agrégées
-    const [prospectsRes, commissionsRes] = await Promise.all([
-      supabase
-        .from("prospects")
-        .select("assigned_to, status, finale")
-        .in("assigned_to", prospectorIds),
-      supabase
-        .from("commissions")
-        .select("prospector_id, amount_da, status")
-        .in("prospector_id", prospectorIds),
-    ]);
+    // 1. Tenter la récupération des statistiques via RPC rapide (sans limite de pagination PostgREST)
+    let statsMap: Record<string, { assigned: number; trials: number; conversions: number }> = {};
+    let usedRpc = false;
 
-    const prospects = prospectsRes.data ?? [];
-    const commissions = commissionsRes.data ?? [];
+    try {
+      const { data: rpcStats, error: rpcErr } = await supabase.rpc("get_prospector_stats");
+      if (!rpcErr && Array.isArray(rpcStats) && rpcStats.length > 0) {
+        for (const st of rpcStats) {
+          statsMap[st.prospector_id] = {
+            assigned: Number(st.assigned_count) || 0,
+            trials: Number(st.active_trials_count) || 0,
+            conversions: Number(st.conversions_count) || 0,
+          };
+        }
+        usedRpc = true;
+      }
+    } catch {
+      // Ignorer si fonction non encore déployée
+    }
+
+    // 2. Si pas de RPC disponible, exécuter des requêtes exactes (COUNT SQL sans limite de 1000 lignes)
+    if (!usedRpc) {
+      await Promise.all(
+        profiles.map(async (p) => {
+          const [assignedRes, trialsRes, convRes] = await Promise.all([
+            supabase.from("prospects").select("*", { count: "exact", head: true }).eq("assigned_to", p.id),
+            supabase.from("prospects").select("*", { count: "exact", head: true }).eq("assigned_to", p.id).eq("status", "trial"),
+            supabase.from("prospects").select("*", { count: "exact", head: true }).eq("assigned_to", p.id).or("finale.eq.paid,status.eq.converted"),
+          ]);
+          statsMap[p.id] = {
+            assigned: assignedRes.count || 0,
+            trials: trialsRes.count || 0,
+            conversions: convRes.count || 0,
+          };
+        })
+      );
+    }
+
+    // 3. Récupérer les commissions
+    const { data: commissionsData } = await supabase
+      .from("commissions")
+      .select("prospector_id, amount_da, status")
+      .in("prospector_id", prospectorIds);
+
+    const commissions = commissionsData ?? [];
 
     const result: Prospector[] = profiles.map((p) => {
-      const myProspects = prospects.filter((pr) => pr.assigned_to === p.id);
+      const stats = statsMap[p.id] || { assigned: 0, trials: 0, conversions: 0 };
       const myCommissions = commissions.filter((c) => c.prospector_id === p.id);
-
-      const assigned_count = myProspects.length;
-      const active_trials_count = myProspects.filter((pr) => pr.status === "trial").length;
-      const conversions_count = myProspects.filter((pr) => pr.finale === "paid" || pr.status === "converted").length;
       const total_commission_da = myCommissions
         .filter((c) => c.status === "paid")
         .reduce((sum, c) => sum + (Number(c.amount_da) || 1500), 0);
@@ -62,9 +89,9 @@ export async function getProspectors(): Promise<Prospector[]> {
         commune: p.commune || null,
         status: (p.status as "active" | "suspended") || "active",
         created_at: p.created_at,
-        assigned_count,
-        active_trials_count,
-        conversions_count,
+        assigned_count: stats.assigned,
+        active_trials_count: stats.trials,
+        conversions_count: stats.conversions,
         total_commission_da,
       };
     });

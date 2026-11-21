@@ -519,5 +519,31 @@ SET provider_id = user_id::text,
     updated_at  = NOW()
 WHERE provider = 'email' AND provider_id != user_id::text;
 
--- ─── 11. Confirmation ──────────────────────────────────────────────────────────
-SELECT 'Fix appliqué avec succès ! admin_create_prospector, admin_reset_prospector_password et comptes auth réparés.' AS resultat;
+-- ─── 11. Fonction RPC get_prospector_stats (Statistiques agrégées exactes sans limite 1000 lignes) ───
+CREATE OR REPLACE FUNCTION public.get_prospector_stats()
+RETURNS TABLE (
+  prospector_id       uuid,
+  assigned_count      bigint,
+  active_trials_count bigint,
+  conversions_count   bigint
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT 
+    p.id AS prospector_id,
+    COUNT(pr.id) AS assigned_count,
+    COUNT(pr.id) FILTER (WHERE pr.status = 'trial') AS active_trials_count,
+    COUNT(pr.id) FILTER (WHERE pr.finale = 'paid' OR pr.status = 'converted') AS conversions_count
+  FROM public.profiles p
+  LEFT JOIN public.prospects pr ON pr.assigned_to = p.id
+  WHERE p.role = 'prospector'
+  GROUP BY p.id;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_prospector_stats() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_prospector_stats() TO service_role;
+
+-- ─── 12. Confirmation ──────────────────────────────────────────────────────────
+SELECT 'Fix appliqué avec succès ! admin_create_prospector, admin_reset_prospector_password, comptes auth et get_prospector_stats opérationnels.' AS resultat;
