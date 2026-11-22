@@ -63,11 +63,19 @@ import {
  * Message d'accroche commercial WhatsApp automatique en arabe
  */
 export function getProspectionWhatsAppMessage(businessName?: string | null): string {
-  const greeting = businessName ? `السلام عليكم ${businessName}،` : "السلام عليكم،";
+  const greeting = businessName ? `السلام عليكم ${businessName}، لاباس عليكم؟ 😊` : "السلام عليكم، لاباس عليكم؟ 😊";
   return `${greeting}
-افتح حساب معنا وخلي زبائنك يستفادوا من بطاقة الوفاء ديالهم عبر الإنترنت 🎁
-جرّب الخدمة مجاناً لمدة 7 أيام:
-https://m3ak.vercel.app/`;
+
+حبيت نتواصل معاكم ونقترح عليكم خدمة ممكن تفيدكم وتزيد تقرّبكم من زبائنكم.
+
+مع منصة M3ak  تقدروا توفّروا لزبائنكم بطاقة وفاء رقمية يستعملوها عبر الإنترنت، ويجمعوا النقاط ويستفادوا من العروض والمكافآت.
+
+إذا حابين تجربوها، نقدرو نوفرولكم تجربة مجانية لمدة 7 أيام باش تكتشفوا الخدمة وتشوفوا كيفاش تقدر تعاونكم في تطوير علاقتكم مع الزبائن.
+
+هذا رابط التسجيل:
+https://m3ak.vercel.app/
+
+نتمنى تعجبكم الفكرة، ومرحبا بيكم معانا! ❤️`;
 }
 
 /**
