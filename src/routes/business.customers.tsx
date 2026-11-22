@@ -10,6 +10,8 @@ import {
   MessageCircle,
   Phone,
   Plus,
+  RotateCcw,
+  ScanLine,
   Search,
   Share2,
   Smartphone,
@@ -17,13 +19,13 @@ import {
   Ticket,
   Trash2,
   Users,
-  RotateCcw,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { NewCardDialog } from "@/components/app/new-card-dialog";
+import { ScanCardDialog } from "@/components/app/scan-card-dialog";
 import { PageHeader } from "@/components/app/page-header";
 import { VirtualCard, themes } from "@/routes/business.program";
 import { StatusBadge } from "@/components/app/status-badge";
@@ -128,6 +130,7 @@ function CustomersPage() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<CustomerWithCard | null>(null);
   const [newCardOpen, setNewCardOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [pointsInput, setPointsInput] = useState("");
   const [pointsError, setPointsError] = useState("");
   const [addingPoints, setAddingPoints] = useState(false);
@@ -494,9 +497,22 @@ function CustomersPage() {
         title="Clients"
         subtitle={`${customers.length} client${customers.length !== 1 ? "s" : ""} au total`}
         actions={
-          <Button onClick={() => setNewCardOpen(true)} className="w-full sm:w-auto">
-            <Plus className="size-4" /> Nouveau client
-          </Button>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Button
+              onClick={() => setScannerOpen(true)}
+              className="flex-1 sm:flex-initial bg-primary text-primary-foreground font-semibold shadow-sm hover:bg-primary/90"
+            >
+              <ScanLine className="size-4 mr-1.5" />
+              Scanner un QR Code
+            </Button>
+            <Button
+              onClick={() => setNewCardOpen(true)}
+              variant="outline"
+              className="flex-1 sm:flex-initial"
+            >
+              <Plus className="size-4 mr-1.5" /> Nouveau client
+            </Button>
+          </div>
         }
       />
 
@@ -730,6 +746,7 @@ function CustomersPage() {
                     stampReward={selected.card.stamp_reward || undefined}
                     vipTier={vipTier}
                     vipSpent={vipSpent}
+                    qrToken={selected.card.qr_token}
                     compact
                   />
 
@@ -1272,6 +1289,20 @@ function CustomersPage() {
         merchantName={merchantName}
         onCreated={async () => {
           if (merchantId) await reload(merchantId);
+        }}
+      />
+
+      <ScanCardDialog
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        merchantId={merchantId}
+        customers={customers}
+        onCustomerFound={(customer) => {
+          setCustomers((prev) => {
+            if (prev.some((c) => c.card.id === customer.card.id)) return prev;
+            return [customer, ...prev];
+          });
+          openSheet(customer);
         }}
       />
 

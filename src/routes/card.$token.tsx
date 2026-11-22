@@ -311,6 +311,7 @@ function PublicCardPage() {
             stampReward={card.stamp_reward}
             vipTier={card.vip_tier}
             vipSpent={card.vip_spent}
+            qrToken={card.qr_token}
             compact={false}
           />
         </div>

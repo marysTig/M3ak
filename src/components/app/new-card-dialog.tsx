@@ -922,6 +922,7 @@ export function NewCardDialog({
                   stampReward={stampReward}
                   vipTier="bronze"
                   vipSpent={0}
+                  qrToken="m3ak-preview"
                   compact={false}
                 />
               </div>
@@ -1068,6 +1069,7 @@ export function NewCardDialog({
                   stampReward={created.stampReward}
                   vipTier={created.vipTier}
                   vipSpent={created.vipSpent}
+                  qrToken={created.qrToken}
                   compact
                 />
               </div>

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Award, Check, Crown, Flame, Save, Sparkles, Star } from "lucide-react";
+import { Award, Check, Crown, Flame, QrCode as QrIcon, Save, Sparkles, Star } from "lucide-react";
+import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -72,6 +73,61 @@ function getInitials(name: string) {
   return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
+function CardQrCode({ token, compact }: { token?: string; compact?: boolean }) {
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const targetValue = token
+      ? (typeof window !== "undefined" && window.location?.origin
+          ? `${window.location.origin}/card/${token}`
+          : `https://m3ak.vercel.app/card/${token}`)
+      : "https://m3ak.vercel.app/";
+
+    QRCode.toDataURL(targetValue, {
+      errorCorrectionLevel: "M",
+      margin: 1,
+      width: compact ? 128 : 220,
+      color: {
+        dark: "#0f172a",
+        light: "#ffffff",
+      },
+    })
+      .then((url) => {
+        if (active) setDataUrl(url);
+      })
+      .catch((err) => {
+        console.error("QR Code generation error:", err);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [token, compact]);
+
+  const sizeClass = compact ? "size-14 sm:size-16" : "size-20 sm:size-24";
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center rounded-xl bg-white shadow-lg ring-1 ring-black/10 transition-transform",
+        compact ? "p-1.5" : "p-2 sm:p-2.5",
+      )}
+    >
+      {dataUrl ? (
+        <img
+          src={dataUrl}
+          alt="QR Code Carte Fidélité"
+          className={cn("rounded-md object-contain", sizeClass)}
+          style={{ imageRendering: "pixelated" }}
+        />
+      ) : (
+        <div className={cn("animate-pulse rounded-md bg-slate-100", sizeClass)} />
+      )}
+    </div>
+  );
+}
+
 export function VirtualCard({
   theme,
   businessName,
@@ -121,8 +177,8 @@ export function VirtualCard({
     <button
       onClick={onClick}
       className={cn(
-        "relative box-border grid w-full cursor-pointer grid-rows-[1fr_auto] overflow-hidden rounded-2xl text-left transition-all duration-300",
-        compact ? "min-h-[142px] h-[148px] sm:h-[165px] p-3 sm:p-4" : "min-h-[190px] sm:h-[230px] p-3.5 sm:p-6",
+        "relative box-border flex flex-col justify-between w-full cursor-pointer overflow-hidden rounded-2xl text-left transition-all duration-300",
+        compact ? "min-h-[195px] sm:min-h-[215px] p-3 sm:p-4" : "min-h-[285px] sm:min-h-[320px] p-4 sm:p-6",
         "shadow-[0_4px_20px_rgb(0_0_0/30%),0_12px_40px_rgb(0_0_0/20%)]",
         selected
           ? "ring-4 ring-white/70 ring-offset-2 ring-offset-transparent scale-[1.03]"
@@ -192,6 +248,11 @@ export function VirtualCard({
             </span>
           )}
         </div>
+      </div>
+
+      {/* Center QR Code section */}
+      <div className="relative z-10 my-auto flex flex-col items-center justify-center py-1 sm:py-2">
+        <CardQrCode token={qrToken} compact={compact} />
       </div>
 
       {/* Bottom section depending on cardType */}
@@ -313,6 +374,7 @@ function MaCartePage() {
               businessName={merchant?.name ?? "Mon commerce"}
               {...(merchant?.category ? { category: merchant.category } : {})}
               points={120}
+              qrToken="sample-card"
             />
           </div>
         </section>
@@ -327,6 +389,7 @@ function MaCartePage() {
                   businessName={merchant?.name ?? "Mon commerce"}
                   selected={selectedId === theme.id}
                   onClick={() => setSelectedId(theme.id)}
+                  qrToken="sample-card"
                   compact
                 />
                 <p className="text-center text-xs font-medium text-muted-foreground">
