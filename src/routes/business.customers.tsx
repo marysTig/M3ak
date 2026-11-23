@@ -497,22 +497,27 @@ function CustomersPage() {
         title="Clients"
         subtitle={`${customers.length} client${customers.length !== 1 ? "s" : ""} au total`}
         actions={
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <>
             <Button
               onClick={() => setScannerOpen(true)}
-              className="flex-1 sm:flex-initial bg-primary text-primary-foreground font-semibold shadow-sm hover:bg-primary/90"
+              size="sm"
+              className="h-9 px-2.5 sm:px-4 text-xs sm:text-sm font-semibold shadow-sm"
             >
-              <ScanLine className="size-4 mr-1.5" />
-              Scanner un QR Code
+              <ScanLine className="size-4 shrink-0" />
+              <span className="hidden sm:inline">Scanner un QR Code</span>
+              <span className="sm:hidden">Scanner QR</span>
             </Button>
             <Button
               onClick={() => setNewCardOpen(true)}
               variant="outline"
-              className="flex-1 sm:flex-initial"
+              size="sm"
+              className="h-9 px-2.5 sm:px-4 text-xs sm:text-sm"
             >
-              <Plus className="size-4 mr-1.5" /> Nouveau client
+              <Plus className="size-4 shrink-0" />
+              <span className="hidden sm:inline">Nouveau client</span>
+              <span className="sm:hidden">Nouveau</span>
             </Button>
-          </div>
+          </>
         }
       />
 

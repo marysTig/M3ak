@@ -15,7 +15,7 @@ export function PageHeader({
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl text-slate-900 dark:text-slate-100">{title}</h1>
         {subtitle ? <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{subtitle}</p> : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">{actions}</div> : null}
     </div>
   );
 }
