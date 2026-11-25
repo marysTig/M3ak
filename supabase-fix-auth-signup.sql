@@ -230,7 +230,7 @@ BEGIN
       updated_at
     )
     VALUES (
-      v_user_id::text,
+      v_user_id,
       v_user_id,
       v_user_id::text,
       'email',
@@ -341,7 +341,7 @@ BEGIN
       updated_at
     )
     VALUES (
-      v_user_id::text,
+      v_user_id,
       v_user_id,
       v_user_id::text,
       'email',
@@ -456,7 +456,7 @@ BEGIN
     updated_at
   )
   VALUES (
-    v_user_id::text,
+    v_user_id,
     v_user_id,
     v_user_id::text,
     'email',
